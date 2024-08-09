@@ -1,0 +1,741 @@
+---
+title: "Executive functions data preparation"
+author: "Rebecca Delfendahl and Charlotte Meinke"
+date: "2023-10-05"
+output: html_document
+---
+
+```{r R Setup, include = FALSE}
+
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,rows.print = 6, cols.min.print = 3)
+
+library(haven)
+library(rmatio)
+library(DescTools)
+library(data.table)
+library(tidyverse)
+library(caret)
+library(ggplot2)
+```
+
+# 0 Initial configurations
+
+## Define functions
+
+```{r Define functions}
+
+########################################
+## Function 1: get relevant data from mat-file for a single subject
+########################################
+df_from_matlab <- function(task_name, subject){
+  file_name = paste("SFB_C5_",subject,"_",task_name,".mat", sep = "")
+  data_path = file.path(basic_path,file_name)
+  data <- read.mat(data_path)
+  # So far, we only need TrialList_Log_ -> it is the combination of TL_ und LogMat
+  subtask = paste("TrialList_Log_",task_name,sep = "")
+  task_df <- as.data.frame(rbindlist(data[[subtask]]))
+  header <- paste(subtask, "Header", sep = "_")
+  colnames(task_df) <- c(rbindlist(data[[header]])[1,])
+  return(task_df)
+}
+
+########################################
+## Function 2: merge all task-data of all subjects in one dataframe
+########################################
+combine_df_across_subj <- function(task){
+  for (subject in subjects){
+    try({
+    df <- df_from_matlab(task,subject)
+    df$subject <- subject
+    df_all_subj <- rbind(df_all_subj,df)
+})
+  }
+  return(df_all_subj)
+}
+
+########################################
+## Function 3: preprocessing and calculation of mean RT and PC
+########################################
+preprocess_RT_PC <- function(task, subjects){
+  
+  # Initialize empty holder dataframe
+  AllData <- data.frame()
+  
+  # Loop across all participants
+  for (subject in subjects) {
+    # Import data
+    data <- df_from_matlab(task_name = task, subject = subject)
+    
+    # Bring data NumberLetter and data Stroop to same format
+    if (task == "NumberLetter"){
+      colnames(data) <- sub(" ", "_", colnames(data))
+      data <- data %>%
+        rename("Condition"="Task_transition")
+    } else if (task == "Stroop"){
+        data <- data %>%
+          rename("Accuracy"="Fehler")
+    }
+    
+    # Basic preprocessing
+    data_red <- data %>%
+      # Select relevant columns
+      select(Condition, Response, Accuracy, RT) %>%
+      # Discard first trial (only applies to NumbLet)
+      filter(Condition != "NoPreviousTrial")
+    
+    # Convert RTs and Accuracy to numeric
+    data_red$RT <- as.numeric(data_red$RT)
+    data_red$Accuracy <- as.numeric(data_red$Accuracy)
+    
+    # STEP 1.1.: Processing data for RT analysis
+    
+    relevantData_RT <- data_red %>%
+      ## Step 1: Remove wrong responses
+      filter(Accuracy == 1) %>%
+      ## Step 2: Change RT to ms
+      mutate(RT = RT * 1000)
+    
+    relevantData_RT_clean <- relevantData_RT %>%
+      ## Step 3: Remove outlier 
+      filter(RT > 150)
+    
+    # STEP 1.2.: Compute mean RT overall and per condition 
+    
+    overall_RT_mean <- mean(relevantData_RT_clean$RT)
+    
+    RT_means <- relevantData_RT_clean %>%
+      group_by(Condition) %>%
+      summarize_at(vars(RT), mean)
+    
+    ## Transform data from LONG to WIDE format
+    wideData_RT <- RT_means %>%
+      pivot_wider(names_from = Condition, values_from = RT)
+    
+      
+    # STEP 2: Compute proportion correct overall and per condition 
+    
+    overall_PC <- mean(data_red$Accuracy)
+    
+    PC <- data_red %>%
+      group_by(Condition) %>%
+      summarize_at(vars(Accuracy), mean)
+    
+    ## TODO: Convert to percentages?
+    
+    ## Transform data from LONG to WIDE format
+    wideData_PC <- PC %>%
+      pivot_wider(names_from = Condition, values_from = Accuracy)
+    
+    # STEP 3: Merging the two wide dataframe
+    
+    ## Update column names to include the variable identity
+    colnames(wideData_RT) <- paste(colnames(wideData_RT),"RT", sep="_")
+    colnames(wideData_PC) <- paste(colnames(wideData_PC),"PC", sep="_")
+    
+    ## Merge dataframes
+    wideData_merged <- cbind(wideData_RT, wideData_PC)
+    
+    # STEP 4: Adding extra relevant info
+    
+    ## Compute % of removed trials
+    percentRmv_RT <- 100 * (1 - (nrow(relevantData_RT_clean) / nrow(relevantData_RT)))
+    wideData_merged$PercentRmv_RT <- percentRmv_RT
+    
+    ## Add subject ID, overall mean RT and overall PC
+    wideData_merged$Subject <- subject
+    wideData_merged$Overall_RT <- overall_RT_mean
+    wideData_merged$Overall_PC <- overall_PC
+    
+    ## Store the current processed data into holder as a new row
+    AllData <- rbind(AllData, wideData_merged)
+  }
+  return(AllData)
+}
+
+# Function 4: calculate mean and SD of RT and PC of healthy subjects
+# mean_sd_HC <- function(data_HC){
+#   # Calculate mean and sd of RT and PC across all healthy subjects and conditions
+#   meanRT_HC <- mean(data_HC$Overall_RT)
+#   sdRT_HC <- sd(data_HC$Overall_RT)
+#   meanPC_HC <- mean(data_HC$Overall_PC)
+#   sdPC_HC <- sd(data_HC$Overall_PC)
+#   return(meanRT_HC, sdRT_HC, meanPC_HC, sdPC_HC) # TODO: have to be stored in a list
+# }
+
+```
+
+## Load data
+
+```{r Load data}
+basic_path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Rohdaten/Task_battery/Task_battery"
+
+# Load data
+data_all <- read_dta('Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Rohdaten/CRC_C5_Hilbert/CRC_C5_Hilbert/Data_Kevin_28.07.23.dta')
+data_tasks_old <- read_dta('Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Rohdaten/CRC_C5_Hilbert/CRC_C5_Hilbert/TaskBattery.dta')
+
+```
+
+## Reduce data_all 
+Keep only ID, group identity, FAS_T1 and FAS_T3 (response criterion)
+
+```{r Reduce df data_all}
+  
+data_all_red <- data_all %>%
+  rename(Subject = id) %>%
+  select(Subject, Gruppe, T1_BAT_FAS_score, T3_BAT_FAS_score)
+
+# Rename stid for later merge
+data_tasks_old <- data_tasks_old %>%
+  rename(Subject = stid)
+```
+
+# 1. Import Data
+
+For each subject, we have 5 matlab dataframes:
+- TwoBack
+- StopSignal
+- Stroop
+- Stroop_mouse
+- NumberLetter
+- ExpOrder
+
+## Get list of all subjects
+
+```{r List of all subjects}
+
+files <- list.files(basic_path)
+
+sub_first <- gsub("SFB_C5_","",files)
+sub_IDs <- sapply(strsplit(sub_first, "_"), function(x) x[1])
+subjects <- unique(sub_IDs)
+# Delete alt and "" from subjects
+subjects <- subjects[subjects != "alt"]
+subjects <- subjects[subjects != ""]
+```
+
+## Optional (for visualization): Import data from single subject
+```{r import_data}
+data_twoback <- df_from_matlab("TwoBack")
+data_stop <- df_from_matlab("StopSignal")
+data_stroop <- df_from_matlab("Stroop")
+data_nl <- df_from_matlab("NumberLetter")
+# TODO: Stroop mouse data has another data structure, so we need an extra function/ modification (Exclude history lists (more than 160 variables))
+#df_stroop_mouse <- rbindlist(data_stroop_mouse[["triallog"]])[1,]
+```
+
+## Optional: Combine all subjects and all tasks in one dataframe
+```{r combine_data}
+
+task = "TwoBack"
+tasks = c("TwoBack","StopSignal","Stroop","NumberLetter")
+df_all_subj = data.frame()
+
+#subjects = subjects[3:4]
+all_TwoBack <- combine_df_across_subj(task = "TwoBack")
+all_Stroop <- combine_df_across_subj(task = "Stroop")
+all_StopSignal <-  combine_df_across_subj(task = "StopSignal")
+all_NumberLetter <- combine_df_across_subj(task = "NumberLetter")
+
+```
+
+# 2. Preprocess data of each subject for Number-Letter, Stroop and Two-Back task
+```{r Looping across all participants, warning=FALSE}
+
+AllData_NumbLet <- preprocess_RT_PC(task = "NumberLetter", subjects = subjects)
+AllData_Stroop <- preprocess_RT_PC(task = "Stroop", subjects = subjects)
+AllData_TwoBack <- preprocess_RT_PC(task = "TwoBack", subjects = subjects)
+```
+
+## Optional: save the processed data
+```{r Save preprocessed data as .csv}
+
+write.csv(AllData_NumbLet, "Z:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Dateien_Github/Tasks_Merged Data/AllData_NumbLet.csv")
+write.csv(AllData_Stroop, "Z:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Dateien_Github/Tasks_Merged Data/AllData_Stroop.csv")
+write.csv(AllData_TwoBack, "Z:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Dateien_Github/Tasks_Merged Data/AllData_TwoBack.csv")
+```
+
+# 3. Merge task data with data_all
+```{r Merge task data with data_all_red}
+task_dfs <- list(AllData_NumbLet, AllData_Stroop, AllData_TwoBack)
+result_dfs <- list()
+
+for (task in task_dfs){
+  # Step 1: convert Subject to numeric for use in left_join
+  task$Subject <- as.numeric(task$Subject)
+  # Step 2: merge task dataframes and data_all_red
+  result_dfs[[length(result_dfs) + 1]] <- left_join(
+    x = task,
+    y = data_all_red,
+    by = "Subject")
+}
+
+AllData_NumbLet_merged <- result_dfs[[1]]
+AllData_Stroop_merged <- result_dfs[[2]]
+AllData_TwoBack_merged <- result_dfs[[3]]
+
+```
+
+# 4. Recode patient IDs from post-measurement
+
+```{r Post IDs}
+# NumberLetter
+AllData_NumbLet_merged <- AllData_NumbLet_merged %>%
+  mutate(Gruppe = ifelse(Subject >= 216601 & Subject <= 216760, 2, Gruppe))
+# Stroop
+AllData_Stroop_merged <- AllData_Stroop_merged %>%
+  mutate(Gruppe = ifelse(Subject >= 216601 & Subject <= 216760, 2, Gruppe))
+# TwoBack
+AllData_TwoBack_merged <- AllData_TwoBack_merged %>%
+  mutate(Gruppe = ifelse(Subject >= 216601 & Subject <= 216760, 2, Gruppe))
+```
+
+# 5. Exclusion of subjects for each task individually, separate HC from patients
+Exclude subjects with missing group information and patients with missing FAS_T1 and/or FAS_T3. No subjects have NAs in all 4 task variables, therefore this exclusion step is not included anymore.
+
+## Number-Letter Task
+```{r Subject exclusion NumberLetter}
+
+# Remove subjects with missing group information 
+AllData_NumbLet_clean.1 <- AllData_NumbLet_merged %>%
+  filter(!is.na(Gruppe))
+excl_subs_NL_group <- anti_join(AllData_NumbLet_merged, AllData_NumbLet_clean.1, by = "Subject")
+
+# Remove patients with missing FAS_T1 and/or FAS_T3
+AllData_NumbLet_clean.2 <- AllData_NumbLet_clean.1 %>%
+  filter(Gruppe == 0 | Gruppe == 2 | (Gruppe == 1 & !is.na(T1_BAT_FAS_score) & !is.na(T3_BAT_FAS_score)))
+excl_subs_NL_rc <- anti_join(AllData_NumbLet_clean.1, AllData_NumbLet_clean.2, by = "Subject")
+
+# Remove subjects that have NAs in all 4 task variables
+# AllData_NumbLet_clean.3 <- AllData_NumbLet_clean.2 %>%
+#   filter(!all(is.na(Repeat_RT), is.na(Switch_RT), is.na(Repeat_PC), is.na(Switch_PC)))
+# excl_subs_NL_task <- anti_join(AllData_NumbLet_clean.2, AllData_NumbLet_clean.3, by = "Subject")
+```
+`r nrow(excl_subs_NL_group)` subjects were removed due to missing group information 
+`r nrow(excl_subs_NL_rc)` patients were removed due to missing FAS_T1 and/or FAS_T3 (i.e. response criterion)
+
+## Stroop Task
+```{r Subject exclusion Stroop}
+
+# Remove subjects with missing group information 
+AllData_Stroop_clean.1 <- AllData_Stroop_merged %>%
+  filter(!is.na(Gruppe))
+excl_subs_Str_group <- anti_join(AllData_Stroop_merged, AllData_Stroop_clean.1, by = "Subject")
+
+# Remove patients with missing FAS_T1 and/or FAS_T3
+AllData_Stroop_clean.2 <- AllData_Stroop_clean.1 %>%
+  filter(Gruppe == 0 | Gruppe == 2 | (Gruppe == 1 & !is.na(T1_BAT_FAS_score) & !is.na(T3_BAT_FAS_score)))
+excl_subs_Str_rc <- anti_join(AllData_Stroop_clean.1, AllData_Stroop_clean.2, by = "Subject")
+
+# Remove subjects that have NAs in all 4 task variables
+# AllData_Stroop_clean.3 <- AllData_Stroop_clean.2 %>%
+#   filter(!all(is.na(Congruent_RT), is.na(Incongruent_RT), is.na(Congruent_PC), is.na(Incongruent_PC)))
+# excl_subs_Str_task <- anti_join(AllData_Stroop_clean.2, AllData_Stroop_clean.3, by = "Subject")
+```
+`r nrow(excl_subs_Str_group)` subjects were removed due to missing group information 
+`r nrow(excl_subs_Str_rc)` patients were removed due to missing FAS_T1 and/or FAS_T3 (i.e. response criterion)
+
+## TwoBack Task
+```{r Subject exclusion TwoBack}
+
+# Remove subjects with missing group information 
+AllData_TwoBack_clean.1 <- AllData_TwoBack_merged %>%
+  filter(!is.na(Gruppe))
+excl_subs_2B_group <- anti_join(AllData_TwoBack_merged, AllData_TwoBack_clean.1, by = "Subject")
+
+# Remove patients with missing FAS_T1 and/or FAS_T3
+AllData_TwoBack_clean.2 <- AllData_TwoBack_clean.1 %>%
+  filter(Gruppe == 0 | Gruppe == 2 | (Gruppe == 1 & !is.na(T1_BAT_FAS_score) & !is.na(T3_BAT_FAS_score)))
+excl_subs_2B_rc <- anti_join(AllData_TwoBack_clean.1, AllData_TwoBack_clean.2, by = "Subject")
+
+# Remove subjects that have NAs in all 4 task variables
+# AllData_TwoBack_clean.3 <- AllData_TwoBack_clean.2 %>%
+#   filter(!all(is.na(Foil_RT), is.na(Target_RT), is.na(Foil_PC), is.na(Target_PC)))
+# excl_subs_2B_task <- anti_join(AllData_TwoBack_clean.2, AllData_TwoBack_clean.3, by = "Subject")
+```
+`r nrow(excl_subs_2B_group)` subjects were removed due to missing group information 
+`r nrow(excl_subs_2B_rc)` patients were removed due to missing FAS_T1 and/or FAS_T3 (i.e. response criterion)
+
+## Summary subject exclusion
+IDs of task-data with no group identity (93 in total):
+- 1, 2: correspond to 216001 und 216002?
+- 2160031: one 0 too much? (216031 exists)
+- 216504: ???
+- 2166108, 2166120, 2166121, 2166321: MZP2 and one 6 too much?
+--> all other 85 IDs were generated at MZP2
+
+For each task, 19 patients had to be removed due to missing data for FAS_T1 and/or FAS_T3
+
+
+# TO BE MODIFIED... (write one or two functions to use for all three tasks)
+
+# 6. Calculate BIS (and Difference Score) for each condition and subject separately
+BIS = Z(PC) - Z(RT)
+
+Difference Switch and Repeat = BIS(Switch) - BIS(Repeat)
+Difference Incongruent and Congruent = BIS(Congruent) - BIS(Incongruent)
+
+## Number-Letter Task
+
+```{r Scores Number-Letter Task}
+
+## Step 1: Calculate mean and SD for RT and PC across all healthy subjects and all conditions
+mean_sd_HC_NumbLet <- AllData_NumbLet_clean.2 %>% 
+  filter(Gruppe == 0) %>%
+  select(Overall_RT, Overall_PC) %>%
+  summarise(meanRT = mean(Overall_RT),
+            meanPC = mean(Overall_PC),
+            sdRT = sd(Overall_RT),
+            sdPC = sd(Overall_PC))
+
+## Step 2: Standardize RT and PC for each condition
+AllData_NumbLet_clean.2 <- AllData_NumbLet_clean.2 %>%
+  mutate(Z_Repeat_RT = (Repeat_RT - mean_sd_HC_NumbLet$meanRT) / mean_sd_HC_NumbLet$sdRT,
+         Z_Switch_RT = (Switch_RT - mean_sd_HC_NumbLet$meanRT) / mean_sd_HC_NumbLet$sdRT,
+         Z_Repeat_PC = (Repeat_PC - mean_sd_HC_NumbLet$meanPC) / mean_sd_HC_NumbLet$sdPC,
+         Z_Switch_PC = (Switch_PC - mean_sd_HC_NumbLet$meanPC) / mean_sd_HC_NumbLet$sdPC)
+
+# Step 3: Calculate BIS(Repeat), BIS(Switch) and Difference Score
+AllData_NumbLet_clean.2 <- AllData_NumbLet_clean.2 %>%
+  mutate(BIS_Repeat = Z_Repeat_PC - Z_Repeat_RT,
+         BIS_Switch = Z_Switch_PC - Z_Switch_RT) %>%
+  mutate(Diff_Score_NumbLet = BIS_Switch - BIS_Repeat)
+
+```
+
+## Stroop Task
+
+```{r Scores Stroop Task}
+
+## Step 1: Calculate mean and SD for RT and PC across all healthy subjects and all conditions
+mean_sd_HC_Stroop <- AllData_Stroop_clean.2 %>% 
+  filter(Gruppe == 0) %>%
+  select(Overall_RT, Overall_PC) %>%
+  summarise(meanRT = mean(Overall_RT),
+            meanPC = mean(Overall_PC),
+            sdRT = sd(Overall_RT),
+            sdPC = sd(Overall_PC))
+
+## Step 2: Standardize RT and PC for each condition
+AllData_Stroop_clean.2 <- AllData_Stroop_clean.2 %>%
+  mutate(Z_Congruent_RT = (Congruent_RT - mean_sd_HC_Stroop$meanRT) / mean_sd_HC_Stroop$sdRT,
+         Z_Incongruent_RT = (Incongruent_RT - mean_sd_HC_Stroop$meanRT) / mean_sd_HC_Stroop$sdRT,
+         Z_Congruent_PC = (Congruent_PC - mean_sd_HC_Stroop$meanPC) / mean_sd_HC_Stroop$sdPC,
+         Z_Incongruent_PC = (Incongruent_PC - mean_sd_HC_Stroop$meanPC) / mean_sd_HC_Stroop$sdPC)
+
+# Step 3: Calculate BIS(Congruent), BIS(Incongruent) and Difference Score
+AllData_Stroop_clean.2 <- AllData_Stroop_clean.2 %>%
+  mutate(BIS_Congruent = Z_Congruent_PC - Z_Congruent_RT,
+         BIS_Incongruent = Z_Incongruent_PC - Z_Incongruent_RT) %>%
+  mutate(Diff_Score_Stroop = BIS_Incongruent - BIS_Congruent)
+```
+
+## TwoBack Task
+```{r BIS TwoBack Task}
+
+## Step 1: Calculate mean and SD for RT and PC across all healthy subjects and all conditions
+mean_sd_HC_TwoBack <- AllData_TwoBack_clean.2 %>% 
+  filter(Gruppe == 0) %>%
+  select(Overall_RT, Overall_PC) %>%
+  summarise(meanRT = mean(Overall_RT),
+            meanPC = mean(Overall_PC),
+            sdRT = sd(Overall_RT),
+            sdPC = sd(Overall_PC))
+
+## Step 2: Standardize RT and PC for each condition
+AllData_TwoBack_clean.2 <- AllData_TwoBack_clean.2 %>%
+  mutate(Z_Total_RT = (Overall_RT - mean_sd_HC_TwoBack$meanRT) / mean_sd_HC_TwoBack$sdRT,
+         Z_Target_RT = (Target_RT - mean_sd_HC_TwoBack$meanRT) / mean_sd_HC_TwoBack$sdRT,
+         Z_Foil_RT = (Foil_RT - mean_sd_HC_TwoBack$meanRT) / mean_sd_HC_TwoBack$sdRT,
+         Z_Total_PC = (Overall_PC - mean_sd_HC_TwoBack$meanPC) / mean_sd_HC_TwoBack$sdPC,
+         Z_Target_PC = (Target_PC - mean_sd_HC_TwoBack$meanPC) / mean_sd_HC_TwoBack$sdPC,
+         Z_Foil_PC = (Foil_PC - mean_sd_HC_TwoBack$meanPC) / mean_sd_HC_TwoBack$sdPC)
+
+# Calculate BIS(Target), BIS(Total) and BIS_Foil
+AllData_TwoBack_clean.2 <- AllData_TwoBack_clean.2 %>%
+  mutate(BIS_Total = Z_Total_PC - Z_Total_RT,
+         BIS_Target = Z_Target_PC - Z_Target_RT,
+         BIS_Foil = Z_Foil_PC - Z_Foil_RT)
+```
+
+# 7. Create separate dataframe for each group (HC, patient_pre, patient_post)
+
+```{r Dataframe for each group}
+# NumberLetter
+split_df_NumbLet <- split(AllData_NumbLet_clean.2, AllData_NumbLet_clean.2$Gruppe)
+data_NumbLet_HC <- split_df_NumbLet$"0"
+data_NumbLet_Pat_pre <- split_df_NumbLet$"1"
+data_NumbLet_Pat_post <- split_df_NumbLet$"2"
+
+# Stroop
+split_df_Stroop <- split(AllData_Stroop_clean.2, AllData_Stroop_clean.2$Gruppe)
+data_Stroop_HC <- split_df_Stroop$"0"
+data_Stroop_Pat_pre <- split_df_Stroop$"1"
+data_Stroop_Pat_post <- split_df_Stroop$"2"
+
+# TwoBack
+split_df_TwoBack <- split(AllData_TwoBack_clean.2, AllData_TwoBack_clean.2$Gruppe)
+data_TwoBack_HC <- split_df_TwoBack$"0"
+data_TwoBack_Pat_pre <- split_df_TwoBack$"1"
+data_TwoBack_Pat_post <- split_df_TwoBack$"2"
+```
+
+# 8. Save dataframes for t-tests
+```{r Save dataframes}
+
+# define function for ... purposes
+write_data_to_csv <- function(data, filename) {
+  base_path <- "Z:/PsyThera/Projekte_Meinke/Labrotation_Rebecca/Daten_Gruppenvergleich/"
+  write.csv(data, paste0(base_path, filename), row.names = FALSE)
+}
+
+# Write data to CSV using the function
+write_data_to_csv(data_NumbLet_HC, "NumberLetter_HC.csv")
+write_data_to_csv(data_NumbLet_Pat_pre, "NumberLetter_Patients_Pre.csv")
+write_data_to_csv(data_NumbLet_Pat_post, "NumberLetter_Patients_Post.csv")
+
+write_data_to_csv(data_Stroop_HC, "Stroop_HC.csv")
+write_data_to_csv(data_Stroop_Pat_pre, "Stroop_Patients_Pre.csv")
+write_data_to_csv(data_Stroop_Pat_post, "Stroop_Patients_Post.csv")
+
+write_data_to_csv(data_TwoBack_HC, "TwoBack_HC.csv")
+write_data_to_csv(data_TwoBack_Pat_pre, "TwoBack_Patients_Pre.csv")
+write_data_to_csv(data_TwoBack_Pat_post, "TwoBack_Patients_Post.csv")
+```
+
+
+# 12. Distribution plots for Number-Letter Task
+
+## Distribution of RT for each condition and group
+```{r Number-Letter: Distribution of RT}
+
+# Merge data from HC and patients, bring to long-format (to display in facet)
+NumbLet_combined <- rbind(data_NumbLet_HC, data_NumbLet_Pat_pre[,1:12])
+NumbLet_subset_RT <- NumbLet_combined[c("Repeat_RT", "Switch_RT", "Gruppe")]
+NumbLet_subset_RT_long <- gather(NumbLet_subset_RT, key = "Condition", value = "RT", Repeat_RT, Switch_RT)
+
+# Distribution plot of RT for both conditions and groups
+plot_NumbLet_RT <- ggplot(NumbLet_subset_RT_long, aes(x=RT, fill=as.factor(Gruppe))) + 
+  geom_histogram(binwidth=55, colour="black", fill="white") + 
+  facet_grid(Gruppe ~ Condition) +
+  labs(title = "RT Distribution Number-Letter Task by Group and Condition",
+       x = "Reaction Time",
+       y = "Frequency")
+```
+
+## HC: Distribution of mean RT across all conditions
+```{r Number-Letter: Distribution of RT for only HCs}
+mean_RT_HC = mean(data_NumbLet_HC$Overall_RT)
+
+plot_NumbLet_RT_HC <- ggplot(data_NumbLet_HC, aes(x=Overall_RT)) +
+  geom_histogram(binwidth=55, colour="black", fill="white") +
+  geom_vline(xintercept = mean_RT_HC, 
+             col = "red") +
+  scale_x_continuous(breaks = seq(400, 2000, 400), lim = c(400, 2000)) +
+  labs(title="Distribution of mean RT across conditions for HCs", 
+       x="Reaction Time", 
+       y="Frequency")
+```
+
+## Distribution of PC for each condition and group
+```{r Number-Letter: Distribution of PC}
+
+# Subset and bring to long-format
+NumbLet_subset_PC <- NumbLet_combined[c("Repeat_PC", "Switch_PC", "Gruppe")]
+NumbLet_subset_PC_long <- gather(NumbLet_subset_PC, key = "Condition", value = "PC", Repeat_PC, Switch_PC)
+
+# Distribution plot of PC for both conditions and groups
+plot_NumbLet_PC <- ggplot(NumbLet_subset_PC_long, aes(x=PC, fill=as.factor(Gruppe))) + 
+  geom_histogram(binwidth=0.03, colour="black", fill="white") + 
+  facet_grid(Gruppe ~ Condition) +
+  labs(title = "PC Distribution Number-Letter Task by Group and Condition",
+       x = "Proportion Correct",
+       y = "Frequency")
+```
+
+## HC: Distribution of mean PC across all conditions
+```{r Number-Letter: Distribution of PC for only HCs}
+mean_PC_HC = mean(data_NumbLet_HC$Overall_PC)
+
+plot_NumbLet_PC_HC <- ggplot(data_NumbLet_HC, aes(x=Overall_PC)) +
+  geom_histogram(binwidth=0.03, colour="black", fill="white") +
+  geom_vline(xintercept = mean_PC_HC, 
+             col = "red") +
+  scale_x_continuous(breaks = seq(0.4, 1.0, 0.2), lim = c(0.4, 1.1)) +
+  labs(title="Distribution of mean PC across conditions for HCs", 
+       x="Proportion Correct", 
+       y="Frequency")
+```
+
+## Distribution of BIS for each condition 
+```{r Number-Letter: Distribution of BIS & Diff_Score}
+
+# Bring to long-format (to display in facet)
+NumbLet_subset_BIS <- data_NumbLet_Pat_pre[c("BIS_Repeat", "BIS_Switch", "Diff_Score")]
+NumbLet_subset_BIS_long <- gather(NumbLet_subset_BIS, key = "Score", value = "BIS", BIS_Repeat, BIS_Switch, Diff_Score)
+
+# Distribution plot of BIS for both conditions and of Difference Score
+plot_NumbLet_BIS <- ggplot(NumbLet_subset_BIS_long, aes(x=BIS)) + 
+  geom_histogram(binwidth=0.5, colour="black", fill="white") + 
+  facet_grid(Score ~ .) +
+  labs(title = "Score Distribution Number-Letter Task by Condition",
+       x = "Score",
+       y = "Frequency")
+```
+
+# 13. Distribution plots for Stroop Task
+
+## Distribution of RT for each condition and group
+```{r Stroop: distribution of RT}
+
+# Merge data from HC and patients, bring to long-format (to display in facet)
+Stroop_combined <- rbind(data_Stroop_HC, data_Stroop_Pat_pre[,1:12])
+Stroop_subset_RT <- Stroop_combined[c("Congruent_RT", "Incongruent_RT", "Gruppe")]
+Stroop_subset_RT_long <- gather(Stroop_subset_RT, key = "Condition", value = "RT", Congruent_RT, Incongruent_RT)
+
+# Distribution plot of RT for both conditions and groups
+plot_Stroop_RT <- ggplot(Stroop_subset_RT_long, aes(x=RT, fill=as.factor(Gruppe))) + 
+  geom_histogram(binwidth=25, colour="black", fill="white") + 
+  facet_grid(Gruppe ~ Condition) +
+  labs(title = "RT Distribution Stroop Task by Group and Condition",
+       x = "Reaction Time",
+       y = "Frequency")
+```
+
+## HC: Distribution of mean RT across all conditions
+```{r Stroop: Distribution of RT for only HCs}
+mean_RT_HC = mean(data_Stroop_HC$Overall_RT)
+
+plot_Stroop_RT_HC <- ggplot(data_Stroop_HC, aes(x=Overall_RT)) +
+  geom_histogram(binwidth=25, colour="black", fill="white") +
+  geom_vline(xintercept = mean_RT_HC, 
+             col = "red") +
+  scale_x_continuous(breaks = seq(400, 1000, 200), lim = c(400, 1000)) +
+  labs(title="Distribution of mean RT across conditions for HCs", 
+       x="Reaction Time", 
+       y="Frequency")
+```
+
+## Distribution of PC for each condition and group
+```{r Stroop: distribution of PC}
+
+# Subset and bring to long-format
+Stroop_subset_PC <- Stroop_combined[c("Congruent_PC", "Incongruent_PC", "Gruppe")]
+Stroop_subset_PC_long <- gather(Stroop_subset_PC, key = "Condition", value = "PC", Congruent_PC, Incongruent_PC)
+
+# Distribution plot of PC for both conditions and groups
+plot_Stroop_PC <- ggplot(Stroop_subset_PC_long, aes(x=PC, fill=as.factor(Gruppe))) + 
+  geom_histogram(binwidth=0.04, colour="black", fill="white") + 
+  facet_grid(Gruppe ~ Condition) +
+  labs(title = "PC Distribution Stroop Task by Group and Condition",
+       x = "Proportion Correct",
+       y = "Frequency")
+```
+
+## HC: Distribution of mean PC across all conditions
+```{r Stroop: Distribution of PC for only HCs}
+mean_PC_HC = mean(data_Stroop_HC$Overall_PC)
+
+plot_Stroop_PC_HC <- ggplot(data_Stroop_HC, aes(x=Overall_PC)) +
+  geom_histogram(binwidth=0.04, colour="black", fill="white") +
+  geom_vline(xintercept = mean_PC_HC, 
+             col = "red") +
+  scale_x_continuous(breaks = seq(0.2, 1.0, 0.2), lim = c(0.2, 1.1)) +
+  labs(title="Distribution of mean PC across conditions for HCs", 
+       x="Proportion Correct", 
+       y="Frequency")
+```
+
+## Distribution of BIS for each condition 
+```{r Stroop: Distribution of BIS & Diff_Score}
+
+# Bring to long-format (to display in facet)
+Stroop_subset_BIS <- data_Stroop_Pat_pre[c("BIS_Congruent", "BIS_Incongruent", "Diff_Score")]
+Stroop_subset_BIS_long <- gather(Stroop_subset_BIS, key = "Score", value = "BIS", BIS_Congruent, BIS_Incongruent, Diff_Score)
+
+# Distribution plot of BIS for both conditions and of Difference Score
+plot_Stroop_BIS <- ggplot(Stroop_subset_BIS_long, aes(x=BIS)) + 
+  geom_histogram(binwidth=0.5, colour="black", fill="white") + 
+  facet_grid(Score ~ .) +
+  labs(title = "Score Distribution Stroop Task by Condition",
+       x = "Score",
+       y = "Frequency")
+```
+
+# 14. Distribution plots for TwoBack Task
+
+## Distribution of RT for each condition and group
+```{r TwoBack: distribution of RT}
+
+# Merge data from HC and patients, bring to long-format (to display in facet)
+TwoBack_combined <- rbind(data_TwoBack_HC, data_TwoBack_Pat_pre[,1:12])
+TwoBack_subset_RT <- TwoBack_combined[c("Overall_RT", "Target_RT", "Foil_RT", "Gruppe")]
+TwoBack_subset_RT_long <- gather(TwoBack_subset_RT, key = "Condition", value = "RT", Overall_RT, Target_RT, Foil_RT)
+
+# Distribution plot of RT for both conditions and groups
+plot_TwoBack_RT <- ggplot(TwoBack_subset_RT_long, aes(x=RT, fill=as.factor(Gruppe))) + 
+  geom_histogram(binwidth=40, colour="black", fill="white") + 
+  facet_grid(Gruppe ~ Condition) +
+  labs(title = "RT Distribution TwoBack Task by Group and Condition",
+       x = "Reaction Time",
+       y = "Frequency")
+```
+
+## HC: Distribution of mean RT across all conditions
+```{r TwoBack: Distribution of RT for only HCs}
+mean_RT_HC = mean(data_TwoBack_HC$Overall_RT)
+
+plot_TwoBack_RT_HC <- ggplot(data_TwoBack_HC, aes(x=Overall_RT)) +
+  geom_histogram(binwidth=40, colour="black", fill="white") +
+  geom_vline(xintercept = mean_RT_HC, 
+             col = "red") +
+  scale_x_continuous(breaks = seq(250, 1000, 250), lim = c(250, 1125)) +
+  labs(title="Distribution of mean RT across conditions for HCs", 
+       x="Reaction Time", 
+       y="Frequency")
+```
+
+## Distribution of PC for each condition and group
+```{r TwoBack: distribution of PC}
+
+# Subset and bring to long-format
+TwoBack_subset_PC <- TwoBack_combined[c("Overall_PC", "Target_PC", "Foil_PC", "Gruppe")]
+TwoBack_subset_PC_long <- gather(TwoBack_subset_PC, key = "Condition", value = "PC", Overall_PC, Target_PC, Foil_PC)
+
+# Distribution plot of PC for both conditions and groups
+plot_TwoBack_PC <- ggplot(TwoBack_subset_PC_long, aes(x=PC, fill=as.factor(Gruppe))) + 
+  geom_histogram(binwidth=0.06, colour="black", fill="white") + 
+  facet_grid(Gruppe ~ Condition) +
+  labs(title = "PC Distribution TwoBack Task by Group and Condition",
+       x = "Proportion Correct",
+       y = "Frequency")
+```
+
+## HC: Distribution of mean PC across all conditions
+```{r TwoBack: Distribution of PC for only HCs}
+mean_PC_HC = mean(data_TwoBack_HC$Overall_PC)
+
+plot_TwoBack_PC_HC <- ggplot(data_TwoBack_HC, aes(x=Overall_PC)) +
+  geom_histogram(binwidth=0.06, colour="black", fill="white") +
+  geom_vline(xintercept = mean_PC_HC, 
+             col = "red") +
+  scale_x_continuous(breaks = seq(0.0, 1.0, 0.25), lim = c(0.0, 1.1)) +
+  labs(title="Distribution of mean PC across conditions for HCs", 
+       x="Proportion Correct", 
+       y="Frequency")
+```
+
+## Distribution of BIS for each condition 
+```{r TwoBack: Distribution of BIS & Diff_Score}
+
+# Bring to long-format (to display in facet)
+TwoBack_subset_BIS <- data_TwoBack_Pat_pre[c("BIS_Total", "BIS_Target", "BIS_Foil")]
+TwoBack_subset_BIS_long <- gather(TwoBack_subset_BIS, key = "Score", value = "BIS", BIS_Total, BIS_Target, BIS_Foil)
+
+# Distribution plot of BIS for both conditions and of Difference Score
+plot_TwoBack_BIS <- ggplot(TwoBack_subset_BIS_long, aes(x=BIS)) + 
+  geom_histogram(binwidth=0.3, colour="black", fill="white") + 
+  facet_grid(Score ~ .) +
+  labs(title = "Score Distribution 2-Back Task by Condition",
+       x = "Score",
+       y = "Frequency")
+```
