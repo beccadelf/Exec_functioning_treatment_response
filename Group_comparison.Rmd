@@ -19,6 +19,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(ggplot2)
 library(dplyr)
+library(tidyr)
 library(pander)
 ```
 
@@ -79,7 +80,7 @@ BIS_columns_renamed <- grep("BIS", colnames(Patients_vs_HC_imp), value = TRUE)
 ## 6. Add confounds (Alter, Geschlecht, Abschluss)
 Patients_vs_HC_imp_conf <- merge(data_all[,c("Subject","Alter","Geschlecht","Abschluss")], Patients_vs_HC_imp, by = "Subject")
 ```
-Data for `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1,])` patients and `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0,])` healthy controls were available.
+Data for `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0,])` patients and `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1,])` healthy controls were available.
 
 
 ## Calculate Welch t-test  
@@ -87,7 +88,7 @@ Data for `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1,])` patients 
 t_test_mult_cols <- function(df_basis, cols){
   # Create an overview of t-test results for several columns in a dataframe
   df <- data.frame(t_statistic = numeric(length(cols)), p_value = numeric(length(cols)))
-rownames(df) <- cols
+  rownames(df) <- cols
   for (col in cols){
     results <- t.test(df_basis[[col]] ~ df_basis[["Gruppe"]], paired = FALSE, var.equal = FALSE)
     df[col, "t_statistic"] <- round(results$statistic,2)
@@ -107,6 +108,7 @@ Patients performed better than healthy controls, especially in the Stroop and th
 
 ## Control Welch-test for covariates age, sex, and education
 ```{r}
+# Sociodemographic data
 library(gtsummary)
 table1 <- 
   Patients_vs_HC_imp_conf %>%
@@ -118,7 +120,7 @@ table1
 
 ```{r}
 ANCOVA_mult_cols <- function(df_basis, cols, covariates = NULL){
-  # Create a overview of ANCOVA results for several columns in a dataframe
+  # Create an overview of ANCOVA results for several columns in a dataframe
   df <- data.frame(Gruppe_p_value = numeric(length(cols)))
   rownames(df) <- cols
   for (col in cols){
@@ -143,8 +145,8 @@ table_ANCOVA <- ANCOVA_mult_cols(df_basis = Patients_vs_HC_imp_conf, cols = BIS_
 pander(table_ANCOVA, style = "rmarkdown", fontsize = "tiny")
 ```
 3 observations with missings in the covariates are automatically deleted.
-In the Numberletter task, the difference between patients and healthy controls remained when controlling for covariates. However, also education had a main effect on performance.
-In the Stroop task, the difference between patients and healthy controls also remained when contrlloing for covariates. Here, also the gender and education had a main effect on performance.
+In the Numberletter task, the difference between patients and healthy controls remained significant when controlling for covariates. However, also education had a main effect on performance.
+In the Stroop task, the difference between patients and healthy controls also remained significant when controlling for covariates. Here, also the gender and education had a main effect on performance.
 There was no significant effect between patients and controls in the TwoBackTask - also not when controlling for covariates. The task types Total and Foil might mainly depend on the age.
 
 # Comparison pre vs.post
@@ -160,7 +162,7 @@ Patients_post_3 <- merge(Patients_post_2, TwoBack_Patients_Post, by = "Subject")
 Patients_post_3$time <- "post"
 
 # Combine data
-Patients_pre_3$Subject <- Patients_pre_3$Subject + 600 # This was the ID given 
+Patients_pre_3$Subject <- Patients_pre_3$Subject + 600 # This was the ID given for post
 Patients_pre_vs_post <- rbind(Patients_post_3, Patients_pre_3)
 # Remove data if subjects had only pre-values
 subject_counts <- table(Patients_pre_vs_post$Subject)
@@ -187,8 +189,8 @@ Pre and post measures were available for `r nrow(Patients_pre_vs_post_imp) / 2` 
 ## Calculate Welch t-test
 ```{r}
 paired_t_test_mult_cols <- function(df_basis, cols){
-  # Create a overview of t-test results for several columns in a dataframe
-  df <- data.frame(t_statistic= numeric(length(cols)), p_value = numeric(length(cols)),
+  # Create an overview of t-test results for several columns in a dataframe
+  df <- data.frame(t_statistic = numeric(length(cols)), p_value = numeric(length(cols)),
                    group_mean_pre = numeric(length(cols)), group_mean_post = numeric(length(cols)))
   rownames(df) <- cols
   for (col in cols){
@@ -210,3 +212,53 @@ t_test_table_pre_post
 ```
 
 Patients performed better in all measurements of executive functioning after the exposure session. This might be due to a practice effect.
+
+# Plotting
+
+## HC vs. Patients (pre)
+```{r}
+# Reshape data from wide to long format
+Patients_vs_HC_imp_long <- Patients_vs_HC_imp %>%
+  pivot_longer(cols = all_of(BIS_columns_renamed),
+               names_to = "Condition",
+               values_to = "BIS_Score")
+
+# Add new task variable
+Patients_vs_HC_imp_long <- Patients_vs_HC_imp_long %>%
+  mutate(Task = case_when(
+    grepl("NumberLetter", Condition) ~ "NumberLetter",
+    grepl("Stroop", Condition) ~ "Stroop",
+    grepl("TwoBack", Condition) ~ "TwoBack"
+  ))
+
+# Create boxplots
+boxplot_HC_patients <- ggplot(Patients_vs_HC_imp_long, aes(x = Condition, y = BIS_Score, fill = factor(Gruppe))) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6, position = position_dodge(width = 0.8)) +
+  geom_jitter(aes(color = factor(Gruppe)), 
+              position = position_dodge(width = 0.8), 
+              size = 0.75, alpha = 0.5) +
+  facet_grid(rows = vars(Task), scales = "free_x") +
+  labs(title = "Task conditions by group",
+       x = "Task",
+       y = "BIS Score",
+       fill = "Group",
+       color = "Group") 
+```
+
+## Patients pre vs. post
+```{r}
+# Reshape data from wide to long format
+Patients_pre_vs_post_imp_long <- Patients_pre_vs_post_imp %>%
+  pivot_longer(cols = all_of(BIS_columns_renamed),
+               names_to = "Condition",
+               values_to = "BIS_Score")
+
+# Add new task variable
+Patients_pre_vs_post_imp_long <- Patients_pre_vs_post_imp_long %>%
+  mutate(Task = case_when(
+    grepl("NumberLetter", Condition) ~ "NumberLetter",
+    grepl("Stroop", Condition) ~ "Stroop",
+    grepl("TwoBack", Condition) ~ "TwoBack"
+  ))
+```
+
