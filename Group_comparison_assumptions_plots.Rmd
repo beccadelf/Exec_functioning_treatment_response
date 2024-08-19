@@ -21,6 +21,8 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 library(pander)
+library(effsize)
+library(pwr)
 ```
 
 # Import data 
@@ -94,7 +96,7 @@ ks_test_mult_cols <- function(df_basis, cols) {
     group0 <- df_basis[df_basis[["Gruppe"]] == 0, col]
     group1 <- df_basis[df_basis[["Gruppe"]] == 1, col]
     
-    # Perform Kolmogorov-Smirnov test comparing group data to a normal distribution
+    # Test: comparing group data to a normal distribution
     ks_test_group0 <- ks.test(group0, "pnorm", mean(group0), sd(group0))
     ks_test_group1 <- ks.test(group1, "pnorm", mean(group1), sd(group1))
     
@@ -107,7 +109,7 @@ ks_test_mult_cols <- function(df_basis, cols) {
   return(df)
 }
 
-# Apply the K-S test to your data
+# Apply the K-S test to data
 ks_test_table <- ks_test_mult_cols(df_basis = Patients_vs_HC_imp, cols = BIS_columns_renamed)
 pander(ks_test_table, style = "rmarkdown", fontsize = "tiny")
 
@@ -118,20 +120,37 @@ However, with Bonferroni correction (alpha=0.003), only the Stroop test would vi
 ## Calculate Welch t-test  
 ```{r}
 t_test_mult_cols <- function(df_basis, cols) {
-  df <- data.frame(t_statistic = numeric(length(cols)), p_value = numeric(length(cols)))
+  df <- data.frame(t_statistic = numeric(length(cols)), p_value = numeric(length(cols)),
+                   group_mean_Patients = numeric(length(cols)), sd_Patients = numeric(length(cols)),
+                   group_mean_HC = numeric(length(cols)), sd_HC = numeric(length(cols)),
+                   cohen_d = numeric(length(cols)))
   rownames(df) <- cols
   for (col in cols) {
     # Using the non-formula interface
     group0 <- df_basis[df_basis[["Gruppe"]] == 0, col]
     group1 <- df_basis[df_basis[["Gruppe"]] == 1, col]
     results <- t.test(group0, group1, paired = FALSE, var.equal = FALSE)
-                                                      #Welch -> keine homogenen Varianzen
-    df[col, "t_statistic"] <- round(results$statistic,2)
-    df[col, "p_value"] <- round(results$p.value,2)
-    df[col, "group_mean_Patients"] <- round(mean(df_basis[df_basis[["Gruppe"]] == 0, col]),2)
-    df[col, "sd_Patients"] <- round(sd(df_basis[df_basis[["Gruppe"]] == 0, col]),2)
-    df[col, "group_mean_HC"] <- round(mean(df_basis[df_basis[["Gruppe"]] == 1, col]),2)
-    df[col, "sd_HC"] <- round(sd(df_basis[df_basis[["Gruppe"]] == 1, col]),2)
+    
+    # Calculate Cohen's d using the cohen.d function (effect size)
+    cohen_d_result <- cohen.d(group0, group1, hedges.correction = FALSE)
+    cohen_d <- cohen_d_result$estimate
+    
+    # Calculate power using pwr.t.test
+    n1 <- length(group0)
+    n2 <- length (group1)
+    power_result <- pwr.t.test(d = cohen_d, n = min(n1, n2), sig.level = 0.05, type = "two.sample", alternative = "greater")
+                                                                      #0.007? (Bonferroni)                       #two.sided?
+    power <- power_result$power
+    
+    # Store the results
+    df[col, "t_statistic"] <- round(results$statistic, 2)
+    df[col, "p_value"] <- round(results$p.value, 2)
+    df[col, "group_mean_Patients"] <- round(mean(group0), 2)
+    df[col, "sd_Patients"] <- round(sd(group0), 2)
+    df[col, "group_mean_HC"] <- round(mean(group1), 2)
+    df[col, "sd_HC"] <- round(sd(group1), 2)
+    df[col, "cohen_d"] <- round(cohen_d, 2)
+    df[col, "power"] <- round(power, 2)
   }
   return(df)
 }
@@ -140,6 +159,7 @@ t_test_table <- t_test_mult_cols(df_basis = Patients_vs_HC_imp, cols = BIS_colum
 pander(t_test_table, style = "rmarkdown", fontsize = "tiny")
 ```
 Patients performed better than healthy controls, especially in the Stroop and the NumberLetterTask. However, please note that we have not tested for baseline differences (e.g., education, age...). This is done in the following step
+
 
 ## Control Welch-test for covariates age, sex, and education
 ```{r}
@@ -298,23 +318,37 @@ For all tasks, the correlations of the measurement series are significantly posi
 ```{r}
 paired_t_test_mult_cols <- function(df_basis, cols) {
   df <- data.frame(t_statistic = numeric(length(cols)), p_value = numeric(length(cols)),
-                   group_mean_pre = numeric(length(cols)), group_mean_post = numeric(length(cols)))
+                   group_mean_pre = numeric(length(cols)), group_mean_post = numeric(length(cols)),
+                   cohen_d = numeric(length(cols)))
   rownames(df) <- cols
   for (col in cols) {
-    # Get pre and post data using the new function
+    # Get pre and post data using get_pre_post_data helper function
     data <- get_pre_post_data(df_basis, col)
     pre_data <- data$pre
     post_data <- data$post
     
-    # Run the paired t-test using the non-formula interface
+    # non-formula interface as above
     results <- t.test(pre_data, post_data, paired = TRUE, var.equal = FALSE)
+    
+    # Calculate Cohen's d using the cohen.d function for paired samples (effect size)
+    cohen_d_result <- cohen.d(post_data, pre_data, paired = TRUE)
+    cohen_d <- cohen_d_result$estimate
+    
+    # Calculate power using pwr.t.test
+    n <- length(pre_data)
+    power_result <- pwr.t.test(d = cohen_d, n = n, sig.level = 0.05, type = "paired", alternative = "greater")
+                                                              #0.007? (Bonferroni)                  #two.sided?
+    power <- power_result$power
+    
+    # Store the results
     df[col, "t_statistic"] <- round(results$statistic, 2)
-    df[col, "p_value"] <- results$p.value
-    # Calculate group means
+    df[col, "p_value"] <- round(results$p.value, 2)
     df[col, "group_mean_pre"] <- round(mean(pre_data), 2)
     df[col, "sd_pre"] <- round(sd(pre_data), 2)
     df[col, "group_mean_post"] <- round(mean(post_data), 2)
     df[col, "sd_post"] <- round(sd(post_data), 2)
+    df[col, "cohen_d"] <- round(cohen_d, 2)
+    df[col, "power"] <- round(power, 2)
   }
   return(df)
 }
@@ -373,3 +407,4 @@ Patients_pre_vs_post_long <- Patients_pre_vs_post_long %>%
     grepl("TwoBack", Condition) ~ "TwoBack"
   ))
 ```
+
