@@ -19,6 +19,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(ggplot2)
 library(dplyr)
+library(tidyr)
 library(pander)
 ```
 
@@ -210,3 +211,52 @@ t_test_table_pre_post
 ```
 
 Patients performed better in all measurements of executive functioning after the exposure session. This might be due to a practice effect.
+
+# Plotting
+
+## Comparison HC vs. patients (pre)
+```{r}
+# Reshape data from wide to long format
+Patients_vs_HC_long <- Patients_vs_HC_imp %>%
+  pivot_longer(cols = all_of(BIS_columns_renamed),
+               names_to = "Condition",
+               values_to = "BIS_Score")
+
+# Add new task variable
+Patients_vs_HC_long <- Patients_vs_HC_long %>%
+  mutate(Task = case_when(
+    grepl("NumberLetter", Condition) ~ "NumberLetter",
+    grepl("Stroop", Condition) ~ "Stroop",
+    grepl("TwoBack", Condition) ~ "TwoBack"
+  ))
+
+# Create boxplots
+boxplots_Patients_HC <- ggplot(Patients_vs_HC_long, aes(x = Condition, y = BIS_Score, fill = factor(Gruppe))) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6, position = position_dodge(width = 0.8)) +
+  geom_jitter(aes(color = factor(Gruppe)), 
+              position = position_dodge(width = 0.8),
+              size = 0.5, alpha = 0.7) + 
+  facet_grid(rows = vars(Task), scales = "free_x") +
+  labs(title = "Boxplots of Task Condition by Group",
+       x = "Condition",
+       y = "BIS-Score",
+       fill = "Group")
+```
+
+## Comparison patients pre vs. post
+```{r}
+# Reshape data from wide to long format
+Patients_pre_vs_post_long <- Patients_pre_vs_post_imp %>%
+  pivot_longer(cols = all_of(BIS_columns_renamed),
+               names_to = "Condition",
+               values_to = "BIS_Score")
+
+# Add new task variable
+Patients_pre_vs_post_long <- Patients_pre_vs_post_long %>%
+  mutate(Task = case_when(
+    grepl("NumberLetter", Condition) ~ "NumberLetter",
+    grepl("Stroop", Condition) ~ "Stroop",
+    grepl("TwoBack", Condition) ~ "TwoBack"
+  ))
+```
+
