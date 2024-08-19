@@ -109,7 +109,7 @@ ks_test_mult_cols <- function(df_basis, cols) {
   return(df)
 }
 
-# Apply the K-S test to data
+# Apply K-S test function to data
 ks_test_table <- ks_test_mult_cols(df_basis = Patients_vs_HC_imp, cols = BIS_columns_renamed)
 pander(ks_test_table, style = "rmarkdown", fontsize = "tiny")
 
@@ -139,7 +139,7 @@ t_test_mult_cols <- function(df_basis, cols) {
     n1 <- length(group0)
     n2 <- length (group1)
     power_result <- pwr.t.test(d = cohen_d, n = min(n1, n2), sig.level = 0.05, type = "two.sample", alternative = "greater")
-                                                                      #0.007? (Bonferroni)                       #two.sided?
+                                                                        #0.007? (Bonferroni)                       #two.sided?
     power <- power_result$power
     
     # Store the results
@@ -260,7 +260,7 @@ ks_test_diff_values <- function(df_basis, cols) {
   return(df)
 }
 
-# Apply the K-S test to the difference values in your data
+# Apply K-S test function to the difference values in data
 ks_test_diff_table <- ks_test_diff_values(df_basis = Patients_pre_vs_post_imp, cols = BIS_columns_renamed)
 pander(ks_test_diff_table, style = "rmarkdown", fontsize = "tiny")
 ```
@@ -278,13 +278,13 @@ get_pre_post_data <- function(df_basis, col) {
 
 #2. Positive correlation of measurement series: 
 ```{r}
-## Calculate Raw Pearson Correlation and Test Significance
+## Calculate Raw Pearson Correlation, then test Significance
 calculate_correlations_and_significance <- function(df_basis, cols) {
   df <- data.frame(Correlation = numeric(length(cols)), t_statistic = numeric(length(cols)), 
                    p_value = numeric(length(cols)))
   rownames(df) <- cols
   for (col in cols) {
-    # Get pre and post data using the new function
+    # Get pre and post data using the helper function
     data <- get_pre_post_data(df_basis, col)
     pre_data <- data$pre
     post_data <- data$post
@@ -308,7 +308,7 @@ calculate_correlations_and_significance <- function(df_basis, cols) {
 }
 
 
-# Apply the correlation and significance test to your data
+# Apply correlation and significance test to data
 correlation_significance_table <- calculate_correlations_and_significance(df_basis = Patients_pre_vs_post_imp, cols = BIS_columns_renamed)
 pander(correlation_significance_table, style = "rmarkdown", fontsize = "tiny")
 ```
@@ -327,7 +327,7 @@ paired_t_test_mult_cols <- function(df_basis, cols) {
     pre_data <- data$pre
     post_data <- data$post
     
-    # non-formula interface as above
+    # non-formula interface as before
     results <- t.test(pre_data, post_data, paired = TRUE, var.equal = FALSE)
     
     # Calculate Cohen's d using the cohen.d function for paired samples (effect size)
@@ -355,7 +355,6 @@ paired_t_test_mult_cols <- function(df_basis, cols) {
 
 t_test_table_pre_post <- paired_t_test_mult_cols(df_basis = Patients_pre_vs_post_imp, cols = BIS_columns_renamed)
 pander(t_test_table_pre_post)
-#t_test_table_pre_post
 ```
 
 Patients performed better in all measurements of executive functioning after the exposure session. This might be due to a practice effect.
