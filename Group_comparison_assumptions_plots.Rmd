@@ -136,9 +136,9 @@ t_test_mult_cols <- function(df_basis, cols) {
     cohen_d <- cohen_d_result$estimate
     
     # Calculate power using pwr.t.test
-    n1 <- length(group0)
-    n2 <- length (group1)
-    power_result <- pwr.t.test(d = cohen_d, n = min(n1, n2), sig.level = 0.05, type = "two.sample", alternative = "greater")
+    n0 <- length(group0)
+    n1 <- length (group1)
+    power_result <- pwr.t.test(d = cohen_d, n = min(n0, n1), sig.level = 0.05, type = "two.sample", alternative = "greater")
                                                                         #0.007? (Bonferroni)                       #two.sided?
     power <- power_result$power
     
