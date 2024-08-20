@@ -209,7 +209,6 @@ t_test_table_pre_post <- paired_t_test_mult_cols(df_basis = Patients_pre_vs_post
 pander(t_test_table_pre_post)
 t_test_table_pre_post
 ```
-
 Patients performed better in all measurements of executive functioning after the exposure session. This might be due to a practice effect.
 
 # Plotting
@@ -230,17 +229,22 @@ Patients_vs_HC_long <- Patients_vs_HC_long %>%
     grepl("TwoBack", Condition) ~ "TwoBack"
   ))
 
-# Create boxplots
-boxplots_Patients_HC <- ggplot(Patients_vs_HC_long, aes(x = Condition, y = BIS_Score, fill = factor(Gruppe))) +
-  geom_boxplot(outlier.shape = NA, alpha = 0.6, position = position_dodge(width = 0.8)) +
-  geom_jitter(aes(color = factor(Gruppe)), 
-              position = position_dodge(width = 0.8),
-              size = 0.5, alpha = 0.7) + 
-  facet_grid(rows = vars(Task), scales = "free_x") +
+# Convert "Gruppe" to factor
+Patients_vs_HC_long$Gruppe <- factor(Patients_vs_HC_long$Gruppe)
+
+# Create boxplots # TODO: try violin-plot instead
+boxplots_Patients_HC <- ggplot(Patients_vs_HC_long, aes(x = Condition, y = BIS_Score, color = Gruppe)) +
+  geom_boxplot(outlier.shape = NA) + 
+  geom_jitter(position = position_jitterdodge(),
+              size = 0.7,
+              shape = 21,
+              fill = NA) +
+  facet_wrap(~ Task, scales = "free_x") +
+  #facet_grid(rows = vars(Task), scales = "free_x") +
   labs(title = "Boxplots of Task Condition by Group",
        x = "Condition",
        y = "BIS-Score",
-       fill = "Group")
+       color = "Group")
 ```
 
 ## Comparison patients pre vs. post
@@ -258,5 +262,22 @@ Patients_pre_vs_post_long <- Patients_pre_vs_post_long %>%
     grepl("Stroop", Condition) ~ "Stroop",
     grepl("TwoBack", Condition) ~ "TwoBack"
   ))
+
+# Convert "time" to factor, specify order
+Patients_pre_vs_post_long$time <- factor(Patients_pre_vs_post_long$time, levels = c("pre", "post"))
+
+# Create boxplot with paired observations
+boxplot_Patients_pre_post <- ggplot(Patients_pre_vs_post_long, aes(x = Condition, y = BIS_Score, color = time)) + # group = Subject
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(position = position_jitterdodge(),
+              size = 0.7,
+              shape = 21,
+              fill = NA) +
+  #geom_line(aes(group = Subject)) +
+  facet_wrap(~ Task, scales = "free_x") +
+  labs(title = "Boxplots of Task Condition by Time of Measurement",
+       x = "Condition",
+       y = "BIS-Score",
+       color = "Time")
 ```
 
