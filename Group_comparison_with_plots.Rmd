@@ -245,6 +245,17 @@ boxplots_Patients_HC <- ggplot(Patients_vs_HC_long, aes(x = Condition, y = BIS_S
        x = "Condition",
        y = "BIS-Score",
        color = "Group")
+
+# Create violin plots with mean
+violin_plots_patients_hc <- ggplot(Patients_vs_HC_long, aes(x = Condition, y = BIS_Score, fill = Gruppe)) +
+  geom_violin(position = position_dodge(width = 0.8)) +
+  stat_summary(fun.data = mean_sdl, geom = "pointrange", # mult = 2 (SD) by default
+               position = position_dodge(width = 0.8)) + # width = 0.65, fatten = 2
+  facet_wrap(~ Task, scales = "free_x") +
+  labs(title = "Violin Plots of Task Condition by Group",
+       x = "Task Condition",
+       y = "BIS-Score",
+       fill = "Group")
 ```
 
 ## Comparison patients pre vs. post
