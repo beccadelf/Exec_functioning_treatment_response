@@ -347,6 +347,99 @@ BIS_columns_renamed <- grep("BIS", colnames(Patients_pre_vs_post_imp), value = T
 ```
 Pre and post measures were available for `r nrow(Patients_pre_vs_post_imp) / 2` patients.
 
+## Testing assumptions of dependent sample t-test
+#1. Normal distribution of difference values: implemented using Kolmogoroff-Smirnov test to difference values (d_i=Post_i-Pre_i)
+```{r}
+## Kolmogorov-Smirnov Test for Normality of Difference Values
+ks_test_diff_values <- function(df_basis, cols) {
+  df <- data.frame(KS_statistic = numeric(length(cols)), p_value = numeric(length(cols)))
+  rownames(df) <- cols
+  for (col in cols) {
+    # Calculate difference values (Post - Pre)
+    diff_values <- df_basis[df_basis[["time"]] == "post", col] - df_basis[df_basis[["time"]] == "pre", col]
+    ks_test_diff <- ks.test(diff_values, "pnorm", mean(diff_values), sd(diff_values))
+    
+    df[col, "KS_statistic"] <- round(ks_test_diff$statistic, 3)
+    df[col, "p_value"] <- round(ks_test_diff$p.value, 3)
+  }
+  return(df)
+}
+
+ks_test_diff_table <- ks_test_diff_values(df_basis = Patients_pre_vs_post_imp, cols = BIS_columns_renamed)
+pander(ks_test_diff_table, style = "rmarkdown", fontsize = "tiny")
+```
+The assumption of normal distribution is violated for all but the TwoBack task for alpha=0.05. 
+However, if we apply Bonferroni correction (alpha=0.007) only the Number-Letter Repeat and Stroop tests would violate the assumption.
+
+#Visual inspection
+#Automatic group range
+```{r}
+create_density_plot_diff <- function(data, col) {
+  # Calculate difference values (Post - Pre)
+  diff_values <- data[data[["time"]] == "post", col] - data[data[["time"]] == "pre", col]
+  x_range <- range(diff_values, na.rm = TRUE) #Group range
+  
+  ggplot(data.frame(x = diff_values), aes(x = x)) +
+    geom_density(fill = "red", alpha = 0.5) +
+    labs(title = paste("Difference:", col),
+         x = paste("Difference in", col),
+         y = "Density") +
+    xlim(x_range[1], x_range[2])
+}
+
+density_plots_diff <- lapply(BIS_columns_renamed, function(col) {
+  create_density_plot_diff(Patients_pre_vs_post_imp, col)
+})
+
+names(density_plots_diff) <- BIS_columns_renamed
+for (plot in density_plots_diff) {
+  print(plot)
+}
+
+save_directory <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Density Plot_PrePost/Automatic group range"
+for (plot_name in names(density_plots_diff)) {
+  file_name <- paste0(save_directory, "/", plot_name, ".png")
+  ggsave(file_name, plot = density_plots_diff[[plot_name]])
+}
+```
+
+#Automatic whole range
+```{r}
+#Whole range
+global_x_range <- range(unlist(lapply(BIS_columns_renamed, function(col) {
+  diff_values <- Patients_pre_vs_post_imp[Patients_pre_vs_post_imp[["time"]] == "post", col] -
+                 Patients_pre_vs_post_imp[Patients_pre_vs_post_imp[["time"]] == "pre", col]
+  return(diff_values)
+})), na.rm = TRUE)
+
+create_density_plot_diff_global <- function(data, col, x_range) {
+  # Calculate difference values (Post - Pre)
+  diff_values <- data[data[["time"]] == "post", col] - data[data[["time"]] == "pre", col]
+  
+  ggplot(data.frame(x = diff_values), aes(x = x)) +
+    geom_density(fill = "red", alpha = 0.5) +
+    labs(title = paste("Difference:", col),
+         x = paste("Difference in", col),
+         y = "Density") +
+    xlim(x_range[1], x_range[2])
+}
+
+density_plots_diff <- lapply(BIS_columns_renamed, function(col) {
+  create_density_plot_diff_global(Patients_pre_vs_post_imp, col, global_x_range)
+})
+
+names(density_plots_diff) <- BIS_columns_renamed
+for (plot in density_plots_diff) {
+  print(plot)
+}
+
+save_directory <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Density Plot_PrePost/Automatic whole range"
+for (plot_name in names(density_plots_diff)) {
+  file_name <- paste0(save_directory, "/", plot_name, ".png")
+  ggsave(file_name, plot = density_plots_diff[[plot_name]])
+}
+```
+
 ## Calculate Welch t-test
 ```{r}
 paired_t_test_mult_cols <- function(df_basis, cols){
