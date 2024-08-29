@@ -21,6 +21,9 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 library(pander)
+library(effsize)
+library(pwr)
+library(gtsummary)
 ```
 
 # Import data 
@@ -164,7 +167,7 @@ for (plot_name in names(density_plots)) {
   print(density_plots[[plot_name]])
 }
 
-save_directory <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Density Plots/Manual"
+save_directory <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Density Plots_HCvsPat/Manual"
 for (plot_name in names(density_plots)) {
   file_name <- paste0(save_directory, "/", plot_name, ".png")
   ggsave(file_name, plot = density_plots[[plot_name]])
@@ -201,7 +204,7 @@ for (plot_name in names(density_plots)) {
   print(density_plots[[plot_name]])
 }
 
-save_directory <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Density Plots/Automatic whole range"
+save_directory <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Density Plots_HCvsPat/Automatic whole range"
 for (plot_name in names(density_plots)) {
   file_name <- paste0(save_directory, "/", plot_name, ".png")
   ggsave(file_name, plot = density_plots[[plot_name]])
@@ -238,7 +241,7 @@ for (plot_name in names(density_plots)) {
   print(density_plots[[plot_name]])
 }
 
-save_directory <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Density Plots/Automatic group range"
+save_directory <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Density Plots_HCvsPat/Automatic group range"
 for (plot_name in names(density_plots)) {
   file_name <- paste0(save_directory, "/", plot_name, ".png")
   ggsave(file_name, plot = density_plots[[plot_name]])
@@ -247,18 +250,38 @@ for (plot_name in names(density_plots)) {
 
 ## Calculate Welch t-test  
 ```{r}
-t_test_mult_cols <- function(df_basis, cols){
-  # Create an overview of t-test results for several columns in a dataframe
-  df <- data.frame(t_statistic = numeric(length(cols)), p_value = numeric(length(cols)))
-rownames(df) <- cols
-  for (col in cols){
-    results <- t.test(df_basis[[col]] ~ df_basis[["Gruppe"]], paired = FALSE, var.equal = FALSE)
-    df[col, "t_statistic"] <- round(results$statistic,2)
-    df[col, "p_value"] <- round(results$p.value,2)
-    df[col, "group_mean_Patients"] <- round(mean(df_basis[df_basis[["Gruppe"]] == 0, col]),2)
-    df[col, "sd_Patients"] <- round(sd(df_basis[df_basis[["Gruppe"]] == 0, col]),2)
-    df[col, "group_mean_HC"] <- round(mean(df_basis[df_basis[["Gruppe"]] == 1, col]),2)
-    df[col, "sd_HC"] <- round(sd(df_basis[df_basis[["Gruppe"]] == 1, col]),2)
+t_test_mult_cols <- function(df_basis, cols) {
+  df <- data.frame(t_statistic = numeric(length(cols)), p_value = numeric(length(cols)),
+                   group_mean_Patients = numeric(length(cols)), sd_Patients = numeric(length(cols)),
+                   group_mean_HC = numeric(length(cols)), sd_HC = numeric(length(cols)),
+                   cohen_d = numeric(length(cols)))
+  rownames(df) <- cols
+  for (col in cols) {
+    # Using the non-formula interface
+    group0 <- df_basis[df_basis[["Gruppe"]] == 0, col]
+    group1 <- df_basis[df_basis[["Gruppe"]] == 1, col]
+    results <- t.test(group0, group1, paired = FALSE, var.equal = FALSE)
+    
+    # Calculate Cohen's d using the cohen.d function (effect size)
+    cohen_d_result <- cohen.d(group0, group1, hedges.correction = FALSE)
+    cohen_d <- cohen_d_result$estimate
+    
+    # Calculate power using pwr.t.test
+    n0 <- length(group0)
+    n1 <- length (group1)
+    power_result <- pwr.t.test(d = cohen_d, n = min(n0, n1), sig.level = 0.05, type = "two.sample", alternative = "greater")
+                                                                        #0.007? (Bonferroni)                       #two.sided?
+    power <- power_result$power
+    
+    # Store the results
+    df[col, "t_statistic"] <- round(results$statistic, 2)
+    df[col, "p_value"] <- round(results$p.value, 2)
+    df[col, "group_mean_Patients"] <- round(mean(group0), 2)
+    df[col, "sd_Patients"] <- round(sd(group0), 2)
+    df[col, "group_mean_HC"] <- round(mean(group1), 2)
+    df[col, "sd_HC"] <- round(sd(group1), 2)
+    df[col, "cohen_d"] <- round(cohen_d, 2)
+    df[col, "power"] <- round(power, 2)
   }
   return(df)
 }
@@ -270,7 +293,6 @@ Patients performed better than healthy controls, especially in the Stroop and th
 
 ## Control Welch-test for covariates age, sex, and education
 ```{r}
-library(gtsummary)
 table1 <- 
   Patients_vs_HC_imp_conf %>%
   tbl_summary(include = c(Alter, Geschlecht, Abschluss), by = Gruppe)
@@ -440,17 +462,19 @@ for (plot_name in names(density_plots_diff)) {
 }
 ```
 
-#2. Positive correlation of measurement series: 
+
+
 ```{r}
+#Helper function to avoid redundancy: Get pre and post data in one place
 get_pre_post_data <- function(df_basis, col) {
   pre_data <- df_basis[df_basis[["time"]] == "pre", col]
   post_data <- df_basis[df_basis[["time"]] == "post", col]
   return(list(pre = pre_data, post = post_data))
 }
-#I needed to implement this ebcause the "formula method" using ~ didn't work for me, for some reason. I looked for a solution quite a while, but didn't find anything :/ 
-#That's why I used this helper function to avoid redundancy and get pre and post data in one place for the Welch test, too.
-# - Till
+```
 
+#2. Positive correlation of measurement series: 
+```{r}
 ## Calculate Raw Pearson Correlation and Test Significance
 calculate_correlations_and_significance <- function(df_basis, cols) {
   df <- data.frame(Correlation = numeric(length(cols)), t_statistic = numeric(length(cols)), 
@@ -487,30 +511,47 @@ pander(correlation_significance_table, style = "rmarkdown", fontsize = "tiny")
 ```
 For all tasks, the correlations of the measurement series are significantly positive. Thus, the assumption is met for all tasks. 
 
-
 ## Calculate Welch t-test
 ```{r}
-paired_t_test_mult_cols <- function(df_basis, cols){
-  # Create a overview of t-test results for several columns in a dataframe
-  df <- data.frame(t_statistic= numeric(length(cols)), p_value = numeric(length(cols)),
-                   group_mean_pre = numeric(length(cols)), group_mean_post = numeric(length(cols)))
+paired_t_test_mult_cols <- function(df_basis, cols) {
+  df <- data.frame(t_statistic = numeric(length(cols)), p_value = numeric(length(cols)),
+                   group_mean_pre = numeric(length(cols)), group_mean_post = numeric(length(cols)),
+                   cohen_d = numeric(length(cols)))
   rownames(df) <- cols
-  for (col in cols){
-    results <- t.test(df_basis[[col]] ~ df_basis[["time"]], paired = TRUE, var.equal = FALSE)
+  for (col in cols) {
+    # Get pre and post data using get_pre_post_data helper function
+    data <- get_pre_post_data(df_basis, col)
+    pre_data <- data$pre
+    post_data <- data$post
+    
+    # non-formula interface as before
+    results <- t.test(pre_data, post_data, paired = TRUE, var.equal = FALSE)
+    
+    # Calculate Cohen's d using the cohen.d function for paired samples (effect size)
+    cohen_d_result <- cohen.d(post_data, pre_data, paired = TRUE)
+    cohen_d <- cohen_d_result$estimate
+    
+    # Calculate power using pwr.t.test
+    n <- length(pre_data)
+    power_result <- pwr.t.test(d = cohen_d, n = n, sig.level = 0.05, type = "paired", alternative = "greater")
+                                                              #0.007? (Bonferroni)                  #two.sided?
+    power <- power_result$power
+    
+    # Store the results
     df[col, "t_statistic"] <- round(results$statistic, 2)
-    df[col, "p_value"] <- results$p.value
-    # Calculate group means
-    df[col, "group_mean_pre"] <- round(mean(df_basis[df_basis[["time"]] == "pre", col]),2)
-    df[col, "sd_pre"] <- round(sd(df_basis[df_basis[["time"]] == "pre", col]),2)
-    df[col, "group_mean_post"] <- round(mean(df_basis[df_basis[["time"]] == "post", col]),2)
-    df[col, "sd_post"] <- round(sd(df_basis[df_basis[["time"]] == "post", col]),2)
+    df[col, "p_value"] <- round(results$p.value, 2)
+    df[col, "group_mean_pre"] <- round(mean(pre_data), 2)
+    df[col, "sd_pre"] <- round(sd(pre_data), 2)
+    df[col, "group_mean_post"] <- round(mean(post_data), 2)
+    df[col, "sd_post"] <- round(sd(post_data), 2)
+    df[col, "cohen_d"] <- round(cohen_d, 2)
+    df[col, "power"] <- round(power, 2)
   }
   return(df)
 }
 
 t_test_table_pre_post <- paired_t_test_mult_cols(df_basis = Patients_pre_vs_post_imp, cols = BIS_columns_renamed)
 pander(t_test_table_pre_post)
-t_test_table_pre_post
 ```
 
 Patients performed better in all measurements of executive functioning after the exposure session. This might be due to a practice effect.
@@ -562,4 +603,3 @@ Patients_pre_vs_post_long <- Patients_pre_vs_post_long %>%
     grepl("TwoBack", Condition) ~ "TwoBack"
   ))
 ```
-
