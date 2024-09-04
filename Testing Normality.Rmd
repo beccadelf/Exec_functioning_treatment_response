@@ -1,0 +1,373 @@
+---
+title: "Testing Normality"
+author: "Till Julius Adam"
+date: "2024-09-04"
+output: html_document
+---
+
+# Set-up
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+library(ggplot2)
+library(dplyr)
+library(pander)
+```
+
+# Import data 
+## Import task performance data
+```{r}
+NumberLetter_HC <- read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/NumberLetter_HC.csv")
+NumberLetter_Patients_Post <- read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/NumberLetter_Patients_Post.csv")
+NumberLetter_Patients_Pre <-  read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/NumberLetter_Patients_Pre.csv")
+
+Stroop_HC <- read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/Stroop_HC.csv")
+Stroop_Patients_Post <-  read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/Stroop_Patients_Post.csv")
+Stroop_Patients_Pre <-  read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/Stroop_Patients_Pre.csv")
+
+TwoBack_HC <- read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/TwoBack_HC.csv")
+TwoBack_Patients_Post <-  read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/TwoBack_Patients_Post.csv")
+TwoBack_Patients_Pre <-  read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/TwoBack_Patients_Pre.csv")
+```
+
+## Import 
+```{r}
+data_all <- haven::read_dta('Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/CognitiveControl_Treatment/Data_Kevin_28.07.23.dta')
+colnames(data_all)[which(colnames(data_all) == "id")] <- "Subject"
+```
+
+# Comparison HC vs. Patients
+
+## Prepare dataset
+```{r}
+# Merge patients and controls
+## 1. Merge patients Pre (different tasks)
+Patients_pre_2 <- merge(NumberLetter_Patients_Pre, Stroop_Patients_Pre, by = "Subject")
+Patients_pre_3 <- merge(Patients_pre_2, TwoBack_Patients_Pre, by = "Subject")
+
+## 2. Merge controls (different tasks)
+Controls_2 <- merge(NumberLetter_HC, Stroop_HC, by = "Subject")
+Controls_3 <- merge(Controls_2, TwoBack_HC, by = "Subject")
+
+## 3. Merge Controls and patients
+Patients_vs_HC <- rbind(Patients_pre_3, Controls_3)
+
+## 4. Reduce dataset to BIS columns
+BIS_columns <- colnames(Patients_vs_HC)[startsWith(colnames(Patients_vs_HC), "BIS")]
+Patients_vs_HC_imp <- Patients_vs_HC[,c("Subject",BIS_columns,"Gruppe")]
+
+## 5. Add better names 
+Patients_vs_HC_imp <- Patients_vs_HC_imp %>%
+  rename(NumberLetter_BIS_Repeat = BIS_Repeat,
+         NumberLetter_BIS_Switch = BIS_Switch,
+         Stroop_BIS_Congruent = BIS_Congruent,
+         Stroop_BIS_Incongruent = BIS_Incongruent,
+         TwoBack_BIS_Total = BIS_Total,
+         TwoBack_BIS_Target = BIS_Target,
+         TwoBack_BIS_Foil = BIS_Foil)
+
+BIS_columns_renamed <- grep("BIS", colnames(Patients_vs_HC_imp), value = TRUE)
+
+## 6. Add confounds (Alter, Geschlecht, Abschluss)
+Patients_vs_HC_imp_conf <- merge(data_all[,c("Subject","Alter","Geschlecht","Abschluss")], Patients_vs_HC_imp, by = "Subject")
+```
+Data for `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1,])` patients and `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0,])` healthy controls were available.
+
+## Testing assumption of independent sample t-test: normal distributions of the characteristic in both populations
+#Implemented using a Kolmogorov-Smirnov test
+```{r}
+## Kolmogorov-Smirnov Test for Normality
+ks_test_mult_cols <- function(df_basis, cols) {
+  df <- data.frame(KS_statistic_group0 = numeric(length(cols)), p_value_group0 = numeric(length(cols)),
+                   KS_statistic_group1 = numeric(length(cols)), p_value_group1 = numeric(length(cols)))
+  rownames(df) <- cols
+  for (col in cols) {
+    group0 <- df_basis[df_basis[["Gruppe"]] == 0, col]
+    group1 <- df_basis[df_basis[["Gruppe"]] == 1, col]
+    
+    # Perform Kolmogorov-Smirnov test comparing group data to a normal distribution
+    ks_test_group0 <- ks.test(group0, "pnorm", mean(group0), sd(group0))
+    ks_test_group1 <- ks.test(group1, "pnorm", mean(group1), sd(group1))
+    
+    # Store the results
+    df[col, "KS_statistic_group0"] <- round(ks_test_group0$statistic, 3)
+    df[col, "p_value_group0"] <- round(ks_test_group0$p.value, 3)
+    df[col, "KS_statistic_group1"] <- round(ks_test_group1$statistic, 3)
+    df[col, "p_value_group1"] <- round(ks_test_group1$p.value, 3)
+  }
+  return(df)
+}
+
+# Apply the K-S test to your data
+ks_test_table <- ks_test_mult_cols(df_basis = Patients_vs_HC_imp, cols = BIS_columns_renamed)
+pander(ks_test_table, style = "rmarkdown", fontsize = "tiny")
+
+```
+The Kolmogoroff-Smirnov tests show significant deviations from normal distribution for the Number-Letter and Stroop tasks in the healthy controls (alpha=0.05). However, with Bonferroni correction (alpha=0.003), only the Stroop test would violate the assumption.
+
+#Visual Inspection
+#Value Range
+#In case one wants to manually set the value range oriented on min and max values
+```{r}
+get_min_max_values <- function(df_basis, cols) {
+  do.call(rbind, lapply(cols, function(col) {
+    do.call(rbind, lapply(unique(df_basis$Gruppe), function(group) {
+      group_data <- df_basis[df_basis$Gruppe == group, col]
+      data.frame(
+        Group = ifelse(group == 0, "HC", "Patients"),
+        Condition = col,
+        Min_Value = min(group_data, na.rm = TRUE),
+        Max_Value = max(group_data, na.rm = TRUE)
+      )
+    }))
+  }))
+}
+
+min_max_values_table <- get_min_max_values(df_basis = Patients_vs_HC_imp, cols = BIS_columns_renamed)
+pander(min_max_values_table, style = "rmarkdown", caption = "min max")
+```
+# In this case: -11.88 - 3.484
+
+
+Manual Range
+```{r}
+create_density_plot <- function(data, col, group) {
+  group_data <- data[data$Gruppe == group, col]
+  
+  ggplot(data.frame(x = group_data), aes(x = x)) +
+    geom_density(fill = ifelse(group == 0, "blue", "red"), alpha = 0.5) +
+    labs(title = paste(col, "- Group", ifelse(group == 0, "HC", "Patients")),
+         x = col,
+         y = "Density") +
+    xlim(-10, 5) #Manual range based on biggest and smallest values
+}
+
+generate_density_plots <- function(df_basis, cols) {
+  plots <- list()
+  for (col in cols) {
+    for (group in unique(df_basis$Gruppe)) {
+      plots[[paste(col, group)]] <- create_density_plot(df_basis, col, group)
+    }
+  }
+  return(plots)
+}
+
+density_plots <- generate_density_plots(df_basis = Patients_vs_HC_imp, cols = BIS_columns_renamed)
+for (plot_name in names(density_plots)) {
+  print(density_plots[[plot_name]])
+}
+
+save_directory <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Density Plots_HCvsPat/Manual"
+for (plot_name in names(density_plots)) {
+  file_name <- paste0(save_directory, "/", plot_name, ".png")
+  ggsave(file_name, plot = density_plots[[plot_name]])
+}
+```
+
+Automatic whole range (automatically takes min and max values and adjusts value range automatically)
+```{r}
+global_x_range <- range(Patients_vs_HC_imp[, BIS_columns_renamed], na.rm = TRUE) #x-range as smallest and largest value for each group, automatic
+
+create_density_plot <- function(data, col, group, x_range) {
+  group_data <- data[data$Gruppe == group, col]
+  
+  ggplot(data.frame(x = group_data), aes(x = x)) +
+    geom_density(fill = ifelse(group == 0, "blue", "red"), alpha = 0.5) +
+    labs(title = paste(col, "- Group", ifelse(group == 0, "HC", "Patients")),
+         x = col,
+         y = "Density") +
+    xlim(x_range[1], x_range[2])
+}
+
+generate_density_plots <- function(df_basis, cols, x_range) {
+  plots <- list()
+  for (col in cols) {
+    for (group in unique(df_basis$Gruppe)) {
+      plots[[paste(col, group)]] <- create_density_plot(df_basis, col, group, x_range)
+    }
+  }
+  return(plots)
+}
+
+density_plots <- generate_density_plots(df_basis = Patients_vs_HC_imp, cols = BIS_columns_renamed, x_range = global_x_range)
+for (plot_name in names(density_plots)) {
+  print(density_plots[[plot_name]])
+}
+
+save_directory <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Density Plots_HCvsPat/Automatic whole range"
+for (plot_name in names(density_plots)) {
+  file_name <- paste0(save_directory, "/", plot_name, ".png")
+  ggsave(file_name, plot = density_plots[[plot_name]])
+}
+```
+
+
+Automatic group range (Individual x-axis for each group according to min and max values of that task)
+```{r}
+create_density_plot <- function(data, col, group) {
+  group_data <- data[data$Gruppe == group, col]
+  x_range <- range(group_data, na.rm = TRUE) #By each group min max
+  
+  ggplot(data.frame(x = group_data), aes(x = x)) +
+    geom_density(fill = ifelse(group == 0, "blue", "red"), alpha = 0.5) +
+    labs(title = paste(col, "- Group", ifelse(group == 0, "HC", "Patients")),
+         x = col,
+         y = "Density") +
+    xlim(x_range[1], x_range[2])
+}
+
+generate_density_plots <- function(df_basis, cols) {
+  plots <- list()
+  for (col in cols) {
+    for (group in unique(df_basis$Gruppe)) {
+      plots[[paste(col, group)]] <- create_density_plot(df_basis, col, group)
+    }
+  }
+  return(plots)
+}
+
+density_plots <- generate_density_plots(df_basis = Patients_vs_HC_imp, cols = BIS_columns_renamed)
+for (plot_name in names(density_plots)) {
+  print(density_plots[[plot_name]])
+}
+
+save_directory <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Density Plots_HCvsPat/Automatic group range"
+for (plot_name in names(density_plots)) {
+  file_name <- paste0(save_directory, "/", plot_name, ".png")
+  ggsave(file_name, plot = density_plots[[plot_name]])
+}
+```
+
+
+
+# Comparison pre vs.post
+# data preparation pre post
+```{r}
+## Merge patients pre
+Patients_pre_2 <- merge(NumberLetter_Patients_Pre, Stroop_Patients_Pre, by = "Subject")
+Patients_pre_3 <- merge(Patients_pre_2, TwoBack_Patients_Pre, by = "Subject")
+Patients_pre_3$time <- "pre"
+
+## Merge patients Post
+Patients_post_2 <- merge(NumberLetter_Patients_Post, Stroop_Patients_Post, by = "Subject")
+Patients_post_3 <- merge(Patients_post_2, TwoBack_Patients_Post, by = "Subject")
+Patients_post_3$time <- "post"
+
+# Combine data
+Patients_pre_3$Subject <- Patients_pre_3$Subject + 600 # This was the ID given 
+Patients_pre_vs_post <- rbind(Patients_post_3, Patients_pre_3)
+# Remove data if subjects had only pre-values
+subject_counts <- table(Patients_pre_vs_post$Subject)
+multiple_rows_subjects <- names(subject_counts)[subject_counts > 1]
+Patients_pre_vs_post_clean <- Patients_pre_vs_post[Patients_pre_vs_post$Subject %in% multiple_rows_subjects, ]
+
+# Reduce to BIS
+BIS_columns <- colnames(Patients_pre_vs_post_clean)[startsWith(colnames(Patients_pre_vs_post_clean), "BIS")]
+Patients_pre_vs_post_imp <- Patients_pre_vs_post_clean[,c("Subject",BIS_columns,"time")]
+
+## Add better names 
+Patients_pre_vs_post_imp <- Patients_pre_vs_post_imp %>%
+  rename(NumberLetter_BIS_Repeat = BIS_Repeat,
+         NumberLetter_BIS_Switch = BIS_Switch,
+         Stroop_BIS_Congruent = BIS_Congruent,
+         Stroop_BIS_Incongruent = BIS_Incongruent,
+         TwoBack_BIS_Total = BIS_Total,
+         TwoBack_BIS_Target = BIS_Target,
+         TwoBack_BIS_Foil = BIS_Foil)
+BIS_columns_renamed <- grep("BIS", colnames(Patients_pre_vs_post_imp), value = TRUE)
+```
+Pre and post measures were available for `r nrow(Patients_pre_vs_post_imp) / 2` patients.
+
+
+## Testing assumption of dependent sample t-test: normal distributions of difference values post-pre
+#Implemented using a Kolmogorov-Smirnov test on difference values (d_i=Post_i-Pre_i)
+```{r}
+## Kolmogorov-Smirnov Test for Normality of Difference Values
+ks_test_diff_values <- function(df_basis, cols) {
+  df <- data.frame(KS_statistic = numeric(length(cols)), p_value = numeric(length(cols)))
+  rownames(df) <- cols
+  for (col in cols) {
+    # Calculate difference values (Post - Pre)
+    diff_values <- df_basis[df_basis[["time"]] == "post", col] - df_basis[df_basis[["time"]] == "pre", col]
+    ks_test_diff <- ks.test(diff_values, "pnorm", mean(diff_values), sd(diff_values))
+    
+    df[col, "KS_statistic"] <- round(ks_test_diff$statistic, 3)
+    df[col, "p_value"] <- round(ks_test_diff$p.value, 3)
+  }
+  return(df)
+}
+
+ks_test_diff_table <- ks_test_diff_values(df_basis = Patients_pre_vs_post_imp, cols = BIS_columns_renamed)
+pander(ks_test_diff_table, style = "rmarkdown", fontsize = "tiny")
+```
+The assumption of normal distribution is violated for all but the TwoBack task for alpha=0.05. 
+However, if we apply Bonferroni correction (alpha=0.007) only the Number-Letter Repeat and Stroop tests would violate the assumption.
+
+#Visual inspection
+#Automatic group range
+```{r}
+create_density_plot_diff <- function(data, col) {
+  # Calculate difference values (Post - Pre)
+  diff_values <- data[data[["time"]] == "post", col] - data[data[["time"]] == "pre", col]
+  x_range <- range(diff_values, na.rm = TRUE) #Group range
+  
+  ggplot(data.frame(x = diff_values), aes(x = x)) +
+    geom_density(fill = "red", alpha = 0.5) +
+    labs(title = paste("Difference:", col),
+         x = paste("Difference in", col),
+         y = "Density") +
+    xlim(x_range[1], x_range[2])
+}
+
+density_plots_diff <- lapply(BIS_columns_renamed, function(col) {
+  create_density_plot_diff(Patients_pre_vs_post_imp, col)
+})
+
+names(density_plots_diff) <- BIS_columns_renamed
+for (plot in density_plots_diff) {
+  print(plot)
+}
+
+save_directory <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Density Plot_PrePost/Automatic group range"
+for (plot_name in names(density_plots_diff)) {
+  file_name <- paste0(save_directory, "/", plot_name, ".png")
+  ggsave(file_name, plot = density_plots_diff[[plot_name]])
+}
+```
+
+#Automatic whole range
+```{r}
+#Whole range
+global_x_range <- range(unlist(lapply(BIS_columns_renamed, function(col) {
+  diff_values <- Patients_pre_vs_post_imp[Patients_pre_vs_post_imp[["time"]] == "post", col] -
+                 Patients_pre_vs_post_imp[Patients_pre_vs_post_imp[["time"]] == "pre", col]
+  return(diff_values)
+})), na.rm = TRUE)
+
+create_density_plot_diff_global <- function(data, col, x_range) {
+  # Calculate difference values (Post - Pre)
+  diff_values <- data[data[["time"]] == "post", col] - data[data[["time"]] == "pre", col]
+  
+  ggplot(data.frame(x = diff_values), aes(x = x)) +
+    geom_density(fill = "red", alpha = 0.5) +
+    labs(title = paste("Difference:", col),
+         x = paste("Difference in", col),
+         y = "Density") +
+    xlim(x_range[1], x_range[2])
+}
+
+density_plots_diff <- lapply(BIS_columns_renamed, function(col) {
+  create_density_plot_diff_global(Patients_pre_vs_post_imp, col, global_x_range)
+})
+
+names(density_plots_diff) <- BIS_columns_renamed
+for (plot in density_plots_diff) {
+  print(plot)
+}
+
+save_directory <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Density Plot_PrePost/Automatic whole range"
+for (plot_name in names(density_plots_diff)) {
+  file_name <- paste0(save_directory, "/", plot_name, ".png")
+  ggsave(file_name, plot = density_plots_diff[[plot_name]])
+}
+```
