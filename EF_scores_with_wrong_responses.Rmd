@@ -84,7 +84,7 @@ preprocess_RT_PC <- function(task, subjects){
       # Discard first trial (only applies to NumbLet)
       filter(Condition != "NoPreviousTrial")
     
-    # Convert RTs and Accuracy to numeric
+    # Convert RTs & Accuracy to numeric
     data_red$RT <- as.numeric(data_red$RT)
     data_red$Accuracy <- as.numeric(data_red$Accuracy)
     
@@ -239,29 +239,30 @@ AllData_Stroop <- preprocess_RT_PC(task = "Stroop", subjects = subjects)
 AllData_TwoBack <- preprocess_RT_PC(task = "TwoBack", subjects = subjects)
 ```
 
-# 3. Calculate SSRT of each subject
+# 3. Calculate SSRT of each subject (integrative method)
 ## Info: adaptive version of SST was used: the initial SSD of 200 ms was adapted after each “stop” trial by adding 50 ms for a (correct) nonresponse, and subtracting 50 ms for a (faulty) response
 ```{r}
 # Initialize empty holder dataframe
-SSRT_all <- data.frame()
+AllData_SST <- data.frame()
 
 for (subject in subjects) {
-  data <- df_from_matlab(task_name = "StopSignal", subject = subject)
+  data_SST <- df_from_matlab(task_name = "StopSignal", subject = subject)
   
   # Reduce to only relevant variables
-  data_red <- data %>%
+  data_SST_red <- data_SST %>%
     select(Condition, RT, Accuracy, `Stop-signal delay`)
   
   # Recode condition: Go -> 0, Stop -> 1
-  data_red$Condition <- ifelse(data_red$Condition == "Go", 0, 1)
+  data_SST_red$Condition <- ifelse(data_SST_red$Condition == "Go", 0, 1)
   # Convert all columns to numeric
-  data_red[] <- lapply(data_red, as.numeric)
+  data_SST_red[] <- lapply(data_SST_red, as.numeric)
   
   # Calculate SSRT
-  SSRT_value <- integration_adaptiveSSD(data_red, stop_col = "Condition", rt_col = "RT", acc_col = "Accuracy", ssd_col = "Stop-signal delay")
+  SSRT_value <- integration_adaptiveSSD(data_SST_red, stop_col = "Condition", rt_col = "RT",
+                                        acc_col = "Accuracy", ssd_col = "Stop-signal delay")
   
   # Append the result to SSRT_all
-  SSRT_all <- rbind(SSRT_all, data.frame(Subject = subject, SSRT = SSRT_value))
+  AllData_SST <- rbind(AllData_SST, data.frame(Subject = subject, SSRT = SSRT_value))
 }
 ```
 
@@ -274,25 +275,25 @@ write.csv(AllData_TwoBack, "Z:/PsyThera/Projekte_Meinke/Old_projects/Labrotation
 ```
 
 # 4. Merge task data with data_all
+All 4 task dataframes contain the same subject IDs, thus all dataframes can be merged with any of them serving as reference dataframe
 ```{r Merge task data with data_all_red}
-task_dfs <- list(AllData_NumbLet, AllData_Stroop, AllData_TwoBack)
-result_dfs <- list()
 
-for (task in task_dfs){
-  # Step 1: convert Subject to numeric for use in left_join
-  task$Subject <- as.numeric(task$Subject)
-  # Step 2: merge task dataframes and data_all_red
-  result_dfs[[length(result_dfs) + 1]] <- left_join(
-    x = task,
-    y = data_all_red,
-    by = "Subject")
-}
+# Align data types
+data_all_red$Subject <- as.character(data_all_red$Subject)
 
-AllData_NumbLet_merged <- result_dfs[[1]]
-AllData_Stroop_merged <- result_dfs[[2]]
-AllData_TwoBack_merged <- result_dfs[[3]]
+merged_data <- AllData_NumbLet %>%
+  # 1. Merge all task dataframes
+  left_join(AllData_Stroop, by = "Subject") %>%
+  left_join(AllData_TwoBack, by = "Subject") %>%
+  left_join(AllData_SST, by = "Subject") %>%
+  # 2. Add data_all_red
+  left_join(data_all_red, by = "Subject")
+
+# TODO: change variable names
 
 ```
+
+# TODO: use merged dataframe instead for following procedures
 
 # 5. Recode patient IDs from post-measurement
 
@@ -305,6 +306,9 @@ AllData_Stroop_merged <- AllData_Stroop_merged %>%
   mutate(Gruppe = ifelse(Subject >= 216601 & Subject <= 216760, 2, Gruppe))
 # TwoBack
 AllData_TwoBack_merged <- AllData_TwoBack_merged %>%
+  mutate(Gruppe = ifelse(Subject >= 216601 & Subject <= 216760, 2, Gruppe))
+# SST
+AllData_SST_merged <- AllData_SST_merged %>%
   mutate(Gruppe = ifelse(Subject >= 216601 & Subject <= 216760, 2, Gruppe))
 ```
 
@@ -370,6 +374,23 @@ excl_subs_2B_rc <- anti_join(AllData_TwoBack_clean.1, AllData_TwoBack_clean.2, b
 # AllData_TwoBack_clean.3 <- AllData_TwoBack_clean.2 %>%
 #   filter(!all(is.na(Foil_RT), is.na(Target_RT), is.na(Foil_PC), is.na(Target_PC)))
 # excl_subs_2B_task <- anti_join(AllData_TwoBack_clean.2, AllData_TwoBack_clean.3, by = "Subject")
+```
+`r nrow(excl_subs_2B_group)` subjects were removed due to missing group information 
+`r nrow(excl_subs_2B_rc)` patients were removed due to missing FAS_T1 and/or FAS_T3 (i.e. response criterion)
+
+## Stop-Signal Task
+```{r Subject exclusion SST}
+
+# Remove subjects with missing group information 
+AllData_SST_clean.1 <- AllData_SST_merged %>%
+  filter(!is.na(Gruppe))
+excl_subs_2B_group <- anti_join(AllData_SST_merged, AllData_SST_clean.1, by = "Subject")
+
+# Remove patients with missing FAS_T1 and/or FAS_T3
+AllData_SST_clean.2 <- AllData_SST_clean.1 %>%
+  filter(Gruppe == 0 | Gruppe == 2 | (Gruppe == 1 & !is.na(T1_BAT_FAS_score) & !is.na(T3_BAT_FAS_score)))
+excl_subs_2B_rc <- anti_join(AllData_SST_clean.1, AllData_SST_clean.2, by = "Subject")
+
 ```
 `r nrow(excl_subs_2B_group)` subjects were removed due to missing group information 
 `r nrow(excl_subs_2B_rc)` patients were removed due to missing FAS_T1 and/or FAS_T3 (i.e. response criterion)
