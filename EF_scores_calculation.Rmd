@@ -356,12 +356,11 @@ excl_subs_2B_rc <- anti_join(AllData_TwoBack_clean.1, AllData_TwoBack_clean.2, b
 `r nrow(excl_subs_2B_rc)` patients were removed due to missing FAS_T1 and/or FAS_T3 (i.e. response criterion)
 
 ## Summary subject exclusion
-IDs of task-data with no group identity (93 in total):
+IDs of task-data with no group identity (8 in total):
 - 1, 2: correspond to 216001 und 216002?
 - 2160031: one 0 too much? (216031 exists)
 - 216504: ???
 - 2166108, 2166120, 2166121, 2166321: MZP2 and one 6 too much?
---> all other 85 IDs were generated at MZP2
 
 For each task, 19 patients had to be removed due to missing data for FAS_T1 and/or FAS_T3
 
@@ -484,7 +483,7 @@ data_TwoBack_Pat_post <- split_df_TwoBack$"2"
 
 # define function for ... purposes
 write_data_to_csv <- function(data, filename) {
-  base_path <- "Z:/PsyThera/Projekte_Meinke/Labrotation_Rebecca/Daten_Gruppenvergleich/"
+  base_path <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/Without_wrong_responses/"
   write.csv(data, paste0(base_path, filename), row.names = FALSE)
 }
 

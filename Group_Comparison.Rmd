@@ -38,17 +38,17 @@ library(gtsummary)
 
 ### Task Performance Data
 ```{r}
-NumberLetter_HC <- read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/NumberLetter_HC.csv")
-NumberLetter_Patients_Post <- read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/NumberLetter_Patients_Post.csv")
-NumberLetter_Patients_Pre <-  read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/NumberLetter_Patients_Pre.csv")
+NumberLetter_HC <- read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/Without_wrong_responses/NumberLetter_HC.csv")
+NumberLetter_Patients_Post <- read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/Without_wrong_responses/NumberLetter_Patients_Post.csv")
+NumberLetter_Patients_Pre <-  read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/Without_wrong_responses/NumberLetter_Patients_Pre.csv")
 
-Stroop_HC <- read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/Stroop_HC.csv")
-Stroop_Patients_Post <-  read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/Stroop_Patients_Post.csv")
-Stroop_Patients_Pre <-  read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/Stroop_Patients_Pre.csv")
+Stroop_HC <- read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/Without_wrong_responses/Stroop_HC.csv")
+Stroop_Patients_Post <-  read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/Without_wrong_responses/Stroop_Patients_Post.csv")
+Stroop_Patients_Pre <-  read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/Without_wrong_responses/Stroop_Patients_Pre.csv")
 
-TwoBack_HC <- read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/TwoBack_HC.csv")
-TwoBack_Patients_Post <-  read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/TwoBack_Patients_Post.csv")
-TwoBack_Patients_Pre <-  read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/TwoBack_Patients_Pre.csv")
+TwoBack_HC <- read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/Without_wrong_responses/TwoBack_HC.csv")
+TwoBack_Patients_Post <-  read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/Without_wrong_responses/TwoBack_Patients_Post.csv")
+TwoBack_Patients_Pre <-  read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/Without_wrong_responses/TwoBack_Patients_Pre.csv")
 ```
 
 ### Subject Data
@@ -124,9 +124,9 @@ t_test_mult_cols <- function(df_basis, cols) {
     # Store the results
     df[col, "t_statistic"] <- round(results$statistic, 2)
     df[col, "p_value"] <- round(results$p.value, 2)
-    df[col, "group_mean_Patients"] <- round(mean(group0), 2)
+    df[col, "group_mean_Patients"] <- round(mean(group1), 2)
     df[col, "sd_Patients"] <- round(sd(group0), 2)
-    df[col, "group_mean_HC"] <- round(mean(group1), 2)
+    df[col, "group_mean_HC"] <- round(mean(group0), 2)
     df[col, "sd_HC"] <- round(sd(group1), 2)
     df[col, "cohen_d"] <- round(cohen_d, 2)
     df[col, "power"] <- round(power, 2)
@@ -137,7 +137,7 @@ t_test_mult_cols <- function(df_basis, cols) {
 t_test_table <- t_test_mult_cols(df_basis = Patients_vs_HC_imp, cols = BIS_columns_renamed)
 pander(t_test_table, style = "rmarkdown", fontsize = "tiny")
 ```
-Patients performed better than healthy controls, especially in the Stroop and the NumberLetterTask. However, please note that we have not tested for baseline differences (e.g., education, age...). This is done in the following step
+Patients performed worse than healthy controls, especially in the Stroop and the NumberLetterTask. However, please note that we have not tested for baseline differences (e.g., education, age...). This is done in the following step.
 
 ### Control Welch-test for covariates age, sex, and education
 ```{r}
