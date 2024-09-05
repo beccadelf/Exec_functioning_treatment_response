@@ -15,6 +15,7 @@ library(DescTools)
 library(data.table)
 library(tidyverse)
 library(caret)
+library(SSRTcalc)
 library(ggplot2)
 ```
 
@@ -238,6 +239,32 @@ AllData_Stroop <- preprocess_RT_PC(task = "Stroop", subjects = subjects)
 AllData_TwoBack <- preprocess_RT_PC(task = "TwoBack", subjects = subjects)
 ```
 
+# 3. Calculate SSRT of each subject
+## Info: adaptive version of SST was used: the initial SSD of 200 ms was adapted after each “stop” trial by adding 50 ms for a (correct) nonresponse, and subtracting 50 ms for a (faulty) response
+```{r}
+# Initialize empty holder dataframe
+SSRT_all <- data.frame()
+
+for (subject in subjects) {
+  data <- df_from_matlab(task_name = "StopSignal", subject = subject)
+  
+  # Reduce to only relevant variables
+  data_red <- data %>%
+    select(Condition, RT, Accuracy, `Stop-signal delay`)
+  
+  # Recode condition: Go -> 0, Stop -> 1
+  data_red$Condition <- ifelse(data_red$Condition == "Go", 0, 1)
+  # Convert all columns to numeric
+  data_red[] <- lapply(data_red, as.numeric)
+  
+  # Calculate SSRT
+  SSRT_value <- integration_adaptiveSSD(data_red, stop_col = "Condition", rt_col = "RT", acc_col = "Accuracy", ssd_col = "Stop-signal delay")
+  
+  # Append the result to SSRT_all
+  SSRT_all <- rbind(SSRT_all, data.frame(Subject = subject, SSRT = SSRT_value))
+}
+```
+
 ## Optional: save the processed data
 ```{r Save preprocessed data as .csv}
 
@@ -246,7 +273,7 @@ write.csv(AllData_Stroop, "Z:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_
 write.csv(AllData_TwoBack, "Z:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Dateien_Github/Tasks_Merged Data/AllData_TwoBack.csv")
 ```
 
-# 3. Merge task data with data_all
+# 4. Merge task data with data_all
 ```{r Merge task data with data_all_red}
 task_dfs <- list(AllData_NumbLet, AllData_Stroop, AllData_TwoBack)
 result_dfs <- list()
@@ -267,7 +294,7 @@ AllData_TwoBack_merged <- result_dfs[[3]]
 
 ```
 
-# 4. Recode patient IDs from post-measurement
+# 5. Recode patient IDs from post-measurement
 
 ```{r Post IDs}
 # NumberLetter
@@ -281,7 +308,7 @@ AllData_TwoBack_merged <- AllData_TwoBack_merged %>%
   mutate(Gruppe = ifelse(Subject >= 216601 & Subject <= 216760, 2, Gruppe))
 ```
 
-# 5. Exclusion of subjects for each task individually, separate HC from patients
+# 6. Exclusion of subjects for each task individually, separate HC from patients
 Exclude subjects with missing group information and patients with missing FAS_T1 and/or FAS_T3. No subjects have NAs in all 4 task variables, therefore this exclusion step is not included anymore.
 
 ## Number-Letter Task
@@ -359,7 +386,7 @@ For each task, 19 patients had to be removed due to missing data for FAS_T1 and/
 
 # TO BE MODIFIED... (write one or two functions to use for all three tasks)
 
-# 6. Calculate BIS (and Difference Score) for each condition and subject separately
+# 7. Calculate BIS (and Difference Score) for each condition and subject separately
 BIS = Z(PC) - Z(RT)
 
 Difference Switch and Repeat = BIS(Switch) - BIS(Repeat)
@@ -448,7 +475,7 @@ AllData_TwoBack_clean.2 <- AllData_TwoBack_clean.2 %>%
          BIS_Foil = Z_Foil_PC - Z_Foil_RT)
 ```
 
-# 7. Create separate dataframe for each group (HC, patient_pre, patient_post)
+# 8. Create separate dataframe for each group (HC, patient_pre, patient_post)
 
 ```{r Dataframe for each group}
 # NumberLetter
@@ -470,7 +497,7 @@ data_TwoBack_Pat_pre <- split_df_TwoBack$"1"
 data_TwoBack_Pat_post <- split_df_TwoBack$"2"
 ```
 
-# 8. Save dataframes for t-tests
+# 9. Save dataframes for t-tests
 ```{r Save dataframes}
 
 # define function
