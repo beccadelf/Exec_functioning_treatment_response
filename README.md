@@ -1,6 +1,6 @@
 # Exec_functioning_treatment_response
 
-**The two central scripts of this Repo are "EF_scores_calculation.Rmd" and "Group_Comparison.Rmd".**
+## **The two central scripts of this Repo are "EF_scores_calculation.Rmd" and "Group_Comparison.Rmd".**
 
 ### 1. EF_scores_calculation.Rmd performs the pre-processing calculations of the Balanced Integrated Score (BIS) for the three/four (?) cognitive tasks investigated in this study:
 **(Each of these tasks is separated for BIS-adequate analysis into its respective conditions)**
@@ -27,7 +27,9 @@
 
    b. **Dependent sample Welch's t-test (Pre-Post)**: The performance of patients before the intervention is compared against the performance of patients after the intervention for each task condition.
 
-**The folder "Exploratory analysis" contains several supplementary analyses that navigate alternative statistical options to arrive at the one ultimately employed.**
+---
+
+## **The folder "Exploratory analysis" contains several supplementary analyses that navigate alternative statistical options to arrive at the one ultimately employed.**
 
 ### 1. Analyses _without_ wrong responses
 - We asked ourselves if the removal of incorrect responses by a participant to a task trial would alter the analyses.
