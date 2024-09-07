@@ -29,7 +29,7 @@
 
 ---
 
-<u><h2><strong>The folder "Exploratory analysis" contains several supplementary analyses that navigate alternative statistical options to arrive at the one ultimately employed.</strong></h2></u>
+## **The folder "Exploratory analysis" contains several supplementary analyses that navigate alternative statistical options to arrive at the one ultimately employed.**
 
 ### 1. Analyses _without_ wrong responses
 - We asked ourselves if the removal of incorrect responses by a participant to a task trial would alter the analyses.
