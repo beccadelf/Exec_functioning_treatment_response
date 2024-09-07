@@ -2,7 +2,7 @@
 
 ## **The two central scripts of this Repo are "EF_scores_calculation.Rmd" and "Group_Comparison.Rmd".**
 
-### 1. EF_scores_calculation.Rmd performs the pre-processing calculations of the Balanced Integrated Score (BIS) for the three/four (?) cognitive tasks investigated in this study:
+### 1. <u>EF_scores_calculation.Rmd performs the pre-processing calculations of the Balanced Integrated Score (BIS) for the three/four (?) cognitive tasks investigated in this study:</u>
 **(Each of these tasks is separated for BIS-adequate analysis into its respective conditions)**
 
    a. _Spatial 2-back Task_: Participants are required to monitor a sequence of spatial stimuli and indicate whether the current stimulus matches the one presented two steps earlier, assessing working memory.
