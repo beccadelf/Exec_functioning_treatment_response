@@ -193,7 +193,6 @@ For each subject, we have 5 matlab dataframes:
 - ExpOrder
 
 ## Get list of all subjects
-
 ```{r List of all subjects}
 
 files <- list.files(basic_path)
@@ -274,7 +273,7 @@ write.csv(AllData_Stroop, "Z:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_
 write.csv(AllData_TwoBack, "Z:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Dateien_Github/Tasks_Merged Data/AllData_TwoBack.csv")
 ```
 
-# 4. Merge task data with data_all
+# 4. Merge task data with data_all, recode patient IDs from post-measurement
 All 4 task dataframes contain the same subject IDs, thus all dataframes can be merged with any of them serving as reference dataframe
 ```{r Merge task data with data_all_red}
 
@@ -289,111 +288,38 @@ merged_data <- AllData_NumbLet %>%
   # 2. Add data_all_red
   left_join(data_all_red, by = "Subject")
 
-# TODO: change variable names
+# Change variable names
+merged_data <- merged_data %>%
+  rename(NumbLet_Average_RT = Overall_RT.x,
+         NumbLet_Average_PC = Overall_PC.x,
+         Stroop_Average_RT = Overall_RT.y,
+         Stroop_Average_PC = Overall_PC.y,
+         TwoBack_Average_RT = Overall_RT,
+         TwoBack_Average_PC = Overall_PC)
 
+# Assign post IDs (Gruppe = 2)
+merged_data <- merged_data %>%
+  mutate(Subject = as.numeric(Subject),
+         Gruppe = ifelse(Subject >= 216601 & Subject <= 216760, 2, Gruppe))
 ```
 
-# TODO: use merged dataframe instead for following procedures
 
-# 5. Recode patient IDs from post-measurement
-
-```{r Post IDs}
-# NumberLetter
-AllData_NumbLet_merged <- AllData_NumbLet_merged %>%
-  mutate(Gruppe = ifelse(Subject >= 216601 & Subject <= 216760, 2, Gruppe))
-# Stroop
-AllData_Stroop_merged <- AllData_Stroop_merged %>%
-  mutate(Gruppe = ifelse(Subject >= 216601 & Subject <= 216760, 2, Gruppe))
-# TwoBack
-AllData_TwoBack_merged <- AllData_TwoBack_merged %>%
-  mutate(Gruppe = ifelse(Subject >= 216601 & Subject <= 216760, 2, Gruppe))
-# SST
-AllData_SST_merged <- AllData_SST_merged %>%
-  mutate(Gruppe = ifelse(Subject >= 216601 & Subject <= 216760, 2, Gruppe))
-```
-
-# 6. Exclusion of subjects for each task individually, separate HC from patients
+# 5. Exclusion of subjects for each task individually, separate HC from patients
 Exclude subjects with missing group information and patients with missing FAS_T1 and/or FAS_T3. No subjects have NAs in all 4 task variables, therefore this exclusion step is not included anymore.
+```{r Subject exclusion}
 
-## Number-Letter Task
-```{r Subject exclusion NumberLetter}
-
-# Remove subjects with missing group information 
-AllData_NumbLet_clean.1 <- AllData_NumbLet_merged %>%
+# 1. Remove subjects with missing group information 
+merged_data_excl1 <- merged_data %>%
   filter(!is.na(Gruppe))
-excl_subs_NL_group <- anti_join(AllData_NumbLet_merged, AllData_NumbLet_clean.1, by = "Subject")
+excl_group <- anti_join(merged_data, merged_data_excl1, by = "Subject")
 
-# Remove patients with missing FAS_T1 and/or FAS_T3
-AllData_NumbLet_clean.2 <- AllData_NumbLet_clean.1 %>%
+# 2. Remove patients with missing FAS_T1 and/or FAS_T3
+merged_data_clean <- merged_data_excl1 %>%
   filter(Gruppe == 0 | Gruppe == 2 | (Gruppe == 1 & !is.na(T1_BAT_FAS_score) & !is.na(T3_BAT_FAS_score)))
-excl_subs_NL_rc <- anti_join(AllData_NumbLet_clean.1, AllData_NumbLet_clean.2, by = "Subject")
-
-# Remove subjects that have NAs in all 4 task variables
-# AllData_NumbLet_clean.3 <- AllData_NumbLet_clean.2 %>%
-#   filter(!all(is.na(Repeat_RT), is.na(Switch_RT), is.na(Repeat_PC), is.na(Switch_PC)))
-# excl_subs_NL_task <- anti_join(AllData_NumbLet_clean.2, AllData_NumbLet_clean.3, by = "Subject")
+excl_criterion <- anti_join(merged_data_excl1, merged_data_clean, by = "Subject")
 ```
-`r nrow(excl_subs_NL_group)` subjects were removed due to missing group information 
-`r nrow(excl_subs_NL_rc)` patients were removed due to missing FAS_T1 and/or FAS_T3 (i.e. response criterion)
-
-## Stroop Task
-```{r Subject exclusion Stroop}
-
-# Remove subjects with missing group information 
-AllData_Stroop_clean.1 <- AllData_Stroop_merged %>%
-  filter(!is.na(Gruppe))
-excl_subs_Str_group <- anti_join(AllData_Stroop_merged, AllData_Stroop_clean.1, by = "Subject")
-
-# Remove patients with missing FAS_T1 and/or FAS_T3
-AllData_Stroop_clean.2 <- AllData_Stroop_clean.1 %>%
-  filter(Gruppe == 0 | Gruppe == 2 | (Gruppe == 1 & !is.na(T1_BAT_FAS_score) & !is.na(T3_BAT_FAS_score)))
-excl_subs_Str_rc <- anti_join(AllData_Stroop_clean.1, AllData_Stroop_clean.2, by = "Subject")
-
-# Remove subjects that have NAs in all 4 task variables
-# AllData_Stroop_clean.3 <- AllData_Stroop_clean.2 %>%
-#   filter(!all(is.na(Congruent_RT), is.na(Incongruent_RT), is.na(Congruent_PC), is.na(Incongruent_PC)))
-# excl_subs_Str_task <- anti_join(AllData_Stroop_clean.2, AllData_Stroop_clean.3, by = "Subject")
-```
-`r nrow(excl_subs_Str_group)` subjects were removed due to missing group information 
-`r nrow(excl_subs_Str_rc)` patients were removed due to missing FAS_T1 and/or FAS_T3 (i.e. response criterion)
-
-## TwoBack Task
-```{r Subject exclusion TwoBack}
-
-# Remove subjects with missing group information 
-AllData_TwoBack_clean.1 <- AllData_TwoBack_merged %>%
-  filter(!is.na(Gruppe))
-excl_subs_2B_group <- anti_join(AllData_TwoBack_merged, AllData_TwoBack_clean.1, by = "Subject")
-
-# Remove patients with missing FAS_T1 and/or FAS_T3
-AllData_TwoBack_clean.2 <- AllData_TwoBack_clean.1 %>%
-  filter(Gruppe == 0 | Gruppe == 2 | (Gruppe == 1 & !is.na(T1_BAT_FAS_score) & !is.na(T3_BAT_FAS_score)))
-excl_subs_2B_rc <- anti_join(AllData_TwoBack_clean.1, AllData_TwoBack_clean.2, by = "Subject")
-
-# Remove subjects that have NAs in all 4 task variables
-# AllData_TwoBack_clean.3 <- AllData_TwoBack_clean.2 %>%
-#   filter(!all(is.na(Foil_RT), is.na(Target_RT), is.na(Foil_PC), is.na(Target_PC)))
-# excl_subs_2B_task <- anti_join(AllData_TwoBack_clean.2, AllData_TwoBack_clean.3, by = "Subject")
-```
-`r nrow(excl_subs_2B_group)` subjects were removed due to missing group information 
-`r nrow(excl_subs_2B_rc)` patients were removed due to missing FAS_T1 and/or FAS_T3 (i.e. response criterion)
-
-## Stop-Signal Task
-```{r Subject exclusion SST}
-
-# Remove subjects with missing group information 
-AllData_SST_clean.1 <- AllData_SST_merged %>%
-  filter(!is.na(Gruppe))
-excl_subs_2B_group <- anti_join(AllData_SST_merged, AllData_SST_clean.1, by = "Subject")
-
-# Remove patients with missing FAS_T1 and/or FAS_T3
-AllData_SST_clean.2 <- AllData_SST_clean.1 %>%
-  filter(Gruppe == 0 | Gruppe == 2 | (Gruppe == 1 & !is.na(T1_BAT_FAS_score) & !is.na(T3_BAT_FAS_score)))
-excl_subs_2B_rc <- anti_join(AllData_SST_clean.1, AllData_SST_clean.2, by = "Subject")
-
-```
-`r nrow(excl_subs_2B_group)` subjects were removed due to missing group information 
-`r nrow(excl_subs_2B_rc)` patients were removed due to missing FAS_T1 and/or FAS_T3 (i.e. response criterion)
+`r nrow(excl_group)` subjects were removed due to missing group information. 
+`r nrow(excl_criterion)` patients were removed due to missing FAS_T1 and/or FAS_T3 (i.e. response criterion).
 
 ## Summary subject exclusion
 IDs of task-data with no group identity (8 in total):
@@ -407,138 +333,110 @@ For each task, 19 patients had to be removed due to missing data for FAS_T1 and/
 
 # TO BE MODIFIED... (write one or two functions to use for all three tasks)
 
-# 7. Calculate BIS (and Difference Score) for each condition and subject separately
+# 6. Calculate BIS (and Difference Score) for each condition and subject separately
 BIS = Z(PC) - Z(RT)
 
 Difference Switch and Repeat = BIS(Switch) - BIS(Repeat)
 Difference Incongruent and Congruent = BIS(Congruent) - BIS(Incongruent)
 
 ## Number-Letter Task
-
 ```{r Scores Number-Letter Task}
 
 ## Step 1: Calculate mean and SD for RT and PC across all healthy subjects and all conditions
-mean_sd_HC_NumbLet <- AllData_NumbLet_clean.2 %>% 
+NumbLet_mean_sd_HC <- merged_data_clean %>% 
   filter(Gruppe == 0) %>%
-  select(Overall_RT, Overall_PC) %>%
-  summarise(meanRT = mean(Overall_RT),
-            meanPC = mean(Overall_PC),
-            sdRT = sd(Overall_RT),
-            sdPC = sd(Overall_PC))
+  select(NumbLet_Average_RT, NumbLet_Average_PC) %>%
+  summarise(meanRT = mean(NumbLet_Average_RT),
+            meanPC = mean(NumbLet_Average_PC),
+            sdRT = sd(NumbLet_Average_RT),
+            sdPC = sd(NumbLet_Average_PC))
 
 ## Step 2: Standardize RT and PC for each condition
-AllData_NumbLet_clean.2 <- AllData_NumbLet_clean.2 %>%
-  mutate(Z_Repeat_RT = (Repeat_RT - mean_sd_HC_NumbLet$meanRT) / mean_sd_HC_NumbLet$sdRT,
-         Z_Switch_RT = (Switch_RT - mean_sd_HC_NumbLet$meanRT) / mean_sd_HC_NumbLet$sdRT,
-         Z_Repeat_PC = (Repeat_PC - mean_sd_HC_NumbLet$meanPC) / mean_sd_HC_NumbLet$sdPC,
-         Z_Switch_PC = (Switch_PC - mean_sd_HC_NumbLet$meanPC) / mean_sd_HC_NumbLet$sdPC)
+merged_data_clean <- merged_data_clean %>%
+  mutate(Z_Repeat_RT = (Repeat_RT - NumbLet_mean_sd_HC$meanRT) / NumbLet_mean_sd_HC$sdRT,
+         Z_Switch_RT = (Switch_RT - NumbLet_mean_sd_HC$meanRT) / NumbLet_mean_sd_HC$sdRT,
+         Z_Repeat_PC = (Repeat_PC - NumbLet_mean_sd_HC$meanPC) / NumbLet_mean_sd_HC$sdPC,
+         Z_Switch_PC = (Switch_PC - NumbLet_mean_sd_HC$meanPC) / NumbLet_mean_sd_HC$sdPC)
 
 # Step 3: Calculate BIS(Repeat), BIS(Switch) and Difference Score
-AllData_NumbLet_clean.2 <- AllData_NumbLet_clean.2 %>%
-  mutate(BIS_Repeat = Z_Repeat_PC - Z_Repeat_RT,
-         BIS_Switch = Z_Switch_PC - Z_Switch_RT) %>%
-  mutate(Diff_Score_NumbLet = BIS_Switch - BIS_Repeat)
-
+merged_data_clean <- merged_data_clean %>%
+  mutate(NumberLetter_BIS_Repeat = Z_Repeat_PC - Z_Repeat_RT,
+         NumberLetter_BIS_Switch = Z_Switch_PC - Z_Switch_RT) %>%
+  mutate(NumberLetter_Diff_Score = NumberLetter_BIS_Switch - NumberLetter_BIS_Repeat)
 ```
 
 ## Stroop Task
-
 ```{r Scores Stroop Task}
 
 ## Step 1: Calculate mean and SD for RT and PC across all healthy subjects and all conditions
-mean_sd_HC_Stroop <- AllData_Stroop_clean.2 %>% 
+Stroop_mean_sd_HC <- merged_data_clean %>% 
   filter(Gruppe == 0) %>%
-  select(Overall_RT, Overall_PC) %>%
-  summarise(meanRT = mean(Overall_RT),
-            meanPC = mean(Overall_PC),
-            sdRT = sd(Overall_RT),
-            sdPC = sd(Overall_PC))
+  select(Stroop_Average_RT, Stroop_Average_PC) %>%
+  summarise(meanRT = mean(Stroop_Average_RT),
+            meanPC = mean(Stroop_Average_PC),
+            sdRT = sd(Stroop_Average_RT),
+            sdPC = sd(Stroop_Average_PC))
 
 ## Step 2: Standardize RT and PC for each condition
-AllData_Stroop_clean.2 <- AllData_Stroop_clean.2 %>%
-  mutate(Z_Congruent_RT = (Congruent_RT - mean_sd_HC_Stroop$meanRT) / mean_sd_HC_Stroop$sdRT,
-         Z_Incongruent_RT = (Incongruent_RT - mean_sd_HC_Stroop$meanRT) / mean_sd_HC_Stroop$sdRT,
-         Z_Congruent_PC = (Congruent_PC - mean_sd_HC_Stroop$meanPC) / mean_sd_HC_Stroop$sdPC,
-         Z_Incongruent_PC = (Incongruent_PC - mean_sd_HC_Stroop$meanPC) / mean_sd_HC_Stroop$sdPC)
+merged_data_clean <- merged_data_clean %>%
+  mutate(Z_Congruent_RT = (Congruent_RT - Stroop_mean_sd_HC$meanRT) / Stroop_mean_sd_HC$sdRT,
+         Z_Incongruent_RT = (Incongruent_RT - Stroop_mean_sd_HC$meanRT) / Stroop_mean_sd_HC$sdRT,
+         Z_Congruent_PC = (Congruent_PC - Stroop_mean_sd_HC$meanPC) / Stroop_mean_sd_HC$sdPC,
+         Z_Incongruent_PC = (Incongruent_PC - Stroop_mean_sd_HC$meanPC) / Stroop_mean_sd_HC$sdPC)
 
 # Step 3: Calculate BIS(Congruent), BIS(Incongruent) and Difference Score
-AllData_Stroop_clean.2 <- AllData_Stroop_clean.2 %>%
-  mutate(BIS_Congruent = Z_Congruent_PC - Z_Congruent_RT,
-         BIS_Incongruent = Z_Incongruent_PC - Z_Incongruent_RT) %>%
-  mutate(Diff_Score_Stroop = BIS_Incongruent - BIS_Congruent)
+merged_data_clean <- merged_data_clean %>%
+  mutate(Stroop_BIS_Congruent = Z_Congruent_PC - Z_Congruent_RT,
+         Stroop_BIS_Incongruent = Z_Incongruent_PC - Z_Incongruent_RT) %>%
+  mutate(Stroop_Diff_Score = Stroop_BIS_Incongruent - Stroop_BIS_Congruent)
 ```
 
 ## TwoBack Task
 ```{r BIS TwoBack Task}
 
 ## Step 1: Calculate mean and SD for RT and PC across all healthy subjects and all conditions
-mean_sd_HC_TwoBack <- AllData_TwoBack_clean.2 %>% 
+TwoBack_mean_sd_HC <- merged_data_clean %>% 
   filter(Gruppe == 0) %>%
-  select(Overall_RT, Overall_PC) %>%
-  summarise(meanRT = mean(Overall_RT),
-            meanPC = mean(Overall_PC),
-            sdRT = sd(Overall_RT),
-            sdPC = sd(Overall_PC))
+  select(TwoBack_Average_RT, TwoBack_Average_PC) %>%
+  summarise(meanRT = mean(TwoBack_Average_RT),
+            meanPC = mean(TwoBack_Average_PC),
+            sdRT = sd(TwoBack_Average_RT),
+            sdPC = sd(TwoBack_Average_PC))
 
 ## Step 2: Standardize RT and PC for each condition
-AllData_TwoBack_clean.2 <- AllData_TwoBack_clean.2 %>%
-  mutate(Z_Total_RT = (Overall_RT - mean_sd_HC_TwoBack$meanRT) / mean_sd_HC_TwoBack$sdRT,
-         Z_Target_RT = (Target_RT - mean_sd_HC_TwoBack$meanRT) / mean_sd_HC_TwoBack$sdRT,
-         Z_Foil_RT = (Foil_RT - mean_sd_HC_TwoBack$meanRT) / mean_sd_HC_TwoBack$sdRT,
-         Z_Total_PC = (Overall_PC - mean_sd_HC_TwoBack$meanPC) / mean_sd_HC_TwoBack$sdPC,
-         Z_Target_PC = (Target_PC - mean_sd_HC_TwoBack$meanPC) / mean_sd_HC_TwoBack$sdPC,
-         Z_Foil_PC = (Foil_PC - mean_sd_HC_TwoBack$meanPC) / mean_sd_HC_TwoBack$sdPC)
+merged_data_clean <- merged_data_clean %>%
+  mutate(Z_Total_RT = (TwoBack_Average_RT - TwoBack_mean_sd_HC$meanRT) / TwoBack_mean_sd_HC$sdRT,
+         Z_Target_RT = (Target_RT - TwoBack_mean_sd_HC$meanRT) / TwoBack_mean_sd_HC$sdRT,
+         Z_Foil_RT = (Foil_RT - TwoBack_mean_sd_HC$meanRT) / TwoBack_mean_sd_HC$sdRT,
+         Z_Total_PC = (TwoBack_Average_PC - TwoBack_mean_sd_HC$meanPC) / TwoBack_mean_sd_HC$sdPC,
+         Z_Target_PC = (Target_PC - TwoBack_mean_sd_HC$meanPC) / TwoBack_mean_sd_HC$sdPC,
+         Z_Foil_PC = (Foil_PC - TwoBack_mean_sd_HC$meanPC) / TwoBack_mean_sd_HC$sdPC)
 
 # Calculate BIS(Target), BIS(Total) and BIS_Foil
-AllData_TwoBack_clean.2 <- AllData_TwoBack_clean.2 %>%
-  mutate(BIS_Total = Z_Total_PC - Z_Total_RT,
-         BIS_Target = Z_Target_PC - Z_Target_RT,
-         BIS_Foil = Z_Foil_PC - Z_Foil_RT)
+merged_data_clean <- merged_data_clean %>%
+  mutate(TwoBack_BIS_Total = Z_Total_PC - Z_Total_RT,
+         TwoBack_BIS_Target = Z_Target_PC - Z_Target_RT,
+         TwoBack_BIS_Foil = Z_Foil_PC - Z_Foil_RT)
 ```
 
-# 8. Create separate dataframe for each group (HC, patient_pre, patient_post)
+# 7. Create separate dataframe for each group (HC, patient_pre, patient_post)
 
 ```{r Dataframe for each group}
-# NumberLetter
-split_df_NumbLet <- split(AllData_NumbLet_clean.2, AllData_NumbLet_clean.2$Gruppe)
-data_NumbLet_HC <- split_df_NumbLet$"0"
-data_NumbLet_Pat_pre <- split_df_NumbLet$"1"
-data_NumbLet_Pat_post <- split_df_NumbLet$"2"
 
-# Stroop
-split_df_Stroop <- split(AllData_Stroop_clean.2, AllData_Stroop_clean.2$Gruppe)
-data_Stroop_HC <- split_df_Stroop$"0"
-data_Stroop_Pat_pre <- split_df_Stroop$"1"
-data_Stroop_Pat_post <- split_df_Stroop$"2"
-
-# TwoBack
-split_df_TwoBack <- split(AllData_TwoBack_clean.2, AllData_TwoBack_clean.2$Gruppe)
-data_TwoBack_HC <- split_df_TwoBack$"0"
-data_TwoBack_Pat_pre <- split_df_TwoBack$"1"
-data_TwoBack_Pat_post <- split_df_TwoBack$"2"
+split_df <- split(merged_data_clean, merged_data_clean$Gruppe)
+data_HC <- split_df$"0"
+data_Pat_pre <- split_df$"1"
+data_Pat_post <- split_df$"2"
 ```
 
-# 9. Save dataframes for t-tests
+# 8. Save dataframes for analyses
 ```{r Save dataframes}
-
-# define function
-write_data_to_csv <- function(data, filename) {
-  base_path <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses/"
-  write.csv(data, paste0(base_path, filename), row.names = FALSE)
-}
+file_path <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses/"
 
 # Write data to CSV using the function
-write_data_to_csv(data_NumbLet_HC, "NumberLetter_HC.csv")
-write_data_to_csv(data_NumbLet_Pat_pre, "NumberLetter_Patients_Pre.csv")
-write_data_to_csv(data_NumbLet_Pat_post, "NumberLetter_Patients_Post.csv")
-
-write_data_to_csv(data_Stroop_HC, "Stroop_HC.csv")
-write_data_to_csv(data_Stroop_Pat_pre, "Stroop_Patients_Pre.csv")
-write_data_to_csv(data_Stroop_Pat_post, "Stroop_Patients_Post.csv")
-
-write_data_to_csv(data_TwoBack_HC, "TwoBack_HC.csv")
-write_data_to_csv(data_TwoBack_Pat_pre, "TwoBack_Patients_Pre.csv")
-write_data_to_csv(data_TwoBack_Pat_post, "TwoBack_Patients_Post.csv")
+write.csv(data_HC, paste0(file_path, "Data_HC.csv"), row.names = FALSE)
+write.csv(data_Pat_pre, paste0(file_path, "Data_Patients_Pre.csv"), row.names = FALSE)
+write.csv(data_Pat_post, paste0(file_path, "Data_Patients_Post.csv"), row.names = FALSE)
 ```
 
 
