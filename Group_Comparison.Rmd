@@ -38,17 +38,9 @@ library(gtsummary)
 
 ### Task Performance Data
 ```{r}
-NumberLetter_HC <- read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses/NumberLetter_HC.csv")
-NumberLetter_Patients_Post <- read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses/NumberLetter_Patients_Post.csv")
-NumberLetter_Patients_Pre <-  read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses/NumberLetter_Patients_Pre.csv")
-
-Stroop_HC <- read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses/Stroop_HC.csv")
-Stroop_Patients_Post <-  read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses/Stroop_Patients_Post.csv")
-Stroop_Patients_Pre <-  read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses/Stroop_Patients_Pre.csv")
-
-TwoBack_HC <- read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses/TwoBack_HC.csv")
-TwoBack_Patients_Post <-  read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses/TwoBack_Patients_Post.csv")
-TwoBack_Patients_Pre <-  read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses/TwoBack_Patients_Pre.csv")
+data_HC <- read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses/Data_HC.csv")
+data_Pat_pre <- read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses/Data_Patients_Pre.csv")
+data_Pat_post <- read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses/Data_Patients_Post.csv")
 ```
 
 ### Subject Data
@@ -61,35 +53,15 @@ colnames(data_all)[which(colnames(data_all) == "id")] <- "Subject"
 
 ### Prepare dataset
 ```{r}
-# Merge patients and controls
-## 1. Merge patients Pre (different tasks)
-Patients_pre_2 <- merge(NumberLetter_Patients_Pre, Stroop_Patients_Pre, by = "Subject")
-Patients_pre_3 <- merge(Patients_pre_2, TwoBack_Patients_Pre, by = "Subject")
+## 1. Merge patients pre and controls
+Patients_vs_HC <- rbind(data_Pat_pre, data_HC)
 
-## 2. Merge controls (different tasks)
-Controls_2 <- merge(NumberLetter_HC, Stroop_HC, by = "Subject")
-Controls_3 <- merge(Controls_2, TwoBack_HC, by = "Subject")
+## 2. Reduce dataset to BIS columns and SSRT
+BIS_columns <- colnames(Patients_vs_HC)[grep("BIS", colnames(Patients_vs_HC))]
+imp_columns <- c(BIS_columns, "SSRT")
+Patients_vs_HC_imp <- Patients_vs_HC[,c("Subject","Gruppe",imp_columns)]
 
-## 3. Merge Controls and patients
-Patients_vs_HC <- rbind(Patients_pre_3, Controls_3)
-
-## 4. Reduce dataset to BIS columns
-BIS_columns <- colnames(Patients_vs_HC)[startsWith(colnames(Patients_vs_HC), "BIS")]
-Patients_vs_HC_imp <- Patients_vs_HC[,c("Subject",BIS_columns,"Gruppe")]
-
-## 5. Add better names 
-Patients_vs_HC_imp <- Patients_vs_HC_imp %>%
-  rename(NumberLetter_BIS_Repeat = BIS_Repeat,
-         NumberLetter_BIS_Switch = BIS_Switch,
-         Stroop_BIS_Congruent = BIS_Congruent,
-         Stroop_BIS_Incongruent = BIS_Incongruent,
-         TwoBack_BIS_Total = BIS_Total,
-         TwoBack_BIS_Target = BIS_Target,
-         TwoBack_BIS_Foil = BIS_Foil)
-
-BIS_columns_renamed <- grep("BIS", colnames(Patients_vs_HC_imp), value = TRUE)
-
-## 6. Add confounds (Alter, Geschlecht, Abschluss)
+## 3. Add confounds (Alter, Geschlecht, Abschluss)
 Patients_vs_HC_imp_conf <- merge(data_all[,c("Subject","Alter","Geschlecht","Abschluss")], Patients_vs_HC_imp, by = "Subject")
 ```
 Data for `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1,])` patients and `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0,])` healthy controls were available.
@@ -105,8 +77,8 @@ t_test_mult_cols <- function(df_basis, cols) {
   rownames(df) <- cols
   for (col in cols) {
     # Using the non-formula interface
-    group0 <- df_basis[df_basis[["Gruppe"]] == 0, col]
-    group1 <- df_basis[df_basis[["Gruppe"]] == 1, col]
+    group0 <- na.omit(df_basis[df_basis[["Gruppe"]] == 0, col])
+    group1 <- na.omit(df_basis[df_basis[["Gruppe"]] == 1, col])
     results <- t.test(group0, group1, paired = FALSE, var.equal = FALSE)
     #Alternativ using formula method:
       #results <- t.test(df_basis[[col]] ~ df_basis[["Gruppe"]], paired = FALSE, var.equal = FALSE)
@@ -134,7 +106,7 @@ t_test_mult_cols <- function(df_basis, cols) {
   return(df)
 }
 
-t_test_table <- t_test_mult_cols(df_basis = Patients_vs_HC_imp, cols = BIS_columns_renamed)
+t_test_table <- t_test_mult_cols(df_basis = Patients_vs_HC_imp, cols = imp_columns)
 pander(t_test_table, style = "rmarkdown", fontsize = "tiny")
 ```
 Patients performed worse than healthy controls, especially in the Stroop and the NumberLetter Task. However, please note that we have not tested for baseline differences (e.g., education, age...). This is done in the following step.
@@ -172,7 +144,7 @@ ANCOVA_mult_cols <- function(df_basis, cols, covariates = NULL){
   return(df)
 }
 
-table_ANCOVA <- ANCOVA_mult_cols(df_basis = Patients_vs_HC_imp_conf, cols = BIS_columns_renamed, covariates = c("Alter","Geschlecht","Abschluss"))
+table_ANCOVA <- ANCOVA_mult_cols(df_basis = Patients_vs_HC_imp_conf, cols = imp_columns, covariates = c("Alter","Geschlecht","Abschluss"))
 pander(table_ANCOVA, style = "rmarkdown", fontsize = "tiny")
 ```
 3 observations with missings in the covariates are automatically deleted.
@@ -184,42 +156,31 @@ There was no significant effect between patients and controls in the TwoBackTask
 
 ### Prepare dataset
 ```{r}
-## Merge patients pre
-Patients_pre_2 <- merge(NumberLetter_Patients_Pre, Stroop_Patients_Pre, by = "Subject")
-Patients_pre_3 <- merge(Patients_pre_2, TwoBack_Patients_Pre, by = "Subject")
-Patients_pre_3$time <- "pre"
+## Copy original dataframes
+data_Pat_pre_comb <- data_Pat_pre
+data_Pat_post_comb <- data_Pat_post
 
-## Merge patients Post
-Patients_post_2 <- merge(NumberLetter_Patients_Post, Stroop_Patients_Post, by = "Subject")
-Patients_post_3 <- merge(Patients_post_2, TwoBack_Patients_Post, by = "Subject")
-Patients_post_3$time <- "post"
+## Add timepoint-variable
+data_Pat_pre_comb$time <- "pre"
+data_Pat_post_comb$time <- "post"
 
 # Combine data
-Patients_pre_3$Subject <- Patients_pre_3$Subject + 600 # This was the ID given 
-Patients_pre_vs_post <- rbind(Patients_post_3, Patients_pre_3)
+data_Pat_pre_comb$Subject <- data_Pat_pre_comb$Subject + 600 # This was the ID given 
+Patients_pre_vs_post <- rbind(data_Pat_post_comb, data_Pat_pre_comb)
 # Remove data if subjects had only pre-values
 subject_counts <- table(Patients_pre_vs_post$Subject)
 multiple_rows_subjects <- names(subject_counts)[subject_counts > 1]
 Patients_pre_vs_post_clean <- Patients_pre_vs_post[Patients_pre_vs_post$Subject %in% multiple_rows_subjects, ]
 
 # Reduce to BIS
-BIS_columns <- colnames(Patients_pre_vs_post_clean)[startsWith(colnames(Patients_pre_vs_post_clean), "BIS")]
-Patients_pre_vs_post_imp <- Patients_pre_vs_post_clean[,c("Subject",BIS_columns,"time")]
-
-## Add better names 
-Patients_pre_vs_post_imp <- Patients_pre_vs_post_imp %>%
-  rename(NumberLetter_BIS_Repeat = BIS_Repeat,
-         NumberLetter_BIS_Switch = BIS_Switch,
-         Stroop_BIS_Congruent = BIS_Congruent,
-         Stroop_BIS_Incongruent = BIS_Incongruent,
-         TwoBack_BIS_Total = BIS_Total,
-         TwoBack_BIS_Target = BIS_Target,
-         TwoBack_BIS_Foil = BIS_Foil)
-BIS_columns_renamed <- grep("BIS", colnames(Patients_pre_vs_post_imp), value = TRUE)
+#BIS_columns <- colnames(Patients_pre_vs_post_clean)[grep("BIS", colnames(Patients_pre_vs_post_clean))] # redundant
+#imp_columns <- c(BIS_columns, "SSRT") # redundant
+Patients_pre_vs_post_imp <- Patients_pre_vs_post_clean[,c("Subject",imp_columns,"time")]
 ```
 Pre and post measures were available for `r nrow(Patients_pre_vs_post_imp) / 2` patients.
 
 ### Testing Assumption of dependent sample t-test: Positive correlation of measurement series 
+# TODO: hardcode separation of Patients_pre_vs_post_imp dataframe into pre and post data (to avoid redundancy)
 ```{r}
 #Helper function to avoid redundancy (Get pre and post data in one place for assumption and Welch test)
 get_pre_post_data <- function(df_basis, col) {
@@ -228,7 +189,7 @@ get_pre_post_data <- function(df_basis, col) {
   return(list(pre = pre_data, post = post_data))
 }
 ```
-
+# TODO: adjust for NAs (in SSRT column)
 ```{r}
 ## Calculate Raw Pearson Correlation and Test Significance
 calculate_correlations_and_significance <- function(df_basis, cols) {
@@ -261,7 +222,7 @@ calculate_correlations_and_significance <- function(df_basis, cols) {
 
 
 # Apply the correlation and significance test to your data
-correlation_significance_table <- calculate_correlations_and_significance(df_basis = Patients_pre_vs_post_imp, cols = BIS_columns_renamed)
+correlation_significance_table <- calculate_correlations_and_significance(df_basis = Patients_pre_vs_post_imp, cols = imp_columns)
 pander(correlation_significance_table, style = "rmarkdown", fontsize = "tiny")
 ```
 For all tasks, the correlations of the measurement series are significantly positive. Thus, the assumption is met for all tasks. 
@@ -276,8 +237,10 @@ paired_t_test_mult_cols <- function(df_basis, cols) {
   for (col in cols) {
     # Get pre and post data using get_pre_post_data helper function
     data <- get_pre_post_data(df_basis, col)
-    pre_data <- data$pre
-    post_data <- data$post
+    # Use complete.cases to keep only rows where both pre and post are not NA
+    complete_cases <- complete.cases(data$pre, data$post)
+    pre_data <- data$pre[complete_cases]
+    post_data <- data$post[complete_cases]
     
     # non-formula interface as before
     results <- t.test(pre_data, post_data, paired = TRUE, var.equal = FALSE)
@@ -308,7 +271,7 @@ paired_t_test_mult_cols <- function(df_basis, cols) {
   return(df)
 }
 
-t_test_table_pre_post <- paired_t_test_mult_cols(df_basis = Patients_pre_vs_post_imp, cols = BIS_columns_renamed)
+t_test_table_pre_post <- paired_t_test_mult_cols(df_basis = Patients_pre_vs_post_imp, cols = imp_columns)
 pander(t_test_table_pre_post)
 ```
 Patients performed better in all measurements of executive functioning after the exposure session. This might be due to a practice effect.

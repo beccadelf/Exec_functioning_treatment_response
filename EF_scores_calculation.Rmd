@@ -362,7 +362,7 @@ merged_data_clean <- merged_data_clean %>%
 merged_data_clean <- merged_data_clean %>%
   mutate(NumberLetter_BIS_Repeat = Z_Repeat_PC - Z_Repeat_RT,
          NumberLetter_BIS_Switch = Z_Switch_PC - Z_Switch_RT) %>%
-  mutate(NumberLetter_Diff_Score = NumberLetter_BIS_Switch - NumberLetter_BIS_Repeat)
+  mutate(NumberLetter_BIS_Diff_Score = NumberLetter_BIS_Switch - NumberLetter_BIS_Repeat)
 ```
 
 ## Stroop Task
@@ -388,7 +388,7 @@ merged_data_clean <- merged_data_clean %>%
 merged_data_clean <- merged_data_clean %>%
   mutate(Stroop_BIS_Congruent = Z_Congruent_PC - Z_Congruent_RT,
          Stroop_BIS_Incongruent = Z_Incongruent_PC - Z_Incongruent_RT) %>%
-  mutate(Stroop_Diff_Score = Stroop_BIS_Incongruent - Stroop_BIS_Congruent)
+  mutate(Stroop_BIS_Diff_Score = Stroop_BIS_Incongruent - Stroop_BIS_Congruent)
 ```
 
 ## TwoBack Task
@@ -430,6 +430,7 @@ data_Pat_post <- split_df$"2"
 ```
 
 # 8. Save dataframes for analyses
+
 ```{r Save dataframes}
 file_path <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses/"
 
