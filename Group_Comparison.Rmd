@@ -35,19 +35,21 @@ library(gtsummary)
 library(stats)
 ```
 
-
 ## <u>Importing Data</u>
 
-### Task Performance Data
+### Executive Task Performance Data
 ```{r}
-data_HC <- read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses/Data_HC.csv")
-data_Pat_pre <- read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses/Data_Patients_Pre.csv")
-data_Pat_post <- read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses/Data_Patients_Post.csv")
+basic_path_taskdata = "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses"
+data_HC <- read.csv(file.path(basic_path,"Data_HC.csv"))
+data_Pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
+data_Pat_post <- read.csv(file.path(basic_path,"Data_Patients_Post.csv"))
 ```
 
-### Subject Data
+### Sociodemographic and Questionnaire Data
 ```{r}
-data_all <- haven::read_dta('Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/CognitiveControl_Treatment/Data_Kevin_28.07.23.dta')
+basic_path_socdemdata = "Y://PsyThera//Projekte_Meinke//Old_projects//Labrotation_Rebecca//CognitiveControl_Treatment"
+data_all <- haven::read_dta(file.path(basic_path_socdemdata,'Data_Kevin_28.07.23.dta'))
+# Rename ID column to "Subject"
 colnames(data_all)[which(colnames(data_all) == "id")] <- "Subject"
 ```
 
@@ -58,7 +60,7 @@ colnames(data_all)[which(colnames(data_all) == "id")] <- "Subject"
 ## 1. Merge patients pre and controls
 Patients_vs_HC <- rbind(data_Pat_pre, data_HC)
 
-## 2. Reduce dataset to BIS columns and SSRT
+## 2. Reduce dataset to executive functions of interest (BIS columns and SSRT)
 BIS_columns <- colnames(Patients_vs_HC)[grep("BIS", colnames(Patients_vs_HC))]
 imp_columns <- c(BIS_columns, "SSRT")
 Patients_vs_HC_imp <- Patients_vs_HC[,c("Subject","Gruppe",imp_columns)]
@@ -69,9 +71,10 @@ Patients_vs_HC_imp_conf <- merge(data_all[,c("Subject","Alter","Geschlecht","Abs
 Data for `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1,])` patients and `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0,])` healthy controls were available.
 Find assumption test for normality in script "Testing Normality"
 
-### Calculate Welch t-test  
+### Calculate Welch t-test
 ```{r}
 t_test_mult_cols <- function(df_basis, cols) {
+  # Caclualte a t-test for multiple comparisons and store the results in a dataframe
   df <- data.frame(t_statistic = numeric(length(cols)), p_value = numeric(length(cols)),
                    group_mean_Patients = numeric(length(cols)), sd_Patients = numeric(length(cols)),
                    group_mean_HC = numeric(length(cols)), sd_HC = numeric(length(cols)),
@@ -126,6 +129,7 @@ pander(t_test_table, style = "rmarkdown", fontsize = "tiny")
 Patients performed worse than healthy controls, especially in the Stroop and the NumberLetter Task. However, please note that we have not tested for baseline differences (e.g., education, age...). This is done in the following step.
 
 ### Control Welch-test for covariates age, sex, and education
+#### Descriptive statistics
 ```{r}
 #Descriptive statistics
 table1 <- 
@@ -133,7 +137,7 @@ table1 <-
   tbl_summary(include = c(Alter, Geschlecht, Abschluss), by = Gruppe)
 pander(as.data.frame(table1))
 ```
-
+#### ANCOVA
 ```{r}
 #ANCOVA
 ANCOVA_mult_cols <- function(df_basis, cols, covariates = NULL){
@@ -171,12 +175,13 @@ There was no significant effect between patients and controls in the TwoBackTask
 ### Prepare dataset
 ```{r}
 # 1. Identify common subjects in both datasets
-data_Pat_pre$Subject <- data_Pat_pre$Subject + 600
-common_subjects <- intersect(data_Pat_pre$Subject, data_Pat_post$Subject) #Using intersect function to exclude only pre/post cases
+data_Pat_pre$Subject_postID <- data_Pat_pre$Subject + 600 # IDs at post = ID at pre + 600
+
+common_subjects_postID <- intersect(data_Pat_pre$Subject_postID, data_Pat_post$Subject) #Using intersect function to exclude only pre/post cases
 
 # 2. Filter the datasets to only include common subjects
-data_Pat_pre_filtered <- data_Pat_pre[data_Pat_pre$Subject %in% common_subjects, ]
-data_Pat_post_filtered <- data_Pat_post[data_Pat_post$Subject %in% common_subjects, ]
+data_Pat_pre_filtered <- data_Pat_pre[data_Pat_pre$Subject_postID %in% common_subjects_postID , ]
+data_Pat_post_filtered <- data_Pat_post[data_Pat_post$Subject %in% common_subjects_postID , ]
 
 # 3. Important columns
 data_Pat_pre_filtered_imp <- data_Pat_pre_filtered[, c("Subject", imp_columns)]
@@ -292,7 +297,7 @@ Patients performed better in all measurements of executive functioning after the
 ## <u>Plotting</u>
 
 ### Comparison HC vs. patients (pre)
-# TODO: include SSRT or do separate plot?
+#### Prepare data; TODO: include SSRT or do separate plot?
 ```{r}
 # Reshape data from wide to long format
 Patients_vs_HC_long <- Patients_vs_HC_imp %>%
@@ -315,6 +320,10 @@ Patients_vs_HC_long <- Patients_vs_HC_long %>%
 # Convert "Gruppe" to factor # TODO: change order of the conditions for consistency
 Patients_vs_HC_long$Gruppe <- factor(Patients_vs_HC_long$Gruppe, levels = c(0, 1), labels = c("Healthy Controls", "Patients"))
 
+```
+
+#### Create plots
+```{r}
 # Create boxplots
 boxplots_Patients_HC <- ggplot(Patients_vs_HC_long, aes(x = Condition, y = BIS_Score, color = Gruppe)) +
   geom_boxplot(outlier.shape = NA) + 
@@ -341,17 +350,17 @@ violin_plots_patients_hc <- ggplot(Patients_vs_HC_long, aes(x = Condition, y = B
        fill = "Group")
 ```
 
-### Boxplot: Patients vs. Healthy Controls
+##### Boxplot: Patients vs. Healthy Controls
 ```{r}
 print(boxplots_Patients_HC)
 ```
 
-### Violin Plot: Patients vs. Healthy Controls
+##### Violin Plot: Patients vs. Healthy Controls
 ```{r}
 print(violin_plots_patients_hc)
 ```
 
-### Comparison patients pre vs. post
+#### Comparison patients pre vs. post
 # TODO: include SSRT or do separate plot?
 ```{r}
 # Add a timepoint variable to the filtered datasets and combine
@@ -395,7 +404,7 @@ boxplot_Patients_pre_post <- ggplot(Patients_pre_vs_post_long, aes(x = Condition
        color = "Time")
 ```
 
-### Boxplot for Patients pre vs. post intervention
+##### Boxplot for Patients pre vs. post intervention
 ```{r}
 print(boxplot_Patients_pre_post)
 ```
