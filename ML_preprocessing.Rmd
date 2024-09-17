@@ -9,83 +9,34 @@ output: html_document
 
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,rows.print = 6, cols.min.print = 3)
 
-library(haven)
-library(rmatio)
-library(DescTools)
-library(data.table)
 library(tidyverse)
 library(caret)
-library(ggplot2)
 ```
 
 # 0. Load relevant data (only data of patients_pre are further processed)
 ```{r}
-base_path <- "Z:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich"
+basic_path <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses"
 
-# Specify the full paths to each CSV file
-file_NumbLet <- file.path(base_path, "NumberLetter_Patients_Pre.csv")
-file_Stroop <- file.path(base_path, "Stroop_Patients_Pre.csv")
-file_TwoBack <- file.path(base_path, "TwoBack_Patients_Pre.csv")
-
-# Read each CSV file into a separate data frame
-data_NumbLet_Pat_pre <- read.csv(file_NumbLet)
-data_Stroop_Pat_pre <- read.csv(file_Stroop)
-data_TwoBack_Pat_pre <- read.csv(file_TwoBack)
+task_data <- read.csv(file.path(basic_path,"Performance_Scores/Task_Performance_Scores.csv"))
+data_pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
 ```
 
-# 1. Create dataframe with all features and labels of all patients
-
-```{r Combine dataframes}
-
-# Rename features with identical names in all task-dataframes # TODO: implement within big for-loop
-data_NumbLet_Pat_pre <- data_NumbLet_Pat_pre %>%
-  rename(Accuracy_NumbLet = Overall_PC,
-         Percent_Rmv_NumbLet = PercentRmv_RT)
-data_Stroop_Pat_pre <- data_Stroop_Pat_pre %>%
-  rename(Accuracy_Stroop = Overall_PC,
-         Percent_Rmv_Stroop = PercentRmv_RT)
-data_TwoBack_Pat_pre <- data_TwoBack_Pat_pre %>%
-  rename(Accuracy_TwoBack = Overall_PC,
-         Percent_Rmv_TwoBack = PercentRmv_RT)
-
-# Select feature columns from each dataframe
-features_NumbLet <- data_NumbLet_Pat_pre[, c("Subject", "BIS_Repeat", "BIS_Switch", "Diff_Score_NumbLet", "Accuracy_NumbLet", "Percent_Rmv_NumbLet")] 
-features_Stroop <- data_Stroop_Pat_pre[, c("BIS_Congruent", "BIS_Incongruent", "Diff_Score_Stroop", "Accuracy_Stroop", "Percent_Rmv_Stroop")] 
-features_TwoBack <- data_TwoBack_Pat_pre[, c("BIS_Total", "BIS_Target", "BIS_Foil", "Accuracy_TwoBack", "Percent_Rmv_TwoBack")]
-
-# Merge selected features of all tasks
-features_df <- cbind(features_NumbLet, features_Stroop, features_TwoBack)
-
-# Add demographic and clinical features
-features_df <- left_join(x = features_df,
-                         y = data_all %>% select(Subject, 
-                                                 Geschlecht, 
-                                                 Alter,
-                                                 Abschluss,
-                                                 T1_BAT_FAS_score,
-                                                 T3_BAT_FAS_score,
-                                                 T1_BAT_BDI_II_score,
-                                                 T1_BAT_STAI_T_score, 
-                                                 T1_BAT_BIS_11_score,
-                                                 T1_BAT_Kirby_k_score, 
-                                                 T1_BAT_CFC_14_score,
-                                                 T1_BAT_SRHI_score), 
+# 1. Add overall accuracy as additional feature (and PercentRmv if trials with wrong responses were discarded)
+```{r}
+features_df <- left_join(x = data_pat_pre,
+                         y = task_data %>% select(Subject, NumbLet_Average_PC,
+                                                  Stroop_Average_PC,
+                                                  TwoBack_Average_PC),
                          by = "Subject")
-
-# Add SS_RT from data_tasks_old, convert to numeric
-features_df <- left_join(x = features_df,
-                         y = data_tasks_old %>% select(Subject, SSRT_StopSignal_T1),
-                         by = "Subject")
-features_df$SSRT_StopSignal_T1 <- as.numeric(features_df$SSRT_StopSignal_T1)
-
-# Create labels dataframe
-labels_df <- features_df %>%
-  mutate(Response = ifelse((T1_BAT_FAS_score - T3_BAT_FAS_score) >= 0.5 * T1_BAT_FAS_score, 1, 0)) %>%
-  select(Response)
 ```
 
-# 2. Dummy-Vars and renaming of features
+# 2. Save labels in separate dataframe
+```{r}
+labels_df <- features_df["Response"]
+features_df$Response <- NULL
+```
 
+# 3. Dummy-Vars and renaming of features
 ```{r Prepare for ML}
 
 # 1. OneHot-Encoding of variable "Abschluss"
@@ -100,20 +51,23 @@ features_df_enc$Abschluss <- NULL
 features_df_enc$T3_BAT_FAS_score <- NULL
 
 # 3. Rename columns
-new_names <- c("BIS_Repeat_NumbLet", "BIS_Switch_NumbLet", "Diff_Score_NumbLet",
-               "Accuracy_NumbLet", "PercentRmv_NumbLet", "BIS_Congruent_Stroop",
-               "BIS_Incongruent_Stroop", "Diff_Score_Stroop", "Accuracy_Stroop",
-               "PercentRmv_Stroop", "BIS_Total_TwoBack", "BIS_Target_TwoBack",
-               "BIS_Foil_TwoBack", "Accuracy_TwoBack", "PercentRmv_TwoBack", 
-               "is_woman", "Age", 
-               "FAS_Score", "BDI_II_Score", "STAI_T_Score", "BIS_Score", "Kirby_k_Score",
-               "CFC_Score", "SRHI_Score", 
-               "StopSignal_RT",
-               "Hauptschule", "Realschule", "Abitur", "anderer_Abschluss")
-colnames(features_df_enc) <- new_names
+features_df_enc <- features_df_enc %>%
+  rename(is_woman = Geschlecht,
+         Age = Alter,
+         FAS = T1_BAT_FAS_score,
+         BDI_II = T1_BAT_BDI_II_score,
+         STAI_T = T1_BAT_STAI_T_score,
+         BIS = T1_BAT_BIS_11_score,
+         Kirby_k = T1_BAT_Kirby_k_score,
+         CFC_14 = T1_BAT_CFC_14_score,
+         SRHI = T1_BAT_SRHI_score,
+         Hauptschule = Abschluss1,
+         Realschule = Abschluss2,
+         Abitur = Abschluss3,
+         anderer_Abschluss = Abschluss4)
 ```
 
-# 3. Recode missing values for binary and non-binary features
+# 4. Recode missing values for binary and non-binary features
 
 ```{r Missing values}
 
@@ -132,7 +86,7 @@ for (feature in non_bin_cols) {
 }
 ```
 
-# 4. Create feature dataframe without executive task feature for hypothesis testing
+# 5. Create feature dataframe without executive task feature for hypothesis testing
 
 ```{r Reduced feature dataframe}
 clin_features <- c("is_woman", "Age", "FAS_Score", "BDI_II_Score", "STAI_T_Score", "BIS_Score",
@@ -141,11 +95,12 @@ clin_features <- c("is_woman", "Age", "FAS_Score", "BDI_II_Score", "STAI_T_Score
 clin_features_df_enc <- features_df_enc[clin_features]
 ```
 
-# 5. Save 2 feature and 1 label dataframes as .csv
+# 6. Save 2 feature and 1 label dataframes as .csv
 
 ```{r Save dataframes}
+file_path <- "Z:/PsyThera/Projekte_Meinke/Labrotation_Rebecca/Feature_Label_Dataframes/"
 
-write.csv(features_df_enc, "Z:/PsyThera/Projekte_Meinke/Labrotation_Rebecca/Feature_Label_Dataframes/Features.csv", row.names = FALSE)
-write.csv(clin_features_df_enc, "Z:/PsyThera/Projekte_Meinke/Labrotation_Rebecca/Feature_Label_Dataframes/Clinical_Features.csv", row.names = FALSE)
-write.csv(labels_df, "Z:/PsyThera/Projekte_Meinke/Labrotation_Rebecca/Feature_Label_Dataframes/Labels.csv", row.names = FALSE)
+write.csv(features_df_enc, paste0(file_path, "Features.csv"), row.names = FALSE)
+write.csv(clin_features_df_enc, paste0(file_path, "Clinical_Features.csv"), row.names = FALSE)
+write.csv(labels_df, paste0(file_path, "Labels.csv"), row.names = FALSE)
 ```
