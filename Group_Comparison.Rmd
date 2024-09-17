@@ -37,20 +37,11 @@ library(stats)
 
 ## <u>Importing Data</u>
 
-### Executive Task Performance Data
 ```{r}
-basic_path_taskdata = "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses"
+basic_path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses"
 data_HC <- read.csv(file.path(basic_path,"Data_HC.csv"))
 data_Pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
 data_Pat_post <- read.csv(file.path(basic_path,"Data_Patients_Post.csv"))
-```
-
-### Sociodemographic and Questionnaire Data
-```{r}
-basic_path_socdemdata = "Y://PsyThera//Projekte_Meinke//Old_projects//Labrotation_Rebecca//CognitiveControl_Treatment"
-data_all <- haven::read_dta(file.path(basic_path_socdemdata,'Data_Kevin_28.07.23.dta'))
-# Rename ID column to "Subject"
-colnames(data_all)[which(colnames(data_all) == "id")] <- "Subject"
 ```
 
 ## <u>Comparison HC vs. Patients</u>
@@ -66,7 +57,7 @@ imp_columns <- c(BIS_columns, "SSRT")
 Patients_vs_HC_imp <- Patients_vs_HC[,c("Subject","Gruppe",imp_columns)]
 
 ## 3. Add confounds (Alter, Geschlecht, Abschluss)
-Patients_vs_HC_imp_conf <- merge(data_all[,c("Subject","Alter","Geschlecht","Abschluss")], Patients_vs_HC_imp, by = "Subject")
+Patients_vs_HC_imp_conf <- merge(Patients_vs_HC[,c("Subject","Alter","Geschlecht","Abschluss")], Patients_vs_HC_imp, by = "Subject")
 ```
 Data for `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1,])` patients and `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0,])` healthy controls were available.
 Find assumption test for normality in script "Testing Normality"

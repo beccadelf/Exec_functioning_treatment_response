@@ -45,20 +45,9 @@ AllData_SST <- read.csv(file.path(basic_path_taskdata,"AllData_SST.csv"))
 basic_path_socdemdata <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Rohdaten/CRC_C5_Hilbert/CRC_C5_Hilbert"
 # Demographics & clinical data
 data_all <- haven::read_dta(file.path(basic_path_socdemdata, 'Data_Kevin_28.07.23.dta'))
-# Old task data
-data_tasks_old <- haven::read_dta(file.path(basic_path_socdemdata, 'TaskBattery.dta')) # needed?
-```
 
-## Reduce data_all 
-Keep only ID, group identity, FAS_T1 and FAS_T3 (response criterion)
-```{r Reduce df data_all}
-  
 data_all <- data_all %>%
   rename(Subject = id)
-
-# Rename stid for later merge
-data_tasks_old <- data_tasks_old %>%
-  rename(Subject = stid)
 ```
 
 # 2. Merge task data with data_all, recode patient IDs from post-measurement
