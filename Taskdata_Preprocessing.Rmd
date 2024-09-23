@@ -2,13 +2,17 @@
 title: "Taskdata_Preprocessing"
 author: "Rebecca Delfendahl"
 date: "2024-09-17"
-output: html_document
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
 ---
 
 ```{r R Setup, include = FALSE}
 
-knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,rows.print = 6, cols.min.print = 3)
-
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(kableExtra)
 library(tidyverse)
 library(haven)
 library(rmatio)
@@ -16,12 +20,12 @@ library(data.table)
 library(SSRTcalc)
 ```
 
-# 0 Initial configurations
+# 0. Initial configurations
 ```{r}
 basic_path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Rohdaten/Task_battery/Task_battery"
 ```
 
-## Define functions
+## 0.1. Define functions
 ```{r Define functions}
 
 ########################################
@@ -155,7 +159,8 @@ subjects <- subjects[subjects != "alt"]
 subjects <- subjects[subjects != ""]
 ```
 
-# 2. Import and preprocess data of each subject for Number-Letter, Stroop and Two-Back task
+# 2. Import and preprocess task data 
+For each subject and task (Number-Letter, Stroop and Two-Back task) separately
 ```{r Looping across all subjects}
 
 AllData_NumbLet <- preprocess_RT_PC(task = "NumberLetter", subjects = subjects)
@@ -164,7 +169,7 @@ AllData_TwoBack <- preprocess_RT_PC(task = "TwoBack", subjects = subjects)
 ```
 
 # 3. Calculate SSRT of each subject (integrative method)
-## Info: adaptive version of SST was used: the initial SSD of 200 ms was adapted after each “stop” trial by adding 50 ms for a (correct) nonresponse, and subtracting 50 ms for a (faulty) response
+Info: adaptive version of SST was used: the initial SSD of 200 ms was adapted after each “stop” trial by adding 50 ms for a (correct) nonresponse, and subtracting 50 ms for a (faulty) response
 ```{r SSRT}
 # Initialize empty holder list
 AllData_SST <- data.frame()

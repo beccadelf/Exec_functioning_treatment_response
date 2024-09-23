@@ -2,18 +2,22 @@
 title: "Executive functions data preparation"
 author: "Rebecca Delfendahl and Charlotte Meinke"
 date: "2023-10-05"
-output: html_document
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
 ---
 
 ```{r R Setup, include = FALSE}
 
-knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, rows.print = 6, cols.min.print = 3)
-
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(kableExtra)
 library(haven)
 library(tidyverse)
 ```
 
-# 0 Define functions
+# 0. Define functions
 
 ```{r Define functions}
 
@@ -31,7 +35,7 @@ library(tidyverse)
 
 # 1. Load data
 
-## Preprocessed Task Data
+## 1.1. Preprocessed task data
 ```{r}
 basic_path_taskdata <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses/Task_Data"
 AllData_NumbLet <- read.csv(file.path(basic_path_taskdata,"AllData_NumbLet.csv"))
@@ -40,7 +44,7 @@ AllData_TwoBack <- read.csv(file.path(basic_path_taskdata,"AllData_TwoBack.csv")
 AllData_SST <- read.csv(file.path(basic_path_taskdata,"AllData_SST.csv"))
 ```
 
-## Sociodemographic and Questionnaire Data
+## 1.2. Sociodemographic and questionnaire data
 ```{r Load data}
 basic_path_socdemdata <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Rohdaten/CRC_C5_Hilbert/CRC_C5_Hilbert"
 # Demographics & clinical data
@@ -50,8 +54,8 @@ data_all <- data_all %>%
   rename(Subject = id)
 ```
 
-# 2. Merge task data with data_all, recode patient IDs from post-measurement
-All 4 task dataframes contain the same subject IDs, thus all dataframes can be merged with any of them serving as reference dataframe
+# 2. Merge data and assign post-IDs
+Merge all 4 tasks and add group identity as well as response data. Then recode patient IDs of post-measurements. Note: all 4 task dataframes contain the same subject IDs, thus all dataframes can be merged with any of them serving as reference dataframe
 ```{r Merge task data with data_all_red}
 
 task_data <- AllData_NumbLet %>%
@@ -76,6 +80,10 @@ task_data <- task_data %>%
 task_data <- task_data %>%
   mutate(Subject = as.numeric(Subject),
          Gruppe = ifelse(Subject >= 216601 & Subject <= 216760, 2, Gruppe))
+
+kable(task_data) %>%
+  kable_styling(full_width = F) %>%
+  scroll_box(width = "100%", height = "300px")
 ```
 
 # 3. Subject exclusion
@@ -95,15 +103,17 @@ excl_criterion <- anti_join(task_data_excl1, task_data_clean, by = "Subject")
 `r nrow(excl_group)` subjects were removed due to missing group information. 
 `r nrow(excl_criterion)` patients were removed due to missing FAS_T1 and/or FAS_T3 (i.e. response criterion).
 
-# TO BE MODIFIED... (write one or two functions to use for all three tasks)
+# 4. Calculate BIS (and difference scores)
+BIS:
 
-# 4. Calculate BIS (and Difference Scores) for each condition and subject separately
-BIS = Z(PC) - Z(RT)
+- BIS = Z(PC) - Z(RT)
 
-Difference Switch and Repeat = BIS(Switch) - BIS(Repeat)
-Difference Incongruent and Congruent = BIS(Congruent) - BIS(Incongruent)
+Difference Scores:
 
-## Number-Letter Task
+- Number-Letter-Task: Difference Switch and Repeat = BIS(Switch) - BIS(Repeat)
+- Stroop Task: Difference Incongruent and Congruent = BIS(Congruent) - BIS(Incongruent)
+
+## 4.1. Number-Letter Task
 ```{r Scores Number-Letter Task}
 
 ## Step 1: Calculate mean and SD for RT and PC across all healthy subjects and all conditions
@@ -129,7 +139,7 @@ task_data_clean <- task_data_clean %>%
   mutate(NumberLetter_BIS_Diff_Score = NumberLetter_BIS_Switch - NumberLetter_BIS_Repeat)
 ```
 
-## Stroop Task
+## 4.2. Stroop Task
 ```{r Scores Stroop Task}
 
 ## Step 1: Calculate mean and SD for RT and PC across all healthy subjects and all conditions
@@ -155,7 +165,7 @@ task_data_clean <- task_data_clean %>%
   mutate(Stroop_BIS_Diff_Score = Stroop_BIS_Incongruent - Stroop_BIS_Congruent)
 ```
 
-## TwoBack Task
+## 4.3. TwoBack Task
 ```{r BIS TwoBack Task}
 
 ## Step 1: Calculate mean and SD for RT and PC across all healthy subjects and all conditions
@@ -181,16 +191,20 @@ task_data_clean <- task_data_clean %>%
   mutate(TwoBack_BIS_Total = Z_Total_PC - Z_Total_RT,
          TwoBack_BIS_Target = Z_Target_PC - Z_Target_RT,
          TwoBack_BIS_Foil = Z_Foil_PC - Z_Foil_RT)
+
+kable(task_data_clean) %>%
+  kable_styling(full_width = F) %>%
+  scroll_box(width = "100%", height = "300px")
 ```
 
-# 6. Save interim merged task dataframe
-```{r Save dataframes}
+# 5. Save task dataframe
+```{r Save task dataframe}
 file_path_scores <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses/Performance_Scores/"
 
 write.csv(task_data_clean, paste0(file_path_scores, "Task_Performance_Scores.csv"), row.names = FALSE)
 ```
 
-# 7. Reduce task data and add sociodemographic and clinical data
+# 6. Reduce task data, add sociodemographic and clinical data
 ```{r}
 # Reduce task data
 task_data_clean_imp <- task_data_clean %>%
@@ -211,13 +225,17 @@ all_data <- left_join(x = task_data_clean_imp,
                       by = "Subject")
 ```
 
-# 8. Calculate response criterion
+# 7. Calculate response criterion
 ```{r}
 all_data <- all_data %>%
   mutate(Response = ifelse((T1_BAT_FAS_score - T3_BAT_FAS_score) >= 0.5 * T1_BAT_FAS_score, 1, 0))
+
+kable(all_data) %>%
+  kable_styling(full_width = F) %>%
+  scroll_box(width = "100%", height = "300px")
 ```
 
-# 9. Create separate dataframes for each group (HC, patients_pre, patients_post)
+# 8. Create separate dataframes for each group (HC, patients_pre, patients_post)
 ```{r Dataframe for each group}
 
 split_df <- split(all_data, all_data$Gruppe)
@@ -229,8 +247,8 @@ data_Pat_post <- split_df$"2"
 # data_HC$Response <- NULL
 ```
 
-# 10. Save dataframes
-```{r Save dataframes}
+# 9. Save dataframes
+```{r Save final dataframes}
 file_path <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses/"
 
 # Write data to CSV
