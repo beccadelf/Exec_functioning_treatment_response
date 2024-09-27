@@ -62,6 +62,31 @@ Patients_vs_HC_imp_conf <- merge(Patients_vs_HC[,c("Subject","Alter","Geschlecht
 Data for `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1,])` patients and `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0,])` healthy controls were available.
 Find assumption test for normality in script "Testing Normality"
 
+###Testing for variance homogeneity
+```{r}
+# Ensure "Gruppe" is treated as a factor
+Patients_vs_HC_imp$Gruppe <- as.factor(Patients_vs_HC_imp$Gruppe)
+
+# Function to perform Levene's test on multiple columns
+levene_test_mult_cols <- function(df_basis, cols) {
+  df <- data.frame(p_value = numeric(length(cols)))
+  rownames(df) <- cols
+  
+  for (i in seq_along(cols)) {
+    col <- cols[i]
+    # Perform Levene's test, treating 'Gruppe' as a factor
+    levene_result <- leveneTest(df_basis[[col]] ~ df_basis[["Gruppe"]])
+    df[col, "p_value"] <- round(levene_result[1, "Pr(>F)"], 4)
+  }
+  
+  return(df)
+}
+
+# Perform Levene's test for homogeneity of variance
+levene_test_table <- levene_test_mult_cols(df_basis = Patients_vs_HC_imp, cols = imp_columns)
+pander(levene_test_table, style = "rmarkdown", fontsize = "tiny")
+```
+
 ### Calculate Welch t-test
 ```{r}
 t_test_mult_cols <- function(df_basis, cols) {
