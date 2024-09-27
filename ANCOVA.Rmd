@@ -1,0 +1,399 @@
+---
+title: "Group Comparison"
+authors: "Charlotte Meinke, Rebecca Delfendahl, Till Julius Adam"
+date: "2024-09-04"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+---
+<style type="text/css">
+.main-container { /* Adjust main blocks */
+  max-width: 100% !important;
+  margin: auto;
+}
+
+body {
+  font-family: "Georgia", serif !important; /* Set the font for the entire document */
+}
+
+.tocify { /* Adjust table of contents */
+  max-width: 100% !important;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(pander)
+library(effsize)
+library(pwr)
+library(gtsummary)
+library(stats)
+library(lmtest)
+library(sandwich)
+library(nlme)
+```
+
+
+## <u>Importing Data</u>
+
+### Task Performance Data
+```{r}
+data_HC <- read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses/Data_HC.csv")
+data_Pat_pre <- read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses/Data_Patients_Pre.csv")
+data_Pat_post <- read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses/Data_Patients_Post.csv")
+```
+
+### Subject Data
+```{r}
+data_all <- haven::read_dta('Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/CognitiveControl_Treatment/Data_Kevin_28.07.23.dta')
+colnames(data_all)[which(colnames(data_all) == "id")] <- "Subject"
+```
+
+## <u>Comparison HC vs. Patients</u>
+
+### Prepare dataset
+```{r}
+## 1. Merge patients pre and controls
+Patients_vs_HC <- rbind(data_Pat_pre, data_HC)
+
+## 2. Reduce dataset to BIS columns and SSRT
+BIS_columns <- colnames(Patients_vs_HC)[grep("BIS", colnames(Patients_vs_HC))]
+imp_columns <- c(BIS_columns, "SSRT")
+Patients_vs_HC_imp <- Patients_vs_HC[,c("Subject","Gruppe",imp_columns)]
+
+## 3. Add confounds (Alter, Geschlecht, Abschluss)
+Patients_vs_HC_imp_conf <- merge(data_all[,c("Subject","Alter","Geschlecht","Abschluss")], Patients_vs_HC_imp, by = "Subject")
+
+# Extract the performance tasks automatically from the dataset (same logic as used in ANCOVA)
+performance_tasks <- colnames(Patients_vs_HC_imp_conf)[grep("BIS|SSRT", colnames(Patients_vs_HC_imp_conf))]
+```
+Data for `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1,])` patients and `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0,])` healthy controls were available.
+
+### **Control Welch-test for covariates age, sex, and education**
+#### Descriptive statistics
+```{r}
+#Descriptive statistics
+table1 <- 
+  Patients_vs_HC_imp_conf %>%
+  tbl_summary(include = c(Alter, Geschlecht, Abschluss), by = Gruppe)
+pander(as.data.frame(table1))
+```
+
+#### Testing assumptions for ANCOVA
+<u>1. Linearity between age and performance, corrected for group, education, and sex</u>
+```{r}
+# both sex and education are categorical variables
+# ergo, only age will be tested for linearity
+# note: as an unconventional but possible analysis, linearity could be plotted for education across the categories, but that would be explorative
+# controlling for sex, education, and group, we plot the residuals of performance against the covariate age
+
+# Loop through each task performance variable and plot residuals against Age
+for (task in performance_tasks) {
+  # Filter out rows with missing values in relevant variables before running the model
+  model_data <- na.omit(Patients_vs_HC_imp_conf[, c(task, "Gruppe", "Geschlecht", "Abschluss", "Alter")])
+  
+  # Build the linear model controlling for Group, Gender, and Education
+  model <- lm(as.formula(paste(task, "~ Gruppe + Geschlecht + Abschluss")), data = model_data)
+  
+  # Extract the residuals
+  model_data$residuals <- resid(model)
+  
+  # Create the scatterplot of residuals vs. Age using tidy evaluation for dynamic column names
+  p <- ggplot(model_data, aes(x = Alter, y = residuals)) +
+    geom_point(alpha = 0.6) +  # Scatterplot points
+    geom_smooth(method = "loess", se = FALSE, color = "blue") +  # Lowess Fit Line
+    labs(title = paste("Residuals vs. Age for", task),
+         x = "Age",
+         y = "Residuals") +
+    theme_minimal()
+  
+  # Print the plot to ensure it is displayed
+  print(p)
+}
+```
+
+<u>1.2 Linearity of direct relationship between a covariate and the outcome within the groups</u>
+```{r}
+# Loop through each task performance variable and plot Age vs. Task Performance within groups (HC vs. Pat)
+for (task in performance_tasks) {
+  # Create the scatterplot of Age vs. Task Performance with Lowess Fit Line by group
+  p <- ggplot(Patients_vs_HC_imp_conf, aes(x = Alter, y = !!sym(task), color = as.factor(Gruppe))) +
+    geom_point(alpha = 0.6) +  # Scatterplot points
+    geom_smooth(method = "loess", se = FALSE) +  # Lowess Fit Line per group
+    labs(title = paste("Age vs.", task, "for HC vs. Pat"),
+         x = "Age",
+         y = task,
+         color = "Group") +  # Correct label for legend
+    scale_color_manual(values = c("blue", "red"), labels = c("HC", "Pat")) +  # Define colors and labels for groups
+    theme_minimal()
+  
+  # Print the plot to ensure it is displayed
+  print(p)
+}
+```
+
+<u>2. Homoscedasticity of residuals</u>
+```{r}
+# The model consists of 3 covariates. Sex is binary (2x2 ANOVA), education is categorical (2x4 ANOVA), and age is continuous (ANCOVA). 
+# Testing for homoscedasticity, we employ Levene's test for the categorical (group comparison) covariates sex and education.
+# For the continuous covariates, we employ Breusch-Pagan test which tests for heterogeneity of residuals along the continuous spectrum of the covariate of interest (in our case, that would be age)
+# For the visual inspection of variance across age, we can also go back to the test for linearity and inspect the residuals.
+# Furthermore, we test the whole model for homoscedasticity along the performance.
+
+# Ensure task names are correctly used in the dataframe
+homoskedasticity_results <- data.frame(Task = performance_tasks, 
+                                       Levene_sex_p_value = numeric(length(performance_tasks)),
+                                       Levene_education_p_value = numeric(length(performance_tasks)),
+                                       BP_age_specific_p_value = numeric(length(performance_tasks)),
+                                       BP_model_p_value = numeric(length(performance_tasks)),
+                                       stringsAsFactors = FALSE)
+
+# Loop through each task performance variable and test for homoskedasticity
+for (i in seq_along(performance_tasks)) {
+  task <- performance_tasks[i]
+  model_data <- na.omit(Patients_vs_HC_imp_conf[, c(task, "Gruppe", "Geschlecht", "Abschluss", "Alter")])
+  
+  # Build the linear model controlling for Group, Gender, Education, and Age
+  model <- lm(as.formula(paste(task, "~ Gruppe + Geschlecht + Abschluss + Alter")), data = model_data)
+  
+  # Extract the residuals
+  model_data$residuals <- resid(model)
+  
+  # Levene Test for Sex
+  levene_test_sex <- car::leveneTest(residuals ~ as.factor(Gruppe) * as.factor(Geschlecht), data = model_data)
+  homoskedasticity_results$Levene_sex_p_value[i] <- round(levene_test_sex$"Pr(>F)"[1], 2)
+  
+  # Levene Test for Education (Abschluss)
+  levene_test_education <- car::leveneTest(residuals ~ as.factor(Gruppe) * as.factor(Abschluss), data = model_data)
+  homoskedasticity_results$Levene_education_p_value[i] <- round(levene_test_education$"Pr(>F)"[1], 2)
+  
+  ## Breusch-Pagan Test for Age (Alter), adjusted for Gender and Education
+  age_specific_model <- lm(as.formula(paste(task, "~ Geschlecht + Abschluss + Gruppe")), data = model_data)
+  bp_test_age <- bptest(age_specific_model)
+  homoskedasticity_results$BP_age_specific_p_value[i] <- round(bp_test_age$p.value, 2)
+  
+  # Breusch-Pagan Test for Age
+  bp_test <- bptest(model)
+  homoskedasticity_results$BP_model_p_value[i] <- round(bp_test$p.value, 2)
+}
+
+# Output the table with pander
+pander(homoskedasticity_results, style = "rmarkdown", split.table = Inf, fontsize = "tiny")
+```
+
+<u>3. Interaction between covariates and predictor (categorical) and Homogeneity of slopes within regression (continuous)</u>
+```{r}
+# We cannot test homogeneity of slopes for the covariates of sex and education. 
+# Instead, we test if there is a significant interaction between these covariates and group. 
+# The test for the homogeneity of slopes determines if the regression slope between the continuous covariate age and the outcome of task performance is equivalent in both predictor groups.
+
+# Initialize a dataframe to store results
+interaction_results <- data.frame(Task = performance_tasks, 
+                                  Interaction_Group_Sex_p_value = numeric(length(performance_tasks)),
+                                  Interaction_Group_Education_p_value = numeric(length(performance_tasks)),
+                                  Homogeneity_Slopes_Age_p_value = numeric(length(performance_tasks)),
+                                  stringsAsFactors = FALSE)
+
+# Loop through each task performance variable
+for (i in seq_along(performance_tasks)) {
+  task <- performance_tasks[i]
+  
+  # 1. Model to test the interaction between Group and Gender, controlled for Age and Education
+  model_gender <- aov(as.formula(paste(task, "~ Gruppe * Geschlecht + Abschluss + Alter")), data = Patients_vs_HC_imp_conf)
+  
+  # Extract ANOVA summary results for interaction between Group and Gender
+  summary_model_gender <- summary(model_gender)
+  
+  # Extract the p-value for the interaction term Gruppe:Geschlecht
+  interaction_gender_p_value <- summary_model_gender[[1]]$"Pr(>F)"[3]  # Third entry is for the interaction term Gruppe:Geschlecht
+  interaction_results$Interaction_Group_Sex_p_value[i] <- round(interaction_gender_p_value, 2)
+  
+  # 2. Model to test the interaction between Group and Education, controlled for Gender and Age
+  model_education <- aov(as.formula(paste(task, "~ Gruppe * Abschluss + Geschlecht + Alter")), data = Patients_vs_HC_imp_conf)
+  
+  # Extract ANOVA summary results for interaction between Group and Education
+  summary_model_education <- summary(model_education)
+  
+  # Extract the p-value for the interaction term Gruppe:Abschluss
+  interaction_education_p_value <- summary_model_education[[1]]$"Pr(>F)"[3]  # Third entry is for the interaction term Gruppe:Abschluss
+  interaction_results$Interaction_Group_Education_p_value[i] <- round(interaction_education_p_value, 2)
+  
+  # 3. Model to test the homogeneity of slopes for Age, controlled for Gender and Education
+  model_age <- aov(as.formula(paste(task, "~ Gruppe * Alter + Geschlecht + Abschluss")), data = Patients_vs_HC_imp_conf)
+  
+  # Extract ANOVA summary results for homogeneity of slopes (Gruppe:Alter)
+  summary_model_age <- summary(model_age)
+  
+  # Extract the p-value for the interaction term Gruppe:Alter (testing homogeneity of slopes)
+  homogeneity_age_p_value <- summary_model_age[[1]]$"Pr(>F)"[3]  # Third entry is for the interaction term Gruppe:Alter
+  interaction_results$Homogeneity_Slopes_Age_p_value[i] <- round(homogeneity_age_p_value, 2)
+}
+
+# Output the table of results with pander
+pander(interaction_results, style = "rmarkdown", split.table = Inf, fontsize = "tiny")
+```
+
+### ANCOVA: BH-corrected & interaction
+```{r}
+# Modify the ANCOVA_mult_cols function to include interaction terms and BH correction
+ANCOVA_mult_cols <- function(df_basis, cols, covariates = NULL){
+  # Initialize a dataframe to store results
+  df <- data.frame(Gruppe_p_value = numeric(length(cols)))
+  rownames(df) <- cols
+  p_values_raw <- numeric(length(cols))  # Vector to store raw p-values
+  
+  for (i in seq_along(cols)){
+    col <- cols[i]
+    # Run ANCOVA with interaction terms for uncorrected p-values
+    formula <- paste(col, " ~ Gruppe * (Alter + Geschlecht + Abschluss)")  # Interaction terms included
+    anova_result <- aov(as.formula(formula), data = df_basis)
+    coefficients <- coef(anova_result)
+    summary_anova <- summary(anova_result)
+    
+    # Store raw p-values for BH correction
+    p_values_raw[i] <- summary_anova[[1]]$"Pr(>F)"[1]  # P-value for 'Gruppe'
+    
+    # Prepare the results
+    df[col, "Gruppe_p_value"] <- round(summary_anova[[1]]$"Pr(>F)"[1], 2)
+    df[col, "Gruppe_corrected_difference"] <- round(coefficients[2], 2)
+    df[col, "Alter_p_value"] <- round(summary_anova[[1]]$"Pr(>F)"[2], 2)
+    df[col, "Geschlecht_p_value"] <- round(summary_anova[[1]]$"Pr(>F)"[3], 2)
+    df[col, "Abschluss_p_value"] <- round(summary_anova[[1]]$"Pr(>F)"[4], 2)
+  }
+  
+  # Apply Benjamini-Hochberg correction to Gruppe_p_value
+  p_values_adjusted <- p.adjust(p_values_raw, method = "BH")
+  df$Gruppe_p_value_adjusted <- round(p_values_adjusted, 2)
+  
+  return(df)
+}
+
+# Run the modified function
+table_ANCOVA <- ANCOVA_mult_cols(df_basis = Patients_vs_HC_imp_conf, cols = imp_columns, covariates = c("Alter", "Geschlecht", "Abschluss"))
+pander(table_ANCOVA, style = "rmarkdown", split.table = Inf, fontsize = "tiny")
+```
+
+### ANCOVA: robust standard errors
+```{r}
+# Modify the ANCOVA_mult_cols function to include all three p-value versions
+ANCOVA_mult_cols <- function(df_basis, cols, covariates = NULL){
+  # Initialize a dataframe to store results
+  df <- data.frame(
+    Gruppe_p_value = numeric(length(cols)),
+    Gruppe_p_value_SD_robust = numeric(length(cols)),
+    Gruppe_p_value_total_correction = numeric(length(cols))
+  )
+  rownames(df) <- cols
+  p_values_raw <- numeric(length(cols))  # Vector to store raw p-values (robust)
+  p_values_uncorrected <- numeric(length(cols))  # Vector to store raw p-values (uncorrected)
+  
+  for (i in seq_along(cols)){
+    col <- cols[i]
+    # Run ANCOVA for uncorrected p-values
+    formula_ancova <- paste(col, " ~ Gruppe", ifelse(length(covariates) > 0, paste(" + ", paste(covariates, collapse = " + ")), ""))
+    
+    #To also account for interaction: 
+    #formula_ancova <- as.formula(paste(col, " ~ Gruppe * (Alter + Geschlecht + Abschluss)"))
+    
+    ancova_model <- aov(as.formula(formula_ancova), data = df_basis)
+    
+    # Extract uncorrected p-value from ANCOVA (F-test)
+    summary_ancova <- summary(ancova_model)
+    p_values_uncorrected[i] <- summary_ancova[[1]]$"Pr(>F)"[1]  # Uncorrected p-value for 'Gruppe'
+    
+    # Run linear model for robust standard errors
+    model <- lm(as.formula(formula_ancova), data = df_basis)
+    
+    # Calculate robust standard errors (using HC1 by default)
+    robust_se <- vcovHC(model, type = "HC1")  # Using heteroskedasticity-consistent estimator HC1
+    robust_summary <- coeftest(model, vcov = robust_se)
+    
+    # Store the p-values (robust p-values)
+    p_values_raw[i] <- robust_summary["Gruppe", "Pr(>|t|)"]  # Robust p-value for 'Gruppe'
+    
+    # Prepare the results
+    df[col, "Gruppe_p_value"] <- round(p_values_uncorrected[i], 2)  # Uncorrected p-value (from ANCOVA)
+    df[col, "Gruppe_p_value_SD_robust"] <- round(robust_summary["Gruppe", "Pr(>|t|)"], 2)  # Robust p-value
+    df[col, "Gruppe_corrected_difference"] <- round(robust_summary["Gruppe", "Estimate"], 2)
+    df[col, "Alter_p_value"] <- round(robust_summary["Alter", "Pr(>|t|)"], 2)
+    df[col, "Geschlecht_p_value"] <- round(robust_summary["Geschlecht", "Pr(>|t|)"], 2)
+    df[col, "Abschluss_p_value"] <- round(robust_summary["Abschluss", "Pr(>|t|)"], 2)
+  }
+  
+  # Apply Benjamini-Hochberg correction to the robust p-values
+  p_values_adjusted <- p.adjust(p_values_raw, method = "BH")
+  df$Gruppe_p_value_total_correction <- round(p_values_adjusted, 2)  # BH-adjusted p-value for 'Gruppe'
+  
+  return(df)
+}
+
+# Run the modified function with robust standard errors and BH correction
+table_ANCOVA <- ANCOVA_mult_cols(df_basis = Patients_vs_HC_imp_conf, cols = imp_columns, covariates = c("Alter", "Geschlecht", "Abschluss"))
+pander(table_ANCOVA, style = "rmarkdown", split.table = Inf, fontsize = "tiny")
+
+```
+
+### ANCOVA: GLS
+```{r}
+# Modify the ANCOVA_mult_cols function to include all three p-values (aov, GLS, and adjusted GLS)
+ANCOVA_mult_cols <- function(df_basis, cols, covariates = NULL){
+  library(nlme)  # Load the nlme package for GLS
+  
+  # Initialize a dataframe to store results
+  df <- data.frame(
+    Gruppe_p_value = numeric(length(cols)),
+    Gruppe_p_value_GLS = numeric(length(cols)),
+    Gruppe_p_value_adjusted = numeric(length(cols))
+  )
+  rownames(df) <- cols
+  p_values_raw_gls <- numeric(length(cols))  # Vector to store raw p-values (GLS)
+  p_values_uncorrected_aov <- numeric(length(cols))  # Vector to store raw p-values (aov)
+  
+  for (i in seq_along(cols)){
+    col <- cols[i]
+    
+    #account for interaction:
+    formula_ancova <- as.formula(paste(col, " ~ Gruppe * (Alter + Geschlecht + Abschluss)"))
+    
+    # 1. Run ANCOVA for uncorrected p-values (aov)
+    ancova_model <- aov(formula_ancova, data = df_basis, na.action = na.omit)
+    summary_ancova <- summary(ancova_model)
+    p_values_uncorrected_aov[i] <- summary_ancova[[1]]$"Pr(>F)"[1]  # Uncorrected p-value for 'Gruppe'
+    
+    # 2. Run GLS to account for heteroskedasticity (group-specific variance structure)
+    
+    #Nur Gruppe
+    #gls_model <- gls(as.formula(formula_ancova), data = df_basis, weights = varIdent(form = ~ 1 | Gruppe),na.action = na.omit)
+    
+    #Korrektur der Kovariate
+    #gls_model <- gls(as.formula(formula_ancova), data = df_basis, weights = varComb(varIdent(form = ~ 1 | Geschlecht), varIdent(form = ~ 1 | Abschluss), varExp(form = ~ Alter)), na.action = na.omit)
+    
+    summary_gls <- summary(gls_model)
+    p_values_raw_gls[i] <- summary_gls$tTable["Gruppe", "p-value"]
+    
+    # Prepare the results
+    df[col, "Gruppe_p_value"] <- round(p_values_uncorrected_aov[i], 2)  # Uncorrected p-value (from aov)
+    df[col, "Gruppe_p_value_GLS"] <- round(p_values_raw_gls[i], 2)  # GLS p-value (uncorrected)
+    df[col, "Gruppe_corrected_difference"] <- round(summary_gls$tTable["Gruppe", "Value"], 2)
+    df[col, "Alter_p_value"] <- round(summary_gls$tTable["Alter", "p-value"], 2)
+    df[col, "Geschlecht_p_value"] <- round(summary_gls$tTable["Geschlecht", "p-value"], 2)
+    df[col, "Abschluss_p_value"] <- round(summary_gls$tTable["Abschluss", "p-value"], 2)
+  }
+  
+  # 3. Apply Benjamini-Hochberg correction to the GLS p-values
+  p_values_adjusted <- p.adjust(p_values_raw_gls, method = "BH")
+  df$Gruppe_p_value_adjusted <- round(p_values_adjusted, 2)  # BH-adjusted p-value for GLS
+  
+  return(df)
+}
+
+# Run the modified function
+table_ANCOVA <- ANCOVA_mult_cols(df_basis = Patients_vs_HC_imp_conf, cols = imp_columns, covariates = c("Alter", "Geschlecht", "Abschluss"))
+pander(table_ANCOVA, style = "rmarkdown", split.table = Inf, fontsize = "tiny")
+```
+
