@@ -33,6 +33,11 @@ library(effsize)
 library(pwr)
 library(gtsummary)
 library(stats)
+library(stats)
+library(lmtest)
+library(sandwich)
+library(nlme)
+library(car)
 ```
 
 ## <u>Importing Data</u>
