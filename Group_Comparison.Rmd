@@ -424,3 +424,91 @@ boxplot_Patients_pre_post <- ggplot(Patients_pre_vs_post_long, aes(x = Condition
 ```{r}
 print(boxplot_Patients_pre_post)
 ```
+
+## <u>Comparison Response vs. Non-Response</u>
+
+###Testing for variance homogeneity
+```{r}
+# Ensure "Response" is treated as a factor
+data_Pat_pre$Response <- as.factor(data_Pat_pre$Response)
+
+# Perform Levene's test for homogeneity of variance on task performance measures
+levene_test_mult_cols <- function(df_basis, cols) {
+  df <- data.frame(p_value = numeric(length(cols)))
+  rownames(df) <- cols
+  
+  for (i in seq_along(cols)) {
+    col <- cols[i]
+    # Perform Levene's test, treating 'Response' as a factor
+    levene_result <- leveneTest(df_basis[[col]] ~ df_basis[["Response"]])
+    df[col, "p_value"] <- round(levene_result[1, "Pr(>F)"], 4)
+  }
+  
+  return(df)
+}
+
+# Define the columns for which to perform the test (e.g., task performance measures)
+imp_columns <- c("NumberLetter_BIS_Repeat", "NumberLetter_BIS_Switch", 
+                 "NumberLetter_BIS_Diff_Score", "Stroop_BIS_Congruent", 
+                 "Stroop_BIS_Incongruent", "Stroop_BIS_Diff_Score", 
+                 "TwoBack_BIS_Foil", "TwoBack_BIS_Target", "TwoBack_BIS_Total", 
+                 "SSRT")
+
+# Perform Levene's test
+levene_test_table <- levene_test_mult_cols(df_basis = data_Pat_pre, cols = imp_columns)
+pander(levene_test_table, style = "rmarkdown", fontsize = "tiny")
+```
+Levene test shows complete variance homoegeneity for all task conditions between responders and non-responders.
+
+
+### **Calculate t-test**
+```{r}
+# Perform t-tests for each task and store results
+t_test_mult_cols <- function(df_basis, cols) {
+  df <- data.frame(t_statistic = numeric(length(cols)), p_value = numeric(length(cols)),
+                   group_mean_Response = numeric(length(cols)), sd_Response = numeric(length(cols)),
+                   group_mean_NonResponse = numeric(length(cols)), sd_NonResponse = numeric(length(cols)),
+                   cohen_d = numeric(length(cols)))
+  rownames(df) <- cols
+  
+  for (i in seq_along(cols)) {
+    col <- cols[i]
+    
+    # Separate groups by Response = 1 and Response = 0
+    group1 <- na.omit(df_basis[df_basis[["Response"]] == 1, col])
+    group0 <- na.omit(df_basis[df_basis[["Response"]] == 0, col])
+    #Alternativ using formula method:
+      #results <- t.test(df_basis[[col]] ~ df_basis[["Response"]], paired = FALSE, var.equal = TRUE)
+    
+    # Perform standard t-test (since variance homogeneity holds)
+    results <- t.test(group1, group0, paired = FALSE, var.equal = TRUE)
+    
+    # Calculate Cohen's d
+    cohen_d_result <- cohen.d(group1, group0, hedges.correction = FALSE)
+    cohen_d <- cohen_d_result$estimate
+    
+    # Calculate power
+    n0 <- length(group0)
+    n1 <- length(group1)
+    power_result <- pwr.t.test(d = cohen_d, n = min(n0, n1), sig.level = 0.05, type = "two.sample", alternative = "greater")
+    power <- power_result$power
+    
+    # Store the results
+    df[col, "t_statistic"] <- round(results$statistic, 2)
+    df[col, "p_value"] <- round(results$p.value, 4)
+    df[col, "group_mean_Response"] <- round(mean(group1), 2)
+    df[col, "sd_Response"] <- round(sd(group1), 2)
+    df[col, "group_mean_NonResponse"] <- round(mean(group0), 2)
+    df[col, "sd_NonResponse"] <- round(sd(group0), 2)
+    df[col, "cohen_d"] <- round(cohen_d, 2)
+    df[col, "power"] <- round(power, 2)
+  }
+  
+  return(df)
+}
+
+t_test_table <- t_test_mult_cols(df_basis = data_Pat_pre, cols = imp_columns)
+pander(t_test_table, style = "rmarkdown", split.table = Inf, fontsize = "tiny")
+```
+No significant was found for any of the tasks.
+Potential reason: low power. Even the largest power for TwoBack_BIS_Foil of 0.22 with a cohen's d of 0.2 would require a sample size of 144 to find a significant effect, as a priori power power analysis shows. However, the patient group is only about half as large as that (n=89), not to speak of the tasks with even smaller power (e.g., NumberLetter_BIS_Repeat with 0.01)
