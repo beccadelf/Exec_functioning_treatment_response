@@ -246,7 +246,7 @@ calculate_correlations_and_significance <- function(pre_data, post_data, cols) {
 }
 
 
-# Apply the correlation and significance test to your data
+# Apply the correlation and significance test
 correlation_significance_table <- calculate_correlations_and_significance(pre_data = data_Pat_pre_filtered_imp, post_data = data_Pat_post_filtered_imp, cols = imp_columns)
 pander(correlation_significance_table, style = "rmarkdown", fontsize = "tiny")
 ```
@@ -268,6 +268,13 @@ paired_t_test_mult_cols <- function(pre_data, post_data, cols) {
     complete_cases <- complete.cases(pre_data[[col]], post_data[[col]])
     pre_col_data <- pre_data[[col]][complete_cases]
     post_col_data <- post_data[[col]][complete_cases]
+    
+    # Check if there are at least 2 complete pairs of observations
+    if (length(pre_col_data) < 2 || length(post_col_data) < 2) {
+      warning(paste("Not enough data for column:", col))
+      df[col, ] <- NA  # Assign NA to the row in case of insufficient data
+      next  # Skip to the next column
+    }
     
     # Perform paired Welch t-test (non-formula interface)
     results <- t.test(pre_col_data, post_col_data, paired = TRUE, var.equal = FALSE)
