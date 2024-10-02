@@ -151,7 +151,7 @@ homoskedasticity_results <- data.frame(Task = performance_tasks,
                                        Levene_education_p_value = numeric(length(performance_tasks)),
                                        BP_age_specific_p_value = numeric(length(performance_tasks)),
                                        BP_model_p_value = numeric(length(performance_tasks)),
-                                       Homoscedasticity_Violated = character(length(performance_tasks)),  # New column
+                                       Homoscedasticity_Violated = character(length(performance_tasks)),
                                        stringsAsFactors = FALSE)
 
 # Loop through each task and perform the tests
@@ -165,20 +165,20 @@ for (i in seq_along(performance_tasks)) {
   # Extract the residuals
   model_data$residuals <- resid(model)
   
-  # Levene Test for Sex
+  # Levene Test for Sex (categorical)
   levene_test_sex <- car::leveneTest(residuals ~ as.factor(Gruppe) * as.factor(Geschlecht), data = model_data)
   homoskedasticity_results$Levene_sex_p_value[i] <- round(levene_test_sex$"Pr(>F)"[1], 2)
   
-  # Levene Test for Education (Abschluss)
+  # Levene Test for Education (Abschluss) (categorical)
   levene_test_education <- car::leveneTest(residuals ~ as.factor(Gruppe) * as.factor(Abschluss), data = model_data)
   homoskedasticity_results$Levene_education_p_value[i] <- round(levene_test_education$"Pr(>F)"[1], 2)
   
-  # Breusch-Pagan Test for Age (Alter), adjusted for Gender and Education
+  # Breusch-Pagan Test for Age (Alter), adjusted for Gender and Education (continuous)
   age_specific_model <- lm(as.formula(paste(task, "~ Geschlecht + Abschluss + Gruppe")), data = model_data)
   bp_test_age <- bptest(age_specific_model)
   homoskedasticity_results$BP_age_specific_p_value[i] <- round(bp_test_age$p.value, 2)
   
-  # Breusch-Pagan Test for the whole model
+  # Breusch-Pagan Test for the whole model (continuous)
   bp_test <- bptest(model)
   homoskedasticity_results$BP_model_p_value[i] <- round(bp_test$p.value, 2)
   
