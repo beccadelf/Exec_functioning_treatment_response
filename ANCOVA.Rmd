@@ -254,17 +254,19 @@ pander(interaction_results, style = "rmarkdown", split.table = Inf, fontsize = "
 
 ### Comprehensive ANCOVA
 ```{r}
-# Modified function to include p-values for covariates
+# Modified function to include corrected effect size (partial eta-squared) and power
 ANCOVA_mult_cols <- function(df_basis, cols, homoskedasticity_violations, interaction_violations, covariates){
   
   # Initialize a dataframe to store results
   df <- data.frame(
     p_value_uncorrected = numeric(length(cols)),  # For normal ANCOVA
     p_value_corrected = numeric(length(cols)),    # For corrected ANCOVA
-    Alter_p_value = numeric(length(cols)),        # p-value for Alter
-    Geschlecht_p_value = numeric(length(cols)),   # p-value for Geschlecht
-    Abschluss_p_value = numeric(length(cols)),    # p-value for Abschluss
-    Assumption_Violation = character(length(cols)),  # New column for violation status
+    Alter_p_value = numeric(length(cols)),
+    Geschlecht_p_value = numeric(length(cols)),
+    Abschluss_p_value = numeric(length(cols)),
+    eta_squared = numeric(length(cols)),          # effect size (partial eta-squared)
+    power = numeric(length(cols)),
+    Assumption_Violation = character(length(cols)),  # violation status
     stringsAsFactors = FALSE
   )
   rownames(df) <- cols
@@ -293,52 +295,78 @@ ANCOVA_mult_cols <- function(df_basis, cols, homoskedasticity_violations, intera
     homoskedasticity_violation <- homoskedasticity_violations[i]
     
     if (interaction_violation == "Violated" && homoskedasticity_violation == "Violated") {
-      # Both violations: Apply robust standard errors and model interaction
+      # 2.1 Both violations: Apply robust standard errors and model interaction
       formula <- paste(col, "~ Gruppe * (", covariate_formula, ")")
       model <- lm(as.formula(formula), data = df_basis)
       robust_se <- vcovHC(model, type = "HC1")
       robust_summary <- coeftest(model, vcov = robust_se)
       df[col, "p_value_corrected"] <- round(robust_summary["Gruppe", "Pr(>|t|)"], 2)
       
-      # Extract covariate p-values from the interaction robust model
-      df[col, "Alter_p_value"] <- round(robust_summary["Alter", "Pr(>|t|)"], 2)
-      df[col, "Geschlecht_p_value"] <- round(robust_summary["Geschlecht", "Pr(>|t|)"], 2)
-      df[col, "Abschluss_p_value"] <- round(robust_summary["Abschluss", "Pr(>|t|)"], 2)
+      # eta-squared and power
+      SS_group_corrected <- sum(robust_summary["Gruppe", "t value"]^2)  # Estimation of corrected SS
+      SS_residual_corrected <- sum(robust_summary[,"t value"]^2) - SS_group_corrected
+      eta_squared_corrected <- SS_group_corrected / (SS_group_corrected + SS_residual_corrected)
+      df[col, "eta_squared"] <- round(eta_squared_corrected, 2)
+      
+      f_squared_corrected <- eta_squared_corrected / (1 - eta_squared_corrected)
+      power_corrected_result <- pwr.anova.test(k = 2, n = nrow(df_basis), f = sqrt(f_squared_corrected), sig.level = 0.05)
+      df[col, "power"] <- round(power_corrected_result$power, 2)
       
       df[col, "Assumption_Violation"] <- "Heteroscedasticity and Interaction"
       
     } else if (interaction_violation == "Violated") {
-      # Only interaction violated: Model the interaction
+      # 2.2 Only interaction violated: Model the interaction
       formula <- paste(col, "~ Gruppe * (", covariate_formula, ")")
       model <- aov(as.formula(formula), data = df_basis)
       summary_model <- summary(model)
       df[col, "p_value_corrected"] <- round(summary_model[[1]]$"Pr(>F)"[1], 2)
       
-      # Extract covariate p-values from the interaction model
-      df[col, "Alter_p_value"] <- round(summary_model[[1]]$"Pr(>F)"[2], 2)
-      df[col, "Geschlecht_p_value"] <- round(summary_model[[1]]$"Pr(>F)"[3], 2)
-      df[col, "Abschluss_p_value"] <- round(summary_model[[1]]$"Pr(>F)"[4], 2)
+      # eta-squared and power
+      SS_group_corrected <- summary_model[[1]]$"Sum Sq"[1]
+      SS_residual_corrected <- summary_model[[1]]$"Sum Sq"[length(summary_model[[1]]$"Sum Sq")]
+      eta_squared_corrected <- SS_group_corrected / (SS_group_corrected + SS_residual_corrected)
+      df[col, "eta_squared"] <- round(eta_squared_corrected, 2)
+      
+      f_squared_corrected <- eta_squared_corrected / (1 - eta_squared_corrected)
+      power_corrected_result <- pwr.anova.test(k = 2, n = nrow(df_basis), f = sqrt(f_squared_corrected), sig.level = 0.05)
+      df[col, "power"] <- round(power_corrected_result$power, 2)
       
       df[col, "Assumption_Violation"] <- "Interaction"
       
     } else if (homoskedasticity_violation == "Violated") {
-      # Only homoscedasticity violated: Apply robust standard errors
+      # 2.3 Only homoscedasticity violated: Apply robust standard errors
       formula <- paste(col, "~ Gruppe +", covariate_formula)
       model <- lm(as.formula(formula), data = df_basis)
       robust_se <- vcovHC(model, type = "HC1")
       robust_summary <- coeftest(model, vcov = robust_se)
       df[col, "p_value_corrected"] <- round(robust_summary["Gruppe", "Pr(>|t|)"], 2)
       
-      # Extract covariate p-values from the robust model
-      df[col, "Alter_p_value"] <- round(robust_summary["Alter", "Pr(>|t|)"], 2)
-      df[col, "Geschlecht_p_value"] <- round(robust_summary["Geschlecht", "Pr(>|t|)"], 2)
-      df[col, "Abschluss_p_value"] <- round(robust_summary["Abschluss", "Pr(>|t|)"], 2)
+      # eta-squared and power
+      SS_group_corrected <- sum(robust_summary["Gruppe", "t value"]^2)  # Estimation of corrected SS
+      SS_residual_corrected <- sum(robust_summary[,"t value"]^2) - SS_group_corrected
+      eta_squared_corrected <- SS_group_corrected / (SS_group_corrected + SS_residual_corrected)
+      df[col, "eta_squared"] <- round(eta_squared_corrected, 2)
+      
+      f_squared_corrected <- eta_squared_corrected / (1 - eta_squared_corrected)
+      power_corrected_result <- pwr.anova.test(k = 2, n = nrow(df_basis), f = sqrt(f_squared_corrected), sig.level = 0.05)
+      df[col, "power"] <- round(power_corrected_result$power, 2)
       
       df[col, "Assumption_Violation"] <- "Heteroscedasticity"
       
     } else {
       # No violation: Copy the uncorrected p-value to corrected and label as "No Violation"
       df[col, "p_value_corrected"] <- df[col, "p_value_uncorrected"]
+      
+      # Calculate eta-squared and power for uncorrected model
+      SS_group <- summary_ancova[[1]]$"Sum Sq"[1]
+      SS_residual <- summary_ancova[[1]]$"Sum Sq"[length(summary_ancova[[1]]$"Sum Sq")]
+      eta_squared <- SS_group / (SS_group + SS_residual)
+      df[col, "eta_squared"] <- round(eta_squared, 2)
+      
+      f_squared <- eta_squared / (1 - eta_squared)
+      power_result <- pwr.anova.test(k = 2, n = nrow(df_basis), f = sqrt(f_squared), sig.level = 0.05)
+      df[col, "power"] <- round(power_result$power, 2)
+      
       df[col, "Assumption_Violation"] <- "No Violation"
     }
   }
@@ -356,13 +384,12 @@ ANCOVA_mult_cols <- function(df_basis, cols, homoskedasticity_violations, intera
   return(df)
 }
 
-# Run the function
 table_ANCOVA <- ANCOVA_mult_cols(df_basis = Patients_vs_HC_imp_conf, 
                                  cols = imp_columns, 
                                  homoskedasticity_violations = homoskedasticity_results$Homoscedasticity_Violated, 
                                  interaction_violations = interaction_results$Interaction_Violated, 
                                  covariates = c("Alter", "Geschlecht", "Abschluss"))
 
-# Output the final table
+# final table
 pander(table_ANCOVA, style = "rmarkdown", split.table = Inf, fontsize = "tiny")
 ```
