@@ -58,6 +58,7 @@ Patients_vs_HC <- rbind(data_Pat_pre, data_HC)
 
 ## 2. Reduce dataset to executive functions of interest (BIS columns and SSRT)
 BIS_columns <- colnames(Patients_vs_HC)[grep("BIS", colnames(Patients_vs_HC))]
+BIS_columns <- BIS_columns[BIS_columns != "T1_BAT_BIS_11_score"] # BIS-11 is a questionnaire
 imp_columns <- c(BIS_columns, "SSRT")
 Patients_vs_HC_imp <- Patients_vs_HC[,c("Subject","Gruppe",imp_columns)]
 
