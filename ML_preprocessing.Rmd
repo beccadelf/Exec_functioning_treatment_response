@@ -8,7 +8,7 @@ output: html_document
 ```{r R Setup, include = FALSE}
 
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,rows.print = 6, cols.min.print = 3)
-
+library(dplyr)
 library(tidyverse)
 library(caret)
 ```
@@ -17,7 +17,7 @@ library(caret)
 ```{r}
 basic_path <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses"
 
-task_data <- read.csv(file.path(basic_path,"Performance_Scores/Task_Performance_Scores.csv"))
+task_data <- read.csv(file.path(basic_path,"Performance_Scores/Task_Performance_Scores.csv")) # only for overall accuracy
 data_pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
 ```
 
@@ -30,10 +30,16 @@ features_df <- left_join(x = data_pat_pre,
                          by = "Subject")
 ```
 
-# 2. Save labels in separate dataframe
-```{r}
+# 2. Encode classes (for classifier) vs. outcome (for regressor)
+## 2.1. Classes (Responder vs. Non-Responder)
+```{r Save labels in separate dataframe}
 labels_df <- features_df["Response"]
 features_df$Response <- NULL
+```
+
+## 2.2. Outcome (Percent-change in FAS)
+```{r}
+features_df$FAS_perc_change <- ((features_df$T3_BAT_FAS_score - features_df$T1_BAT_FAS_score) / features_df$T1_BAT_FAS_score) * 100
 ```
 
 # 3. Dummy-Vars and renaming of features
@@ -57,7 +63,7 @@ features_df_enc <- features_df_enc %>%
          FAS = T1_BAT_FAS_score,
          BDI_II = T1_BAT_BDI_II_score,
          STAI_T = T1_BAT_STAI_T_score,
-         BIS = T1_BAT_BIS_11_score,
+         BIS_11 = T1_BAT_BIS_11_score,
          Kirby_k = T1_BAT_Kirby_k_score,
          CFC_14 = T1_BAT_CFC_14_score,
          SRHI = T1_BAT_SRHI_score,
@@ -73,8 +79,7 @@ features_df_enc <- features_df_enc %>%
 
 #var_category <- find_bin_cols(features_df_enc_clean)
 # TEST
-bin_cols <- c("is_woman", "Hauptschule", "Realschule", "Abitur",
-                 "anderer_Abschluss")
+bin_cols <- c("is_woman", "Hauptschule", "Realschule", "Abitur", "anderer_Abschluss")
 non_bin_cols <- setdiff(names(features_df_enc), bin_cols) 
 
 # TODO: Replace bin_cols with var_category$binary and non_bin_cols with var_category$non_binary as soon as function find_bin_cols works
@@ -89,9 +94,7 @@ for (feature in non_bin_cols) {
 # 5. Create feature dataframe without executive task feature for hypothesis testing
 
 ```{r Reduced feature dataframe}
-clin_features <- c("is_woman", "Age", "FAS_Score", "BDI_II_Score", "STAI_T_Score", "BIS_Score",
-                   "Kirby_k_Score", "CFC_Score", "SRHI_Score", "Hauptschule", "Realschule",
-                   "Abitur", "anderer_Abschluss")
+clin_features <- c("is_woman", "Age", "FAS", "BDI_II", "STAI_T", "BIS_11", "Kirby_k", "CFC_14", "SRHI", "Hauptschule", "Realschule", "Abitur", "anderer_Abschluss")
 clin_features_df_enc <- features_df_enc[clin_features]
 ```
 
