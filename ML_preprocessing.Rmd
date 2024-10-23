@@ -46,7 +46,7 @@ features_df$Response <- NULL
 
 ## 3.2. Outcome (Percent-change in FAS)
 ```{r}
-features_df$FAS_perc_change <- ((features_df$T3_BAT_FAS_score - features_df$T1_BAT_FAS_score) / features_df$T1_BAT_FAS_score) * 100
+outcome_df <- data.frame(FAS_perc_change = ((features_df$T3_BAT_FAS_score - features_df$T1_BAT_FAS_score) / features_df$T1_BAT_FAS_score) * 100)
 ```
 
 # 4. Dummy-Vars and renaming of features
@@ -106,7 +106,7 @@ clin_features <- c("is_woman", "Age", "FAS", "BDI_II", "STAI_T", "BIS_11", "Kirb
 clin_features_df_enc <- features_df_enc[clin_features]
 ```
 
-# 7. Save 2 feature and 1 label dataframes as .csv
+# 7. Save all 4 dataframes
 
 ```{r Save dataframes}
 file_path <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Feature_Label_Dataframes/"
@@ -114,4 +114,5 @@ file_path <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Feature_Label_
 write.csv(features_df_enc, paste0(file_path, "Features.csv"), row.names = FALSE)
 write.csv(clin_features_df_enc, paste0(file_path, "Clinical_Features.csv"), row.names = FALSE)
 write.csv(labels_df, paste0(file_path, "Labels.csv"), row.names = FALSE)
+write.csv(outcome_df, paste0(file_path, "Outcome.csv"), row.names = FALSE)
 ```
