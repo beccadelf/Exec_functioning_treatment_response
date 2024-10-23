@@ -17,7 +17,7 @@ library(caret)
 ```{r}
 basic_path <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses"
 
-task_data <- read.csv(file.path(basic_path,"Performance_Scores/Task_Performance_Scores.csv")) # only for overall accuracy
+task_data <- read.csv(file.path(basic_path,"Performance_Scores/Task_Performance_Scores.csv")) # contains overall accuracy
 data_pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
 ```
 
@@ -51,8 +51,9 @@ dummy <- dummyVars(" ~ Abschluss", data = features_df)
 trsf <- data.frame(predict(dummy, newdata = features_df, fullRank=TRUE))
 features_df_enc <- cbind(features_df, trsf)
 
-# 2. Drop original variable "Subject", "Abschluss" and "T3_BAT_FAS_score"
+# 2. Drop variables "Abschluss", "Subject", "Gruppe", and "T3_BAT_FAS_score"
 features_df_enc$Subject <- NULL
+features_df_enc$Gruppe <- NULL
 features_df_enc$Abschluss <- NULL
 features_df_enc$T3_BAT_FAS_score <- NULL
 
@@ -101,7 +102,7 @@ clin_features_df_enc <- features_df_enc[clin_features]
 # 6. Save 2 feature and 1 label dataframes as .csv
 
 ```{r Save dataframes}
-file_path <- "Z:/PsyThera/Projekte_Meinke/Labrotation_Rebecca/Feature_Label_Dataframes/"
+file_path <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Feature_Label_Dataframes/"
 
 write.csv(features_df_enc, paste0(file_path, "Features.csv"), row.names = FALSE)
 write.csv(clin_features_df_enc, paste0(file_path, "Clinical_Features.csv"), row.names = FALSE)
