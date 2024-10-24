@@ -38,6 +38,7 @@ library(lmtest)
 library(sandwich)
 library(nlme)
 library(car)
+library(gt)
 ```
 
 ## <u>Importing Data</u>
