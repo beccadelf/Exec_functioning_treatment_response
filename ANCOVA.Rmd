@@ -39,28 +39,26 @@ library(nlme)
 ```
 
 
-## <u>Importing Data</u>
-
-### Task Performance Data
+# Importing Data 
+## Task Performance Data
 ```{r}
 data_HC <- read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses/Data_HC.csv")
-data_Pat_pre <- read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses/Data_Patients_Pre.csv")
-data_Pat_post <- read.csv("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses/Data_Patients_Post.csv")
+data_Pat_pre <- read.csv("Z:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses/Data_Patients_Pre.csv")
+data_Pat_post <- read.csv("Z:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses/Data_Patients_Post.csv")
 ```
 
-### Subject Data
+## Subject Data
 ```{r}
-data_all <- haven::read_dta('Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/CognitiveControl_Treatment/Data_Kevin_28.07.23.dta')
+data_all <- haven::read_dta('Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/CognitiveControl_Treatment/Data_Kevin_28.07.23.dta')
 colnames(data_all)[which(colnames(data_all) == "id")] <- "Subject"
 ```
 
-## <u>Comparison HC vs. Patients</u>
-
-### Prepare dataset
+# Prepare dataset
 ```{r}
 ## 1. Merge patients pre and controls
 Patients_vs_HC <- rbind(data_Pat_pre, data_HC)
 
+# TODO: imp_columns ist das gleiche wie performance_tasks -> Bitte reduzieren
 ## 2. Reduce dataset to BIS columns and SSRT
 BIS_columns <- colnames(Patients_vs_HC)[grep("BIS", colnames(Patients_vs_HC))]
 imp_columns <- c(BIS_columns, "SSRT")
@@ -82,11 +80,14 @@ table1 <-
   Patients_vs_HC_imp_conf %>%
   tbl_summary(include = c(Alter, Geschlecht, Abschluss), by = Gruppe)
 pander(as.data.frame(table1))
+# TODO: Direkt als word speichern
+# TODO: Was sind die Unknown-Werte? Die rausnehmen und Zahlen aktualisieren! Abschluss umkodieren (1,2,3,4)
 ```
 
-#### Testing assumptions for ANCOVA
-<u>1. Linearity between age and performance, corrected for group, education, and sex</u>
+# Testing assumptions for ANCOVA
+## Linearity between age and performance, corrected for group, education, and sex</u>
 ```{r}
+# TODO: Statt <u> #### verwenden
 # both sex and education are categorical variables
 # ergo, only age will be tested for linearity
 # note: as an unconventional but possible analysis, linearity could be plotted for education across the categories, but that would be explorative
@@ -117,9 +118,9 @@ for (task in performance_tasks) {
 }
 ```
 
-<u>1.2 Linearity of direct relationship between a covariate and the outcome within the groups</u>
+## Linearity of direct relationship between a covariate and the outcome within the groups
 ```{r}
-# Loop through each task performance variable and plot Age vs. Task Performance within groups (HC vs. Pat)
+# Loop through each task performance variable and plot Task Performance~Age within groups (HC vs. Pat)
 for (task in performance_tasks) {
   # Create the scatterplot of Age vs. Task Performance with Lowess Fit Line by group
   p <- ggplot(Patients_vs_HC_imp_conf, aes(x = Alter, y = !!sym(task), color = as.factor(Gruppe))) +
@@ -137,7 +138,7 @@ for (task in performance_tasks) {
 }
 ```
 
-<u>2. Homoscedasticity of residuals</u>
+## Homoscedasticity of residuals 
 ```{r}
 # The model consists of 3 covariates. Sex is binary (2x2 ANOVA), education is categorical (2x4 ANOVA), and age is continuous (ANCOVA). 
 # Testing for homoscedasticity, we employ Levene's test for the categorical (group comparison) covariates sex and education.
@@ -196,7 +197,7 @@ for (i in seq_along(performance_tasks)) {
 pander(homoskedasticity_results, style = "rmarkdown", split.table = Inf, fontsize = "tiny")
 ```
 
-<u>3. Interaction between covariates and predictor (categorical) and Homogeneity of slopes within regression (continuous)</u>
+## Non-interaction between covariates and predictor (categorical) and Homogeneity of slopes within regression (continuous) ###
 ```{r}
 # We cannot test homogeneity of slopes for the covariates of sex and education. 
 # Instead, we test if there is a significant interaction between these covariates and group. 
@@ -297,7 +298,7 @@ cat("\n**Contingency Table: Education Levels vs. Group (Pat/HC)**\n")
 pander::pander(contingency_table_education, style = "rmarkdown")
 ```
 
-### Comprehensive ANCOVA
+# Comprehensive ANCOVA
 ```{r}
 # Modified function to include corrected effect size (partial eta-squared) and power
 ANCOVA_mult_cols <- function(df_basis, cols, homoskedasticity_violations, interaction_violations, covariates){
