@@ -13,24 +13,26 @@ import numpy as np
 import pandas as pd
 import time
 import sklearn
-
 from sklearn.model_selection import train_test_split
 
-from lib.Preprocessing_Classes import FeatureSelector
-from lib.Pipeline_Functions import load_data, impute_data, z_scale_data, select_features, fit_random_forest_regressor, fit_ridge_regressor
-from lib.ModelPerformance_Functions import calc_eval_metrics_regression, get_performance_metrics_across_folds, summarize_performance_metrics_across_iters
-from lib.FeatureStats import summarize_features
+# Ensure cwd is script's directory
+script_dir = os.path.dirname(os.path.abspath(__file__))
+os.chdir(script_dir)
+
+# Import ... functions
+from Preprocessing_Classes import FeatureSelector
+from Pipeline_Functions import load_data, impute_data, z_scale_data, select_features, fit_random_forest_regressor, fit_ridge_regressor
+from ModelPerformance_Functions import calc_eval_metrics_regression, get_performance_metrics_across_folds, summarize_performance_metrics_across_iters
+from FeatureStats import summarize_features
 
 #%% Set global variables 
 # TODO: adapt for command-line arguments
 
 OPTIONS = {}
-OPTIONS['number_iterations'] = 100 # planned number: 100
+OPTIONS['number_iterations'] = 10 # planned number: 100
 OPTIONS['Analysis'] = "all_features" # choose between "all_features" and "clin_features"
 OPTIONS['Regressor'] = 'random_forest_regressor' # choose between "random_forest_regressor" and "ridge_regressor"
 PATH_INPUT_DATA = "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\Feature_Label_Dataframes"
-
-random_state_seed = 42
 
 #%% Define functions
 
@@ -93,10 +95,10 @@ if __name__ == '__main__':
     
     if OPTIONS['Analysis'] == "all_features":
         X_path = os.path.join(PATH_INPUT_DATA,"Features.csv")
-        RESULTS_PATH = "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\Results_ML\\Regression\\Mit_oversampling\\All_features"
+        RESULTS_PATH = "C:\\Users\\Acer\\Documents\\Studentischer Hilfsjob\\FOR5187 Precision Psychotherapy\\TEST_ML_Results"
     elif OPTIONS['Analysis'] == "clin_features":
         X_path = os.path.join(PATH_INPUT_DATA,"Clinical_Features.csv")
-        RESULTS_PATH = "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\Results_ML\\Regression\\Mit_oversampling\\Demo_clin_features"    
+        RESULTS_PATH = "C:\\Users\\Acer\\Documents\\Studentischer Hilfsjob\\FOR5187 Precision Psychotherapy\\TEST_ML_Results"    
     y_path = os.path.join(PATH_INPUT_DATA,"Outcome.csv")
     
     runs_list = []
