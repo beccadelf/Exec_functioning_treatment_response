@@ -32,13 +32,16 @@ library(pander)
 library(effsize)
 library(pwr)
 library(gtsummary)
+library(gt)
 library(stats)
 library(stats)
 library(lmtest)
 library(sandwich)
 library(nlme)
 library(car)
-library(gt)
+library(extrafont)
+font_import(path = "C:/Windows/Fonts", pattern = "arial")  # Import Arial fonts => only needs to be done once to load plot
+loadfonts(device = "win")  # For Windows
 ```
 
 ## <u>Importing Data</u>
