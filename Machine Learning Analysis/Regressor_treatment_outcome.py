@@ -67,10 +67,10 @@ def set_options_and_paths():
                         help='Path to save results')
     parser.add_argument('--NAME_RESULTS_FOLDER', type=str,
                         help='Name result folder')
-    parser.add_argument('--REGRESSOR', type=str,
-                        help='Classifier to use, set random_forest or ridge_regression')
     parser.add_argument('--ANALYSIS', type=str,
                         help='Features to include, set all_features or clin_features')
+    parser.add_argument('--REGRESSOR', type=str,
+                        help='Classifier to use, set random_forest or ridge_regression')
     parser.add_argument('--NUMBER_REPETITIONS', type=int, default=100,
                         help='Number of repetitions of the cross-validation')
     # parser.add_argument('--OVERSAMPLING', type=str, default="False",
@@ -87,8 +87,8 @@ def set_options_and_paths():
             '--PATH_INPUT_DATA', "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\Feature_Label_Dataframes",
             '--PATH_RESULTS_BASE', script_wd,
             '--NAME_RESULTS_FOLDER', "Results_Regressor",
-            '--REGRESSOR', 'random_forest_regressor',
             '--ANALYSIS', "All_Features", # choose between "All_Features" and "Clinical_Features"
+            '--REGRESSOR', 'random_forest_regressor',
             '--NUMBER_REPETITIONS', "5"
             # '--OVERSAMPLING', 'None'
         ])
