@@ -28,7 +28,6 @@ from lib.ModelPerformance import calc_eval_metrics_regression, get_performance_m
 from lib.FeatureStats import summarize_features
 
 #%% OLD: Set global variables 
-# TODO: adapt for command-line arguments
 
 OPTIONS = {}
 OPTIONS['number_iterations'] = 5 # planned number: 100
@@ -64,18 +63,18 @@ def set_options_and_paths():
         description='Script to predict treatment outcome')
     parser.add_argument('--PATH_INPUT_DATA', type=str,
                         help='Path to input data')
-    parser.add_argument('--NAME_RESULTS_FOLDER', type=str,
-                        help='Name result folder')
     parser.add_argument('--PATH_RESULTS_BASE', type=str,
                         help='Path to save results')
+    parser.add_argument('--NAME_RESULTS_FOLDER', type=str,
+                        help='Name result folder')
+    parser.add_argument('--REGRESSOR', type=str,
+                        help='Classifier to use, set random_forest or ridge_regression')
     parser.add_argument('--ANALYSIS', type=str,
                         help='Features to include, set all_features or clin_features')
     parser.add_argument('--NUMBER_REPETITIONS', type=int, default=100,
                         help='Number of repetitions of the cross-validation')
-    parser.add_argument('--CLASSIFIER', type=str,
-                        help='Classifier to use, set random_forest or ridge_regression')
-    parser.add_argument('--STRATIFIED', type=str, default="False",
-                        help='Should the dataset be stratified after an additional variable?')
+    # parser.add_argument('--OVERSAMPLING', type=str, default="False",
+    #                     help='Should trainings and testset be oversampled to represent distribution in sample?')
 
     args = parser.parse_args()
     
@@ -86,12 +85,12 @@ def set_options_and_paths():
         print("Using arguments given in the script")
         args = parser.parse_args([
             '--PATH_INPUT_DATA', "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\Feature_Label_Dataframes",
-            '--NAME_RESULTS_FOLDER', "Results_Regressor",
-            '--ANALYSIS', "All_Features", # choose between "All_Features" and "Clinical_Features"
-            '--NUMBER_REPETITIONS', "5",
             '--PATH_RESULTS_BASE', script_wd,
-            '--CLASSIFIER', 'random_forest_regressor',
-            '--STRATIFIED', 'None'
+            '--NAME_RESULTS_FOLDER', "Results_Regressor",
+            '--REGRESSOR', 'random_forest_regressor',
+            '--ANALYSIS', "All_Features", # choose between "All_Features" and "Clinical_Features"
+            '--NUMBER_REPETITIONS', "5"
+            # '--OVERSAMPLING', 'None'
         ])
         PATHS = generate_and_create_results_path(args)
         
@@ -131,10 +130,10 @@ def procedure_per_iter(num_iter, args):
     X_train_imp_clean_scaled_sel, X_test_imp_clean_scaled_sel, features_selected = select_features(X_train_imp_clean_scaled, X_test_imp_clean_scaled, y_train, feature_names_clean)
     
     # Fit classifier
-    if args.CLASSIFIER == "random_forest_regressor":
+    if args.REGRESSOR == "random_forest_regressor":
         clf, feature_weights = fit_random_forest_regressor(
             X_train_imp_clean_scaled_sel, y_train)
-    elif args.CLASSIFIER == "ridge_regressor":
+    elif args.REGRESSOR == "ridge_regressor":
         clf, feature_weights = fit_ridge_regressor(
             X_train_imp_clean_scaled_sel, y_train)
         
@@ -160,14 +159,6 @@ if __name__ == '__main__':
     print('The scikit-learn version is {}.'.format(sklearn.__version__))
     
     args, PATHS = set_options_and_paths()
-    
-    # if OPTIONS['Analysis'] == "all_features":
-    #     X_path = os.path.join(PATH_INPUT_DATA,"Features.csv")
-    #     RESULTS_PATH = "C:\\Users\\Acer\\Documents\\Studentischer Hilfsjob\\FOR5187 Precision Psychotherapy\\TEST_ML_Results"
-    # elif OPTIONS['Analysis'] == "clin_features":
-    #     X_path = os.path.join(PATH_INPUT_DATA,"Clinical_Features.csv")
-    #     RESULTS_PATH = "C:\\Users\\Acer\\Documents\\Studentischer Hilfsjob\\FOR5187 Precision Psychotherapy\\TEST_ML_Results"    
-    # y_path = os.path.join(PATH_INPUT_DATA,"Outcome.csv")
     
     # Run procedure per iterations
     outcomes = []
