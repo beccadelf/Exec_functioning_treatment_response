@@ -362,32 +362,45 @@ n_post
 ## <u>Plotting</u>
 
 ### Comparison HC vs. patients (pre)
-#### Prepare data; TODO: include SSRT or do separate plot?
+#### Prepare data
 ```{r}
-# Reshape data from wide to long format
+# Reshape data from wide to long format, including SSRT
 Patients_vs_HC_long <- Patients_vs_HC_imp %>%
-  pivot_longer(cols = all_of(BIS_columns), # imp_columns to include SSRT
+  pivot_longer(cols = all_of(imp_columns), # imp_columns now includes SSRT
                names_to = "Condition",
                values_to = "BIS_Score")
 
 # Add new task variable to keep the headers intact for faceting
 Patients_vs_HC_long <- Patients_vs_HC_long %>%
   mutate(Task = case_when(
-    grepl("NumberLetter", Condition) ~ "NumberLetter",
+    grepl("NumberLetter", Condition) ~ "Number-Letter",
     grepl("Stroop", Condition) ~ "Stroop",
-    grepl("TwoBack", Condition) ~ "TwoBack"
+    grepl("TwoBack", Condition) ~ "2-Back",
+    Condition == "SSRT" ~ "SSRT"
   ))
 
 # Remove prefixes from Condition labels, keeping Task intact
 Patients_vs_HC_long <- Patients_vs_HC_long %>%
-  mutate(Condition = gsub("NumberLetter_BIS_|Stroop_BIS_|TwoBack_BIS_", "", Condition))
+  mutate(Condition = gsub("NumberLetter_BIS_|Stroop_BIS_|TwoBack_BIS_", "", Condition)) %>%
+  mutate(Condition = as.character(Condition)) %>%
+  
+  # Set the condition order for each task separately to avoid conflicts (cannot both be "Diff_Score")
+  mutate(Condition = ifelse(Task == "NumberLetter" & Condition == "Diff_Score", "Diff_Score NL", Condition)) %>%
+  mutate(Condition = ifelse(Task == "Stroop" & Condition == "Diff_Score", "Diff_Score Stroop", Condition)) %>%
+  
+  # Convert Condition to factor with ordering
+  mutate(Condition = case_when(
+    Task == "NumberLetter" ~ factor(Condition, levels = c("Repeat", "Switch", "Diff_Score NL")),
+    Task == "Stroop" ~ factor(Condition, levels = c("Congruent", "Incongruent", "Diff_Score Stroop")),
+    Task == "TwoBack" ~ factor(Condition, levels = c("Target", "Foil", "Total")),
+    TRUE ~ as.factor(Condition)
+  ))
 
-# Convert "Gruppe" to factor # TODO: change order of the conditions for consistency
+# Convert "Gruppe" to factor
 Patients_vs_HC_long$Gruppe <- factor(Patients_vs_HC_long$Gruppe, levels = c(0, 1), labels = c("Healthy Controls", "Patients"))
-
 ```
 
-#### Create plots
+
 ```{r}
 # Create boxplots
 boxplots_Patients_HC <- ggplot(Patients_vs_HC_long, aes(x = Condition, y = BIS_Score, color = Gruppe)) +
@@ -403,16 +416,36 @@ boxplots_Patients_HC <- ggplot(Patients_vs_HC_long, aes(x = Condition, y = BIS_S
        y = "BIS-Score",
        color = "Group")
 
-# Create violin plots with mean
+# Create violin plots with mean and rename conditions in the plot
 violin_plots_patients_hc <- ggplot(Patients_vs_HC_long, aes(x = Condition, y = BIS_Score, fill = Gruppe)) +
   geom_violin(position = position_dodge(width = 0.8)) +
   stat_summary(fun.data = mean_sdl, geom = "pointrange", # mult = 2 (SD) by default
                position = position_dodge(width = 0.8)) + # width = 0.65, fatten = 2
-  facet_wrap(~ Task, scales = "free_x") +
+  facet_wrap(~ Task, scales = "free") +
   labs(title = "Violin Plots of Task Condition by Group",
        x = "Task Condition",
        y = "BIS-Score",
-       fill = "Group")
+       fill = "Group") +
+  scale_x_discrete(labels = function(x) {
+    x[x == "Diff_Score"] <- "BIS"
+    x[x == "Diff_Score Stroop"] <- "BIS"
+    x[x == "Total"] <- "BIS"
+    x[x == "SSRT"] <- ""
+    return(x)
+  }) +
+  scale_fill_manual(values = c("Healthy Controls" = "#FFD6EC", #colors
+                                 "Patients" = "#48CFCB")) +
+  theme_minimal() +  # Set the theme to minimal
+  theme(
+    text = element_text(family = "Arial"), #Font
+    plot.title = element_text(size = 16, face = "bold"), #Text size and settings
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 12),
+    strip.text = element_text(size = 14)
+  )
+
 ```
 
 ##### Boxplot: Patients vs. Healthy Controls
