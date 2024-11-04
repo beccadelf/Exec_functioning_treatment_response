@@ -35,7 +35,7 @@ def get_performance_metrics_across_folds(outcomes, key_metrics):
     """ Returns dataframe with evaluation metrics per fold
     """
     # Turn all ev_metrics dictionaries into dataframes and concatenate them
-    dataframes = [pd.DataFrame([inner_dict[key_metrics]]) for inner_dict in outcomes]
+    dataframes = [inner_df[key_metrics] for inner_df in outcomes]
     performance_metrics_across_iters_df = pd.concat(dataframes)
     
     return performance_metrics_across_iters_df
