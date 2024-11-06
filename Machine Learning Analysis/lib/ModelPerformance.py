@@ -31,6 +31,25 @@ def calc_eval_metrics_regression(y_true, y_pred):
                                "MAE": MAE, "Correlation": corr}, index = [0])
     return ev_metrics
 
+def calc_eval_metrics_classification(y_true, y_pred):
+    """ Calculate evaluation metrics for classification
+    Args:
+        y_true: true labels (i.e. y_test).
+        y_pred: labels predicted by a classifier.
+    Returns:
+        a dictionary with evaluation metrics
+    """
+    accuracy = metrics.accuracy_score(y_true, y_pred)
+    bal_acc = metrics.balanced_accuracy_score(y_true, y_pred)
+    specificity = metrics.recall_score(y_true, y_pred, pos_label = 0)
+    sensitivity = metrics.recall_score(y_true, y_pred, pos_label = 1)
+    f1_score = metrics.f1_score(y_true, y_pred)
+    # Save metrics in dataframe
+    ev_metrics = pd.DataFrame({"accuracy": accuracy, "balanced_accuracy": bal_acc,
+                               "sensitivity": sensitivity, "specificity": specificity, 
+                               "f1_score": f1_score}, index = [0])    
+    return ev_metrics
+
 def get_performance_metrics_across_folds(outcomes, key_metrics):
     """ Returns dataframe with evaluation metrics per fold
     """

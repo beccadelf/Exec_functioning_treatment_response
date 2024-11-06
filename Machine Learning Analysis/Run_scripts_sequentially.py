@@ -15,7 +15,7 @@ import subprocess
 # Define the parameters
 regressors = ["random_forest_regressor", "ridge_regressor"]
 classifiers = ["random_forest_classifier", "svm"]
-analysis = ["All_Features", "Clin_Features"]
+analysis = ["all_features", "clinical_features_only"]
 oversampling = ["Yes", "No"]
 
 path_input_data = "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\Feature_Label_Dataframes"
@@ -58,9 +58,12 @@ script_paths = {
 # Helper function to run the script sequentially with different argument sets
 def run_script(script_path, argument_sets):
     for arguments in argument_sets:
-        command = ["python", script_paths] + [
-            f"--{key}" for key in arguments.keys() for value in arguments[key] # TODO: adjust
-            ]
+        command = ["python", script_path]
+        
+        # Add each key-value pair from the argument set to the command
+        for key, value in arguments.items():
+            command.extend([f"--{key}", str(value)])
+            
         try:
             subprocess.check_output(command, text=True)
         except subprocess.CalledProcessError as e:

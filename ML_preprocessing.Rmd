@@ -111,8 +111,8 @@ clin_features_df_enc <- features_df_enc[clin_features]
 ```{r Save dataframes}
 file_path <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Feature_Label_Dataframes/"
 
-write.csv(features_df_enc, paste0(file_path, "Features.csv"), row.names = FALSE)
-write.csv(clin_features_df_enc, paste0(file_path, "Clinical_Features.csv"), row.names = FALSE)
-write.csv(labels_df, paste0(file_path, "Labels.csv"), row.names = FALSE)
-write.csv(outcome_df, paste0(file_path, "Outcome.csv"), row.names = FALSE)
+write.csv(features_df_enc, paste0(file_path, "all_features.csv"), row.names = FALSE)
+write.csv(clin_features_df_enc, paste0(file_path, "clinical_features_only.csv"), row.names = FALSE)
+write.csv(labels_df, paste0(file_path, "labels.csv"), row.names = FALSE)
+write.csv(outcome_df, paste0(file_path, "outcomes.csv"), row.names = FALSE)
 ```
