@@ -83,7 +83,7 @@ def set_options_and_paths():
     except:
         print("Using arguments given in the script")
         args = parser.parse_args([
-            '--PATH_INPUT_DATA', "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\Feature_Label_Dataframes",
+            '--PATH_INPUT_DATA', "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Feature_Label_Dataframes",
             '--PATH_RESULTS_BASE', script_wd,
             '--NAME_RESULTS_FOLDER', "Results_Regressor",
             '--ANALYSIS', "all_features", 

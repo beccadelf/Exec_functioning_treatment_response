@@ -25,7 +25,7 @@ os.chdir(script_wd)
 # Import self-defined functions
 from lib.Preprocessing_Classes import FeatureSelector
 from lib.Pipeline import load_data, impute_data, z_scale_data, select_features
-from lib.Models import fit_random_forest_classifier
+from lib.Models import fit_random_forest_classifier, fit_svm_classifier
 from lib.ModelPerformance import calc_eval_metrics_classification, get_performance_metrics_across_folds, summarize_performance_metrics_across_iters
 from lib.FeatureStats import summarize_features
 
@@ -87,7 +87,7 @@ def set_options_and_paths():
     except:
         print("Using arguments given in the script")
         args = parser.parse_args([
-            '--PATH_INPUT_DATA', "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\Feature_Label_Dataframes",
+            '--PATH_INPUT_DATA', "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Feature_Label_Dataframes",
             '--PATH_RESULTS_BASE', script_wd,
             '--NAME_RESULTS_FOLDER', "Results_Classifier",
             '--ANALYSIS', "all_features",
@@ -112,12 +112,17 @@ def procedure_per_iter(num_iter, args):
     X, y, feature_names = load_data(X_import_path, y_import_path)
     
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.25,
-                                                        random_state = num_iter) # TODO: stratify = y rausnehmen?
+                                                        stratify=y,
+                                                        random_state = num_iter)
     # By changing the random_state with each iteration, we always get a different split
     
-    # Oversample XXX
-    oversample = RandomOverSampler(sampling_strategy = 'minority')
-    X_train_over, y_train_over = oversample.fit_resample(X_train, y_train)
+    # Oversample XXX # TODO: include all following conditions within if-statements? (as X_train and y_train will vary depending on whether oversampling was performed)
+    if args.OVERSAMPLING == "Yes":
+        oversample = RandomOverSampler(sampling_strategy = 'minority')
+        X_train_over, y_train_over = oversample.fit_resample(X_train, y_train)
+    elif args.OVERSAMPLING == "No":
+        clf, feature_weights = fit_svm_classifier(
+            X_train_imp_clean_scaled_sel, y_train)
     
     # Impute missing values
     X_train_imp, X_test_imp = impute_data(X_train_over, X_test)
@@ -138,10 +143,11 @@ def procedure_per_iter(num_iter, args):
     
     # Fit classifier
     if args.CLASSIFIER == "random_forest_classifier":
-        clf, feature_importances = fit_random_forest_classifier(
+        clf, feature_weights = fit_random_forest_classifier(
             X_train_imp_clean_scaled_sel, y_train)
     elif args.CLASSIFIER == "svm":
-        clf, feature_importances = # TODO: adjust for svm
+        clf, feature_weights = fit_svm_classifier(
+            X_train_imp_clean_scaled_sel, y_train)
         
     # Calculate model performance metrics
     y_pred_test = clf.predict(X_test_imp_clean_scaled_sel)
@@ -152,7 +158,7 @@ def procedure_per_iter(num_iter, args):
     results_single_iter = {
         "ev_metrics": ev_metrics,
         "sel_features_names": list(features_selected),
-        "sel_features_imp": list(feature_importances),
+        "sel_features_imp": list(feature_weights),
         "excluded_feat": feature_names_excl
     }
     

@@ -15,7 +15,7 @@ library(caret)
 
 # 0. Load relevant data (only data of patients_pre are further processed)
 ```{r}
-basic_path <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Daten_Gruppenvergleich/With_wrong_responses"
+basic_path <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/With_wrong_responses"
 
 task_data <- read.csv(file.path(basic_path,"Performance_Scores/Task_Performance_Scores.csv")) # contains overall accuracy
 data_pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
@@ -109,7 +109,7 @@ clin_features_df_enc <- features_df_enc[clin_features]
 # 7. Save all 4 dataframes
 
 ```{r Save dataframes}
-file_path <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Feature_Label_Dataframes/"
+file_path <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/2_Machine_learning/Feature_Label_Dataframes/"
 
 write.csv(features_df_enc, paste0(file_path, "all_features.csv"), row.names = FALSE)
 write.csv(clin_features_df_enc, paste0(file_path, "clinical_features_only.csv"), row.names = FALSE)

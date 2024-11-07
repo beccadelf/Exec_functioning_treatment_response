@@ -8,6 +8,7 @@ Created on Wed Nov  6 16:43:52 2024
 
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.linear_model import Ridge
+from sklearn import svm
 
 #%% Define functions
 
@@ -17,8 +18,14 @@ def fit_random_forest_classifier(X_train, y_train):
                                  bootstrap=True, oob_score=False, 
                                  random_state=0, max_samples=None)
     clf = clf.fit(X_train, y_train)
-    feat_imp = clf.feature_importances_
-    return clf, feat_imp
+    feature_weights = clf.feature_importances_
+    return clf, feature_weights
+
+def fit_svm_classifier(X_train, y_train):
+    clf = svm.SVC(C=1.0, kernel='linear', random_state=0)
+    clf = clf.fit(X_train, y_train)
+    feature_weights = clf.coef_
+    return clf, feature_weights
 
 
 def fit_random_forest_regressor(X_train, y_train):
