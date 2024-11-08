@@ -9,17 +9,21 @@ Created on Mon Nov  4 12:46:40 2024
 
 from itertools import product
 import subprocess
-#import os
+import os
 #%% 
+
+# Ensure cwd is script's directory
+script_wd = os.path.dirname(os.path.abspath(__file__))
+os.chdir(script_wd)
 
 # Define the parameters
 regressors = ["random_forest_regressor", "ridge_regressor"]
 classifiers = ["random_forest_classifier", "svm"]
 analysis = ["all_features", "clinical_features_only"]
-oversampling = ["Yes", "No"]
+oversampling = ["yes", "no"]
 
-path_input_data = "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\Feature_Label_Dataframes"
-path_results_base = "C:\\Users\\Acer\\Documents\\GitHub\\Exec_functioning_treatment_response\\Machine Learning Analysis"
+path_input_data = "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Feature_Label_Dataframes"
+path_results_base = "C:\\Users\\Acer\\Documents\\GitHub\\Exec_functioning_treatment_response\\Machine Learning Analysis\\Results"
 
 # Generate argument_sets
 # Regression
@@ -52,8 +56,10 @@ for combo in all_combinations_classification:
 # Paths to the Python scripts
 script_paths = {
     "regression": "Regressor_treatment_outcome.py",
-    "classification": "RaFo_manuell_cv_struc.py"
+    "classification": "Classifier_treatment_response.py"
 }
+
+#%% Run scripts sequentially
 
 # Helper function to run the script sequentially with different argument sets
 def run_script(script_path, argument_sets):

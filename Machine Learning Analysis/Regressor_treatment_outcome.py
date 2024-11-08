@@ -28,14 +28,6 @@ from lib.Models import fit_random_forest_regressor, fit_ridge_regressor
 from lib.ModelPerformance import calc_eval_metrics_regression, get_performance_metrics_across_folds, summarize_performance_metrics_across_iters
 from lib.FeatureStats import summarize_features
 
-#%% OLD: Set global variables 
-
-OPTIONS = {}
-OPTIONS['number_iterations'] = 5 # planned number: 100
-OPTIONS['Analysis'] = "all_features" # choose between "all_features" and "clin_features"
-OPTIONS['Regressor'] = 'random_forest_regressor' # choose between "random_forest_regressor" and "ridge_regressor"
-PATH_INPUT_DATA = "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\Feature_Label_Dataframes"
-
 #%% 
 
 def set_options_and_paths():
@@ -84,8 +76,8 @@ def set_options_and_paths():
         print("Using arguments given in the script")
         args = parser.parse_args([
             '--PATH_INPUT_DATA', "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Feature_Label_Dataframes",
-            '--PATH_RESULTS_BASE', script_wd,
-            '--NAME_RESULTS_FOLDER', "Results_Regressor",
+            '--PATH_RESULTS_BASE', os.path.join(script_wd, "Results"),
+            '--NAME_RESULTS_FOLDER', "Regressor",
             '--ANALYSIS', "all_features", 
             '--REGRESSOR', 'random_forest_regressor',
             '--NUMBER_REPETITIONS', "5"

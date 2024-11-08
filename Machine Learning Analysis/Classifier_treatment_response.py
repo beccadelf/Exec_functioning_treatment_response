@@ -29,14 +29,6 @@ from lib.Models import fit_random_forest_classifier, fit_svm_classifier
 from lib.ModelPerformance import calc_eval_metrics_classification, get_performance_metrics_across_folds, summarize_performance_metrics_across_iters
 from lib.FeatureStats import summarize_features
 
-#%% OLD: Set global variables 
-
-OPTIONS = {}
-OPTIONS['number_iterations'] = 5 # planned number: 100
-OPTIONS['Analysis'] = "all_features" # choose between "all_features" and "clin_features"
-OPTIONS['Regressor'] = 'random_forest_regressor' # choose between "random_forest_regressor" and "ridge_regressor"
-PATH_INPUT_DATA = "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\Feature_Label_Dataframes"
-
 #%% 
 
 def set_options_and_paths():
@@ -88,11 +80,11 @@ def set_options_and_paths():
         print("Using arguments given in the script")
         args = parser.parse_args([
             '--PATH_INPUT_DATA', "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Feature_Label_Dataframes",
-            '--PATH_RESULTS_BASE', script_wd,
-            '--NAME_RESULTS_FOLDER', "Results_Classifier",
+            '--PATH_RESULTS_BASE', os.path.join(script_wd, "Results"),
+            '--NAME_RESULTS_FOLDER', "Classifier",
             '--ANALYSIS', "all_features",
             '--CLASSIFIER', 'random_forest_classifier',
-            '--OVERSAMPLING', 'Yes',
+            '--OVERSAMPLING', 'no',
             '--NUMBER_REPETITIONS', "5"
         ])
         PATHS = generate_and_create_results_path(args)
@@ -116,16 +108,15 @@ def procedure_per_iter(num_iter, args):
                                                         random_state = num_iter)
     # By changing the random_state with each iteration, we always get a different split
     
-    # Oversample XXX # TODO: include all following conditions within if-statements? (as X_train and y_train will vary depending on whether oversampling was performed)
-    if args.OVERSAMPLING == "Yes":
+    # Oversample XXX
+    if args.OVERSAMPLING == "yes":
         oversample = RandomOverSampler(sampling_strategy = 'minority')
-        X_train_over, y_train_over = oversample.fit_resample(X_train, y_train)
-    elif args.OVERSAMPLING == "No":
-        clf, feature_weights = fit_svm_classifier(
-            X_train_imp_clean_scaled_sel, y_train)
+        X_train_final, y_train_final = oversample.fit_resample(X_train, y_train)
+    elif args.OVERSAMPLING == "no":
+        X_train_final, y_train_final = X_train, y_train
     
     # Impute missing values
-    X_train_imp, X_test_imp = impute_data(X_train_over, X_test)
+    X_train_imp, X_test_imp = impute_data(X_train_final, X_test)
     
     # Exclude features using FeatureSelector (no variance, correlation too high!)
     selector = FeatureSelector()
@@ -139,15 +130,15 @@ def procedure_per_iter(num_iter, args):
     X_train_imp_clean_scaled, X_test_imp_clean_scaled = z_scale_data(X_train_imp_clean, X_test_imp_clean)
     
     # Select features
-    X_train_imp_clean_scaled_sel, X_test_imp_clean_scaled_sel, features_selected = select_features(X_train_imp_clean_scaled, X_test_imp_clean_scaled, y_train, feature_names_clean)
+    X_train_imp_clean_scaled_sel, X_test_imp_clean_scaled_sel, features_selected = select_features(X_train_imp_clean_scaled, X_test_imp_clean_scaled, y_train_final, feature_names_clean)
     
     # Fit classifier
     if args.CLASSIFIER == "random_forest_classifier":
         clf, feature_weights = fit_random_forest_classifier(
-            X_train_imp_clean_scaled_sel, y_train)
+            X_train_imp_clean_scaled_sel, y_train_final)
     elif args.CLASSIFIER == "svm":
         clf, feature_weights = fit_svm_classifier(
-            X_train_imp_clean_scaled_sel, y_train)
+            X_train_imp_clean_scaled_sel, y_train_final)
         
     # Calculate model performance metrics
     y_pred_test = clf.predict(X_test_imp_clean_scaled_sel)

@@ -1,0 +1,7 @@
+	selection frequency	mean coefficient
+STAI_T	4	0.5085983611043263
+Realschule	4	0.053369408823805614
+Abitur	4	0.050955043218906336
+Stroop_Average_PC	3	0.35996965040689705
+BDI_II	2	0.23419989809557779
+Stroop_BIS_Congruent	0	NA

@@ -1,0 +1,5 @@
+	selection frequency	mean coefficient
+Abitur	10	-0.3218250921431129
+Realschule	10	-0.3218250921431129
+STAI_T	6	-0.5363751535718548
+BDI_II	0	NA
