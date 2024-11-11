@@ -40,6 +40,8 @@ library(sandwich)
 library(nlme)
 library(car)
 library(extrafont)
+font_import(path = "C:/Windows/Fonts", pattern = "arial")  # Import Arial fonts => only needs to be done once to load plot
+loadfonts(device = "win")  # For Windows
 ```
 
 ## <u>Importing Data</u>
@@ -187,7 +189,7 @@ characteristics_table_no_n
 inferential_stats_df <- data.frame(
   Task = c("Number Letter Repeat", "Number Letter Switch", "Number Letter Difference BIS Score",
            "Stroop Congruent", "Stroop Incongruent", "Stroop BIS Difference Score",
-           "Two Back Foil", "Two Back Target", "Two Back Difference BIS Score", "SSRT"),
+           "Two Back Foil", "Two Back Target", "Two Back Difference BIS Score", "SSRT"),  # Include the missing task
   unadjusted_p_value = t_test_table$p_value,
   adjusted_p_value = t_test_table$p_value_adjusted,
   cohen_d = t_test_table$cohen_d,
@@ -376,7 +378,7 @@ Patients_vs_HC_long <- Patients_vs_HC_long %>%
     grepl("NumberLetter", Condition) ~ "Number-Letter",
     grepl("Stroop", Condition) ~ "Stroop",
     grepl("TwoBack", Condition) ~ "2-Back",
-    Condition == "SSRT" ~ "SSRT"
+    Condition == "SSRT" ~ "Stop Signal Task"
   ))
 
 # Remove prefixes from Condition labels, keeping Task intact
@@ -400,7 +402,42 @@ Patients_vs_HC_long <- Patients_vs_HC_long %>%
 Patients_vs_HC_long$Gruppe <- factor(Patients_vs_HC_long$Gruppe, levels = c(0, 1), labels = c("Healthy Controls", "Patients"))
 ```
 
+##### Violin Plot: Patients vs. Healthy Controls
+```{r}
+# Create violin plots with mean and rename conditions in the plot
 
+violin_plots_patients_hc <- ggplot(Patients_vs_HC_long, aes(x = Condition, y = BIS_Score, fill = Gruppe)) +
+  geom_violin(position = position_dodge(width = 0.8)) +
+  stat_summary(fun.data = mean_sdl, geom = "pointrange", # mult = 2 (SD) by default
+               position = position_dodge(width = 0.8)) + # width = 0.65, fatten = 2
+  facet_wrap(~ Task, scales = "free") +
+  labs(x = "Task Condition",
+       y = "Performance Score",
+       fill = "Group") +
+  scale_x_discrete(labels = function(x) {
+    x[x == "Diff_Score"] <- "Difference \nScore"
+    x[x == "Diff_Score Stroop"] <- "Difference \nScore"
+    x[x == "Total"] <- "Difference \nScore"
+    return(x)
+  }) +
+  scale_fill_manual(values = c("Healthy Controls" = "#D3D3D3", #colors 
+                                 "Patients" = "#48CFCB")) +
+  theme_bw() +
+  theme(
+    text = element_text(family = "Arial"), #Font
+    axis.title = element_text(size = 18),
+    axis.title.y = element_text(size = 18, margin = margin(r = 30)),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 12),
+    strip.text = element_text(size = 14),
+    panel.spacing.x = unit(3, "lines")
+  )
+print(violin_plots_patients_hc)
+ggsave("C:/Users/Till/Desktop/violin_plots_patients_hc.png", plot = violin_plots_patients_hc, width = 10, height = 8, dpi = 300)
+```
+
+##### Boxplot: Patients vs. Healthy Controls
 ```{r}
 # Create boxplots
 boxplots_Patients_HC <- ggplot(Patients_vs_HC_long, aes(x = Condition, y = BIS_Score, color = Gruppe)) +
@@ -415,47 +452,7 @@ boxplots_Patients_HC <- ggplot(Patients_vs_HC_long, aes(x = Condition, y = BIS_S
        x = "Condition",
        y = "BIS-Score",
        color = "Group")
-
-# Create violin plots with mean and rename conditions in the plot
-violin_plots_patients_hc <- ggplot(Patients_vs_HC_long, aes(x = Condition, y = BIS_Score, fill = Gruppe)) +
-  geom_violin(position = position_dodge(width = 0.8)) +
-  stat_summary(fun.data = mean_sdl, geom = "pointrange", # mult = 2 (SD) by default
-               position = position_dodge(width = 0.8)) + # width = 0.65, fatten = 2
-  facet_wrap(~ Task, scales = "free") +
-  labs(title = "Violin Plots of Task Condition by Group",
-       x = "Task Condition",
-       y = "BIS-Score",
-       fill = "Group") +
-  scale_x_discrete(labels = function(x) {
-    x[x == "Diff_Score"] <- "BIS"
-    x[x == "Diff_Score Stroop"] <- "BIS"
-    x[x == "Total"] <- "BIS"
-    x[x == "SSRT"] <- ""
-    return(x)
-  }) +
-  scale_fill_manual(values = c("Healthy Controls" = "#FFD6EC", #colors
-                                 "Patients" = "#48CFCB")) +
-  theme_minimal() +  # Set the theme to minimal
-  theme(
-    text = element_text(family = "Arial"), #Font
-    plot.title = element_text(size = 16, face = "bold"), #Text size and settings
-    axis.title = element_text(size = 14),
-    axis.text = element_text(size = 12),
-    legend.title = element_text(size = 14),
-    legend.text = element_text(size = 12),
-    strip.text = element_text(size = 14)
-  )
-
-```
-
-##### Boxplot: Patients vs. Healthy Controls
-```{r}
 print(boxplots_Patients_HC)
-```
-
-##### Violin Plot: Patients vs. Healthy Controls
-```{r}
-print(violin_plots_patients_hc)
 ```
 
 #### Comparison patients pre vs. post
@@ -630,7 +627,8 @@ characteristics_table_response
 inferential_stats_response_df <- data.frame(
   Task = c("Number Letter Repeat", "Number Letter Switch", "Number Letter Difference BIS Score",
            "Stroop Congruent", "Stroop Incongruent", "Stroop BIS Difference Score",
-           "Two Back Foil", "Two Back Target", "Two Back Difference BIS Score", "SSRT"),
+           "Two Back Foil", "Two Back Target", "Two Back Difference BIS Score", "SSRT", 
+           "T1 BAT-BIS 11 Score"),
   p_value = t_test_table$p_value,
   cohen_d = t_test_table$cohen_d,
   power = t_test_table$power
@@ -655,3 +653,63 @@ inferential_stats_response_table <- inferential_stats_response_df %>%
 
 inferential_stats_response_table
 ```
+
+```{r}
+# Prepare data for NumberLetter, Stroop, and TwoBack
+Response_vs_NonResponse_long <- data_Pat_pre %>%
+  filter(!is.na(Response)) %>%  # Exclude rows where Response is NA
+  pivot_longer(cols = all_of(imp_columns[-length(imp_columns)]),  # Exclude SSRT from this data frame
+               names_to = "Condition",
+               values_to = "BIS_Score") %>%
+  mutate(Task = case_when(
+    grepl("NumberLetter", Condition) ~ "NumberLetter",
+    grepl("Stroop", Condition) ~ "Stroop",
+    grepl("TwoBack", Condition) ~ "TwoBack"
+  )) %>%
+  mutate(Condition = gsub("NumberLetter_BIS_|Stroop_BIS_|TwoBack_BIS_", "", Condition)) %>%
+  filter(!is.na(BIS_Score))  # Filter out NAs for these tasks only
+
+# Prepare data for SSRT as a separate dataset
+Response_vs_NonResponse_SSRT <- data_Pat_pre %>%
+  filter(!is.na(Response)) %>%  # Exclude rows where Response is NA
+  select(Subject, Response, SSRT) %>%
+  rename(BIS_Score = SSRT) %>%  # Rename for consistency with other tasks
+  mutate(Task = "SSRT", Condition = "SSRT") %>%
+  filter(!is.na(BIS_Score))  # Filter out NAs for SSRT only
+
+# Convert "Response" to factor in both datasets
+Response_vs_NonResponse_long$Response <- factor(Response_vs_NonResponse_long$Response, levels = c(0, 1), labels = c("Non-Responder", "Responder"))
+Response_vs_NonResponse_SSRT$Response <- factor(Response_vs_NonResponse_SSRT$Response, levels = c(0, 1), labels = c("Non-Responder", "Responder"))
+```
+
+```{r}
+# Create violin plot for NumberLetter, Stroop, and TwoBack
+violin_plots_response <- ggplot(Response_vs_NonResponse_long, aes(x = Condition, y = BIS_Score, fill = Response)) +
+  geom_violin(position = position_dodge(width = 0.8)) +
+  stat_summary(fun.data = mean_sdl, geom = "pointrange", 
+               position = position_dodge(width = 0.8)) +
+  facet_wrap(~ Task, scales = "free_x") +
+  labs(title = "Violin Plots of Task Condition by Response",
+       x = "Task Condition",
+       y = "BIS-Score",
+       fill = "Group") +
+  theme(legend.position = "none")  # Remove legend for combined display
+
+# Create separate violin plot for SSRT with adjusted scale if needed
+ssrt_violin_plot_response <- ggplot(Response_vs_NonResponse_SSRT, aes(x = Condition, y = BIS_Score, fill = Response)) +
+  geom_violin(position = position_dodge(width = 0.8)) +
+  stat_summary(fun.data = mean_sdl, geom = "pointrange", 
+               position = position_dodge(width = 0.8)) +
+  labs(x = NULL, y = NULL) +  # Remove x-axis and y-axis labels
+  theme(plot.title = element_blank(),  # Remove the standalone title
+        axis.ticks.x = element_blank())
+
+# Combine plots with patchwork, adjusting the widths to balance layout
+combined_plot_response <- violin_plots_response + ssrt_violin_plot_response + 
+  plot_layout(ncol = 2, widths = c(9, 1))  # Adjust widths to give more space to the left plot
+
+# Display the combined plot
+print(combined_plot_response)
+
+```
+
