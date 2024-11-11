@@ -1,44 +1,48 @@
-# Exec_functioning_treatment_response
+# Executive Functions in Spider Phobia: Analysis Repository
 
-## **The two central scripts of this Repo are "EF_scores_calculation.Rmd" and "Group_Comparison.Rmd".**
+This repository contains all scripts and resources for the analyses described in the paper "Executive Functions in Spider Phobia: Relation to Psychopathology and Treatment Response." The goal of this study is twofold: 
+1. To assess whether individuals with spider phobia exhibit deficits in executive functions compared to healthy controls.
+2. To investigate if baseline executive functions can predict response to exposure therapy for spider phobia.
 
-### 1. EF_scores_calculation.Rmd performs the pre-processing calculations of the Balanced Integrated Score (BIS) for the three/four (?) cognitive tasks investigated in this study:
-**(Each of these tasks is separated for BIS-adequate analysis into its respective conditions)**
-
-   a. _Spatial 2-back Task_: Participants are required to monitor a sequence of spatial stimuli and indicate whether the current stimulus matches the one presented two steps earlier, assessing working memory.
-   - **Total**: overall performance
-   - **Target**: match between current stimulus and that two steps earlier
-   - **Foil**: mismatch between current stimulus and that two steps earlier
-
-   b. _Stroop Task_: Participants must name the color of the font that words are written in, while ignoring the semantic meaning of the word, especially when the color and word are incongruent, to assess cognitive control and attention.
-   - **Congruent**: match between font color and semantic meaning
-   - **Incongruent**: mismatch between font color and semantic meaning
-
-   c. _Number-Letter Task_: Participants must identify whether a number or letter stimulus is presented based on alternating rules, measuring task-switching and cognitive flexibility.
-   - **Repeat**: position of number-letter pair matches between two iterations
-   - **Switch**: position of number-letter pair changes between two iterations
-
-   d. _Stop Signal Task_: Participants perform a simple go/no-go task where they must inhibit their response when a stop signal is presented after initiating a response, assessing response inhibition.
-   - (Details TBD)
-
-### 2. Group_Comparison.Rmd performs two statistical analyses on this pre-processed data:
-
-   a. **Independent sample Welch's t-test (HC vs. Pat)**: The performance of healthy controls is compared against the performance of the patients for each task condition, respectively.
-
-   b. **Dependent sample Welch's t-test (Pre-Post)**: The performance of patients before the intervention is compared against the performance of patients after the intervention for each task condition.
+The repository is structured into two main sections, each aligned with the study's analytical objectives: **Group Comparison** and **Machine Learning**.
 
 ---
 
-## **The folder "Exploratory analysis" contains several supplementary analyses that navigate alternative statistical options to arrive at the one ultimately employed.**
+## Folder Structure
 
-### 1. Analyses _without_ wrong responses
-- We asked ourselves if the removal of incorrect responses by a participant to a task trial would alter the analyses.
-- Applications of the BIS pre-processing occasionally adopt a strategy that removes wrong answers (REF) with the rationale...
-- However, removing wrong responses resulted in negligible deviations. Hence, we decided for a complete analysis including both correct and incorrect trial responses.
+### 1. Group Comparison: Executive Functions
+This section contains scripts and resources for comparing executive function performance between participants with spider phobia and healthy controls.
 
-### 2. Testing Normality
-- One assumption of t-tests is normality of the analyzed distributions.
-- The independent sample t-test assumes normal distribution in the two compared samples, whereas the dependent sample t-test assumes normality in the difference values between the two dependent conditions.
-- However, this assumption is frequently neglected (REF), because...
-- Since we tested for normal distributions with both statistical and visual analyses, and to follow open science principles, we included these analyses nonetheless.
-- Thus, ignoring this assumption could pose a potential limitation to this study.
+- **Group_Comparison.Rmd**: R Markdown file containing code for group comparisons using t-tests and ANCOVA. The analyses cover tasks like Spatial 2-Back, Stroop, Number-Letter, and Stop Signal, measuring various executive function components.
+
+- **Exploratory Analyses/**:
+  - **Analyses without wrong responses/**: Filters out trials with incorrect responses to maintain data quality.
+  - **ANCOVA/**: Contains scripts for performing ANCOVA to control for age, sex, and education.
+  - **Pre-Post Validation/**: Validates the consistency of data across time points (baseline and post-intervention).
+  - **Testing Normality/**: Checks normality assumptions required for tests in group comparisons.
+
+### 2. Machine Learning: Response Prediction
+This section contains scripts for building and testing machine learning models to predict treatment response based on baseline executive functions and clinical variables.
+
+- **ML_preprocessing.Rmd**: 
+
+- **Classifier_treatment_response.py**: 
+  
+- **Regressor_treatment_outcome.py**: 
+
+- **Run_scripts_sequentially.py**: 
+
+### 3. Results
+
+---
+
+## Requirements
+- **R** (with packages for statistical analyses and visualization)
+- **Python** (with `scikit-learn` and additional packages for machine learning)
+
+---
+
+## Citation
+If using this repository, please cite the original paper:
+
+> Meinke, C., Delfendahl, R., Adam, T., Lueken, U., Beesdo-Baum, K., ... & Hilbert, K. (2024). *Executive Functions in Spider Phobia: Relation to Psychopathology and Treatment Response*. Journal of Anxiety Disorders.
