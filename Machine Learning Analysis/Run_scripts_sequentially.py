@@ -63,6 +63,18 @@ script_paths = {
 
 # Helper function to run the script sequentially with different argument sets
 def run_script(script_path, argument_sets):
+    """
+    Function to execute a Python script with multiple sets of arguments, running the
+    script separately for each set of arguments provided.
+    
+    Arguments:
+        script_path: str, path to the Python script to execute.
+        argument_sets: list of dict, each dictionary contains pairs of argument names 
+                       and values to pass to the script.
+    
+    Returns:
+        None. Outputs from the script execution are captured and printed if there is an error.
+    """
     for arguments in argument_sets:
         command = ["python", script_path]
         

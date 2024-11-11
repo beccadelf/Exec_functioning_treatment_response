@@ -26,7 +26,7 @@ os.chdir(script_wd)
 from lib.Preprocessing_Classes import FeatureSelector
 from lib.Pipeline import load_data, impute_data, z_scale_data, select_features
 from lib.Models import fit_random_forest_classifier, fit_svm_classifier
-from lib.ModelPerformance import calc_eval_metrics_classification, get_performance_metrics_across_folds, summarize_performance_metrics_across_iters
+from lib.ModelPerformance import calc_eval_metrics_classification, get_performance_metrics_across_iters, summarize_performance_metrics_across_iters
 from lib.FeatureStats import summarize_features
 
 #%% 
@@ -174,7 +174,7 @@ if __name__ == '__main__':
     outcomes[:] = map(procedure_per_iter_spec, runs_list) # We are using map to enable parallel-processing
     
     # Summarize metric and feature results across iterations
-    performance_metrics_across_iters = get_performance_metrics_across_folds(outcomes, key_metrics = "ev_metrics")
+    performance_metrics_across_iters = get_performance_metrics_across_iters(outcomes, key_metrics = "ev_metrics")
     performance_metrics_summarized = summarize_performance_metrics_across_iters(outcomes, key_metrics = "ev_metrics")
     features_summarized = summarize_features(outcomes=outcomes, key_feat_names="sel_features_names", key_feat_weights="sel_features_imp")
     
