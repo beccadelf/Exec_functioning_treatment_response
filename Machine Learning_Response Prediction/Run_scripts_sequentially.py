@@ -10,6 +10,7 @@ Created on Mon Nov  4 12:46:40 2024
 from itertools import product
 import subprocess
 import os
+
 #%% 
 
 # Ensure cwd is script's directory
@@ -45,7 +46,7 @@ for combo in all_combinations_classification:
     argument_sets_classification.append({
         'PATH_INPUT_DATA': path_input_data,
         'PATH_RESULTS_BASE': path_results_base,
-        'NAME_RESULTS_FOLDER': "_".join(combo), # TODO: somehow add oversampling
+        'NAME_RESULTS_FOLDER': "_".join(combo) + "_oversampling",
         'ANALYSIS': combo[0],
         'CLASSIFIER': combo[1],
         'OVERSAMPLING': combo[2], 
@@ -63,6 +64,19 @@ script_paths = {
 
 # Helper function to run the script sequentially with different argument sets
 def run_script(script_path, argument_sets):
+    """
+    Execute Python script with multiple sets of arguments, running it separately 
+    for each set.
+    
+    Arguments:
+        script_path: str, path to the Python script to execute.
+        argument_sets: list of dict, each containing pairs of argument names and values
+                       to pass to the script.
+    
+    Returns:
+        None. Outputs from the script execution are captured and printed if there is an error.
+    
+    """
     for arguments in argument_sets:
         command = ["python", script_path]
         

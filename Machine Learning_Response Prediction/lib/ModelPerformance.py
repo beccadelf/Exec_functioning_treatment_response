@@ -16,6 +16,21 @@ import sklearn.metrics as metrics
 # 1. Functions to evaluate the model performance (i.e. calculate metrics)
 
 def calc_eval_metrics_regression(y_true, y_pred):
+    """
+    Calculate evaluation metrics for regression.
+    
+    Arguments:
+        y_true: array-like of shape (n_samples,), true target values (i.e. y_test).
+        y_pred: array-like of shape (n_samples,), predicted target values.
+    
+    Returns:
+        pd.DataFrame, containing the following regression metrics:
+            - r2: R-squared, the coefficient of determination.
+            - MSE: Mean squared error.
+            - RMSE: Root mean squared error.
+            - MAE: Mean absolute error.
+            - Correlation: Correlation coefficient between true and predicted values.
+    """
     # mean squared error
     MSE = metrics.mean_squared_error(y_true, y_pred)
     # Root mean squared error
@@ -32,12 +47,20 @@ def calc_eval_metrics_regression(y_true, y_pred):
     return ev_metrics
 
 def calc_eval_metrics_classification(y_true, y_pred):
-    """ Calculate evaluation metrics for classification
-    Args:
-        y_true: true labels (i.e. y_test).
-        y_pred: labels predicted by a classifier.
+    """ 
+    Calculate evaluation metrics for classification.
+
+    Arguments:
+        y_true: array-like of shape (n_samples,), true target labels (i.e. y_test).
+        y_pred: array-like of shape (n_samples,), predicted target labels.
+
     Returns:
-        a dictionary with evaluation metrics
+        pd.DataFrame, containing the following classification metrics:
+            - Accuracy: Proportion of correct predictions.
+            - Balanced accuracy: Average of recall obtained on each class.
+            - Specificity: True negative rate.
+            - Sensitivity: True positive rate.
+            - F1 Score: Harmonic mean of precision and recall.
     """
     accuracy = metrics.accuracy_score(y_true, y_pred)
     bal_acc = metrics.balanced_accuracy_score(y_true, y_pred)
@@ -50,9 +73,17 @@ def calc_eval_metrics_classification(y_true, y_pred):
                                "f1_score": f1_score}, index = [0])    
     return ev_metrics
 
-def get_performance_metrics_across_folds(outcomes, key_metrics):
-    """ Returns dataframe with evaluation metrics per fold
+def get_performance_metrics_across_iters(outcomes, key_metrics):
     """
+    Compile evaluation metrics from multiple iterations into a single DataFrame.
+
+    Arguments:
+        - outcomes: list of dicts, each containing the results of a single iteration.
+        - key_metrics: str, key to the metric-dataframe of each iteration.
+    
+    Returns:
+        pd.DataFrame, with evaluation metrics per fold.
+    """    
     # Turn all ev_metrics dictionaries into dataframes and concatenate them
     dataframes = [inner_df[key_metrics] for inner_df in outcomes]
     performance_metrics_across_iters_df = pd.concat(dataframes)
@@ -66,12 +97,13 @@ def summarize_performance_metrics_across_iters(outcomes, key_metrics):
     Summarize model performance metrics across iterations.
 
     Parameters:
-    - outcomes (list): List with one entry per iteration  
-      Each entry is a dictionary with all information saved per iteration (results_single_iter).
-    - key_modelperformance_metrics (str): Key in the results_single_iter dictionary containing the model performance metrics.
+        - outcomes (list): List with one entry per iteration
+          Each entry is a dictionary with all information saved per iteration (results_single_iter).
+        - key_modelperformance_metrics (str): Key in the results_single_iter dictionary 
+          containing the model performance metrics.
 
     Returns:
-    pd.DataFrame: Dataframe with summary statistics for model performance metrics.
+        pd.DataFrame, with summary statistics for model performance metrics.
 
     """
     sum_stats_performance_metrics = pd.DataFrame()
