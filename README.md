@@ -13,10 +13,10 @@ The repository is structured into two main sections, each aligned with the study
 ### 1. Group Comparison: Executive Functions
 This section contains scripts and resources for comparing executive function performance between participants with spider phobia and healthy controls.
 
-- **Group_Comparison.Rmd**: R Markdown file containing code for group comparisons using t-tests and ANCOVA. The analyses cover tasks like Spatial 2-Back, Stroop, Number-Letter, and Stop Signal, measuring various executive function components.
+- **Group_Comparison.Rmd**: R Markdown file containing t-tests and plotting for group comparisons. The analyses cover the tasks: Spatial 2-Back, Stroop, Number-Letter, and Stop Signal.
 
 - **Exploratory Analyses/**:
-  - **Analyses without wrong responses/**: Filters out trials with incorrect responses to maintain data quality.
+  - **Analyses without wrong responses/**: Filters out trials with incorrect, but doing so turned out to not affect analyses.
   - **ANCOVA/**: Contains scripts for performing ANCOVA to control for age, sex, and education.
   - **Pre-Post Validation/**: Validates the consistency of data across time points (baseline and post-intervention).
   - **Testing Normality/**: Checks normality assumptions required for tests in group comparisons.
