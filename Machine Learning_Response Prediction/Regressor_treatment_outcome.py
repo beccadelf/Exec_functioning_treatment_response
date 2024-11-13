@@ -9,8 +9,6 @@ in the "Fear of Spyders Questionnaire" in percent.
 #%% Import libraries and functions
 
 import os
-import numpy as np
-import pandas as pd
 import argparse
 import time
 from functools import partial
@@ -76,12 +74,12 @@ def set_options_and_paths():
         print("Using arguments given in the script")
         args = parser.parse_args([
             '--PATH_INPUT_DATA', "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Feature_Label_Dataframes",
-            '--PATH_RESULTS_BASE', os.path.join(script_wd, "Results"),
-            '--NAME_RESULTS_FOLDER', "Regressor",
+            '--PATH_RESULTS_BASE', "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Results",
             '--ANALYSIS', "all_features", 
             '--REGRESSOR', 'random_forest_regressor',
             '--NUMBER_REPETITIONS', "5"
         ])
+        args.NAME_RESULTS_FOLDER = f"{args.ANALYSIS}_{args.CLASSIFIER}"
         PATHS = generate_and_create_results_path(args)
         
     return args, PATHS

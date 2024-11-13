@@ -24,7 +24,7 @@ analysis = ["all_features", "clinical_features_only"]
 oversampling = ["yes", "no"]
 
 path_input_data = "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Feature_Label_Dataframes"
-path_results_base = "C:\\Users\\Acer\\Documents\\GitHub\\Exec_functioning_treatment_response\\Machine Learning Analysis\\Results"
+path_results_base = "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Results"
 
 # Generate argument_sets
 # Regression
