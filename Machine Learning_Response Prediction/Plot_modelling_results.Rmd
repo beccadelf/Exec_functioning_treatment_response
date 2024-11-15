@@ -1,0 +1,82 @@
+---
+title: "Plot_ML-Analysis_Results"
+author: "Rebecca Delfendahl"
+date: "2024-11-15"
+output: html_document
+---
+# Setup
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Packages
+```{r}
+library(readr)
+library(dplyr)
+library(ggplot2)
+```
+
+# Plot Settings
+```{r}
+size_text = 10
+family = "Arial"
+theme_set(theme_classic() + theme(text = element_text(size = size_text, family = family),
+                                  axis.title = element_text(size = size_text +2, family = family),
+                                  #plot.title = element_text(size = size_text, family = family),
+                                  #axis.text = element_text(size = size_text, family = family),
+                                  #strip.text =  element_text(size = size_text +4, family = family),
+                                  #legend.text =  element_text(size = size_text, family = family)
+                                  ))
+```
+
+# Load results
+```{r}
+# Get all folders in the results folder (each containing the results of another model)
+path_results_folder = "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Results"
+results_folders <- list.files(path = path_results_folder, full.names = FALSE)
+
+# TODO: save files of classifier and regressor models in separate dictionaries
+# For each folder, save the performance_across_iters-file in dictionary
+results_dict = list()
+for (folder_name in results_folders) {
+  # Read the file and store it as a dictionary
+  results_dict[[folder_name]] <- read.delim(file.path(path_results_folder, folder_name,
+                                                      "performance_across_iters.txt"))
+}
+```
+
+# Function to XXX
+```{r}
+create_plot <- function(results){
+  # Combine dictionaries into a single dataframe
+  combined_df <- bind_rows(results, .id = "FolderName")
+  
+  # Reduce to classifier-models and rename Foldernames
+  combined_df$FolderName <- gsub("random_forest","rf",combined_df$FolderName)
+  combined_df$FolderName <- gsub("svm","svm_classifier",combined_df$FolderName)
+  combined_df$FolderName <- gsub("_no_oversampling","",combined_df$FolderName)
+  combined_df$FolderName <- gsub("yes_oversampling","oversampled",combined_df$FolderName)
+  combined_df$FolderName <- gsub("clinical_features_only","clinical_features",combined_df$FolderName)
+  combined_df <- combined_df[grepl("classifier", combined_df$FolderName), ]
+  combined_df$X <- NULL
+  
+  # Create ggplot
+  plot <- ggplot(combined_df, aes(x=FolderName, y=balanced_accuracy)) +
+    geom_violin() +
+    stat_summary(
+      geom = "point",
+      shape = 24,
+      fun = "mean",
+      col = "black",
+      fill = "red",
+      size = 3
+    ) +
+    labs(y = "Balanced accuracy",  x = "") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+  return(plot)
+}
+
+test_plot <- create_plot(results = results_dict)
+```
+
