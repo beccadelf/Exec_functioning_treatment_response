@@ -29,13 +29,12 @@ theme_set(theme_classic() + theme(text = element_text(size = size_text, family =
                                   ))
 ```
 
-# Load results
+# Load and combine results
 ```{r}
 # Get all folders in the results folder (each containing the results of another model)
 path_results_folder = "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Results"
 results_folders <- list.files(path = path_results_folder, full.names = FALSE)
 
-# TODO: save files of classifier and regressor models in separate dictionaries
 # For each folder, save the performance_across_iters-file in dictionary
 results_dict = list()
 for (folder_name in results_folders) {
@@ -43,25 +42,63 @@ for (folder_name in results_folders) {
   results_dict[[folder_name]] <- read.delim(file.path(path_results_folder, folder_name,
                                                       "performance_across_iters.txt"))
 }
+
+# Combine results
+combined_results <- bind_rows(results_dict, .id = "FolderName")
+# Rename folder-names
+combined_results$FolderName <- gsub("random_forest","rf",combined_results$FolderName)
+combined_results$FolderName <- gsub("svm","svm_classifier",combined_results$FolderName) # TODO: delete if scrips have been re-run
+combined_results$FolderName <- gsub("_no_oversampling","",combined_results$FolderName)
+combined_results$FolderName <- gsub("yes_oversampling","oversampled",combined_results$FolderName)
+combined_results$FolderName <- gsub("clinical_features_only","clinical_features",combined_results$FolderName)
+combined_results$X <- NULL
+
+# Separate into regressor and classifier dataframes
+classification_results <- combined_results[grepl("classifier", combined_results$FolderName), ]
+regression_results <- combined_results[grepl("regressor", combined_results$FolderName), ]
 ```
 
 # Function to XXX
 ```{r}
-create_plot <- function(results){
-  # Combine dictionaries into a single dataframe
-  combined_df <- bind_rows(results, .id = "FolderName")
-  
-  # Reduce to classifier-models and rename Foldernames
-  combined_df$FolderName <- gsub("random_forest","rf",combined_df$FolderName)
-  combined_df$FolderName <- gsub("svm","svm_classifier",combined_df$FolderName)
-  combined_df$FolderName <- gsub("_no_oversampling","",combined_df$FolderName)
-  combined_df$FolderName <- gsub("yes_oversampling","oversampled",combined_df$FolderName)
-  combined_df$FolderName <- gsub("clinical_features_only","clinical_features",combined_df$FolderName)
-  combined_df <- combined_df[grepl("classifier", combined_df$FolderName), ]
-  combined_df$X <- NULL
+create_classification_plot <- function(results_df){
+  # Set factor levels for FolderName to control the x-axis order
+  results_df$FolderName <- factor(results_df$FolderName, levels = c(
+    "clinical_features_rf_classifier","all_features_rf_classifier",
+    "clinical_features_rf_classifier_oversampled","all_features_rf_classifier_oversampled",
+    "clinical_features_svm_classifier","all_features_svm_classifier",
+    "clinical_features_svm_classifier_oversampled","all_features_svm_classifier_oversampled"))
   
   # Create ggplot
-  plot <- ggplot(combined_df, aes(x=FolderName, y=balanced_accuracy)) +
+  plot <- ggplot(results_df, aes(x=FolderName, y=balanced_accuracy)) +
+    geom_violin(scale = "width") +
+    stat_summary(
+      geom = "point",
+      shape = 24,
+      fun = "mean",
+      col = "black",
+      fill = "red",
+      size = 3
+    ) +
+    labs(y = "Balanced accuracy",  x = "") + 
+    scale_y_continuous(breaks = c(0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8)) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+  return(plot)
+}
+
+classification_plot <- create_classification_plot(results_df = classification_results)
+```
+
+# Function to XXX
+```{r}
+create_regression_plot <- function(results_df){
+  # Set factor levels for FolderName to control the x-axis order
+  results_df$FolderName <- factor(results_df$FolderName, levels = c(
+    "clinical_features_rf_regressor", "all_features_rf_regressor",
+    "clinical_features_ridge_regressor", "all_features_ridge_regressor"))
+  
+  # Create ggplot
+  plot <- ggplot(results_df, aes(x=FolderName, y=MSE)) +
     geom_violin() +
     stat_summary(
       geom = "point",
@@ -71,12 +108,11 @@ create_plot <- function(results){
       fill = "red",
       size = 3
     ) +
-    labs(y = "Balanced accuracy",  x = "") +
+    labs(y = "Mean squared error",  x = "") + 
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
-  
+
   return(plot)
 }
 
-test_plot <- create_plot(results = results_dict)
+regression_plot <- create_regression_plot(results_df = regression_results)
 ```
-

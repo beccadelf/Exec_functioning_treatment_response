@@ -19,7 +19,7 @@ os.chdir(script_wd)
 
 # Define the parameters
 regressors = ["random_forest_regressor", "ridge_regressor"]
-classifiers = ["random_forest_classifier", "svm"]
+classifiers = ["random_forest_classifier", "svm_classifier"]
 analysis = ["all_features", "clinical_features_only"]
 oversampling = ["yes", "no"]
 

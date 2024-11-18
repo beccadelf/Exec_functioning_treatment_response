@@ -62,7 +62,7 @@ def set_options_and_paths():
     parser.add_argument('--ANALYSIS', type=str,
                         help='Features to include, set all_features or clinical_features_only')
     parser.add_argument('--CLASSIFIER', type=str,
-                        help='Classifier to use, set random_forest_classifier or svm')
+                        help='Classifier to use, set random_forest_classifier or svm_classifier')
     parser.add_argument('--OVERSAMPLING', type=str, default="Yes",
                         help='Should training and testset be oversampled to represent distribution in sample?')
     parser.add_argument('--NUMBER_REPETITIONS', type=int, default=100,
@@ -134,7 +134,7 @@ def procedure_per_iter(num_iter, args):
     if args.CLASSIFIER == "random_forest_classifier":
         clf, feature_weights = fit_random_forest_classifier(
             X_train_imp_clean_scaled_sel, y_train_final)
-    elif args.CLASSIFIER == "svm":
+    elif args.CLASSIFIER == "svm_classifier":
         clf, feature_weights = fit_svm_classifier(
             X_train_imp_clean_scaled_sel, y_train_final)
         
