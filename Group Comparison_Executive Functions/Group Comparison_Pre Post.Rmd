@@ -1,0 +1,240 @@
+---
+title: "Group Comparison: Pre Post"
+authors: "Charlotte Meinke, Rebecca Delfendahl, Till Julius Adam"
+date: "2024-11-20"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+---
+<style type="text/css">
+.main-container { /* Adjust main blocks */
+  max-width: 100% !important;
+  margin: auto;
+}
+
+body {
+  font-family: "Georgia", serif !important; /* Set the font for the entire document */
+}
+
+.tocify { /* Adjust table of contents */
+  max-width: 100% !important;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(pander)
+library(effsize)
+library(pwr)
+library(stats)
+```
+
+## <u>Importing Data</u>
+
+```{r}
+basic_path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/With_wrong_responses"
+data_HC <- read.csv(file.path(basic_path,"Data_HC.csv"))
+data_Pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
+data_Pat_post <- read.csv(file.path(basic_path,"Data_Patients_Post.csv"))
+```
+
+### Prepare dataset
+```{r}
+## 1. Merge patients pre and controls
+Patients_vs_HC <- rbind(data_Pat_pre, data_HC)
+
+## 2. Reduce dataset to executive functions of interest (BIS columns and SSRT)
+BIS_columns <- colnames(Patients_vs_HC)[grep("BIS", colnames(Patients_vs_HC))]
+BIS_columns <- BIS_columns[BIS_columns != "T1_BAT_BIS_11_score"] # BIS-11 is a questionnaire
+imp_columns <- c(BIS_columns, "SSRT")
+Patients_vs_HC_imp <- Patients_vs_HC[,c("Subject","Gruppe",imp_columns)]
+
+# 3. Identify common subjects in both datasets
+data_Pat_pre$Subject_postID <- data_Pat_pre$Subject + 600 # IDs at post = ID at pre + 600
+
+common_subjects_postID <- intersect(data_Pat_pre$Subject_postID, data_Pat_post$Subject) #Using intersect function to exclude only pre/post cases
+
+# 4. Filter the datasets to only include common subjects
+data_Pat_pre_filtered <- data_Pat_pre[data_Pat_pre$Subject_postID %in% common_subjects_postID , ]
+data_Pat_post_filtered <- data_Pat_post[data_Pat_post$Subject %in% common_subjects_postID , ]
+
+# 5. Important columns
+data_Pat_pre_filtered_imp <- data_Pat_pre_filtered[, c("Subject", imp_columns)]
+data_Pat_post_filtered_imp <- data_Pat_post_filtered[, c("Subject", imp_columns)]
+```
+Pre and post measures were available for `r nrow(data_Pat_pre_filtered_imp)` patients.
+
+### Testing Assumption of dependent sample t-test: Positive correlation of measurement series
+```{r}
+## Calculate Raw Pearson Correlation and Test Significance
+calculate_correlations_and_significance <- function(pre_data, post_data, cols) {
+  df <- data.frame(Correlation = numeric(length(cols)), t_statistic = numeric(length(cols)), 
+                   p_value = numeric(length(cols)))
+  rownames(df) <- cols
+  p_values_raw <- numeric(length(cols))
+  for (i in seq_along(cols)) {
+    col <- cols[i]
+    
+    # Use complete.cases to keep only rows where both pre AND post are not NA
+    complete_cases <- complete.cases(pre_data[[col]], post_data[[col]])
+    pre_col_data <- pre_data[[col]][complete_cases]
+    post_col_data <- post_data[[col]][complete_cases]
+    
+    # Calculate Pearson correlation
+    correlation <- cor(pre_col_data, post_col_data)
+    
+    # Calculate the t-statistic for the correlation
+    n <- length(pre_col_data)
+    t_statistic <- correlation * sqrt((n - 2) / (1 - correlation^2))
+    
+    # Calculate the p-value for a one-tailed test (H_0: r ≤ 0)
+    p_value <- pt(t_statistic, df = n - 2, lower.tail = FALSE)
+    p_values_raw[i] <- p_value
+    
+    # Store the results
+    df[col, "Correlation"] <- round(correlation, 3)
+    df[col, "t_statistic"] <- round(t_statistic, 3)
+    df[col, "p_value"] <- round(p_value, 3)
+  }
+  
+  # Adjust p-values using Benjamini-Hochberg method
+  p_values_adjusted <- p.adjust(p_values_raw, method = "BH")
+  df$p_value_adjusted <- round(p_values_adjusted, 2)
+  
+  return(df)
+}
+
+
+# Apply the correlation and significance test
+correlation_significance_table <- calculate_correlations_and_significance(pre_data = data_Pat_pre_filtered_imp, post_data = data_Pat_post_filtered_imp, cols = imp_columns)
+pander(correlation_significance_table, style = "rmarkdown", fontsize = "tiny")
+```
+For all tasks, the correlations of the measurement series are significantly positive. Thus, the assumption is met for all tasks. 
+
+### Calculate Welch t-test
+```{r}
+paired_t_test_mult_cols <- function(pre_data, post_data, cols) {
+  df <- data.frame(t_statistic = numeric(length(cols)), p_value = numeric(length(cols)),
+                   group_mean_pre = numeric(length(cols)), group_mean_post = numeric(length(cols)),
+                   cohen_d = numeric(length(cols)))
+  rownames(df) <- cols
+  p_values_raw <- numeric(length(cols)) # Vector to store raw p-values
+  
+  for (i in seq_along(cols)) {
+    col <- cols[i]
+    
+    # Use complete.cases to keep only rows where both pre AND post are not NA
+    complete_cases <- complete.cases(pre_data[[col]], post_data[[col]])
+    pre_col_data <- pre_data[[col]][complete_cases]
+    post_col_data <- post_data[[col]][complete_cases]
+    
+    # Check if there are at least 2 complete pairs of observations
+    if (length(pre_col_data) < 2 || length(post_col_data) < 2) {
+      warning(paste("Not enough data for column:", col))
+      df[col, ] <- NA  # Assign NA to the row in case of insufficient data
+      next  # Skip to the next column
+    }
+    
+    # Perform paired Welch t-test (non-formula interface)
+    results <- t.test(pre_col_data, post_col_data, paired = TRUE, var.equal = FALSE)
+    #Alternativ using formula method:
+    #results <- t.test(df_basis[[col]] ~ df_basis[["time"]], paired = TRUE, var.equal = FALSE)
+    
+    # Store raw p-values for BH correction
+    p_values_raw[i] <- results$p.value
+    
+    # Calculate Cohen's d for paired samples (effect size)
+    cohen_d_result <- cohen.d(post_col_data, pre_col_data, paired = TRUE)
+    cohen_d <- cohen_d_result$estimate
+    
+    # Calculate power using pwr.t.test
+    n <- length(pre_col_data)
+    power_result <- pwr.t.test(d = cohen_d, n = n, sig.level = 0.05, type = "paired", alternative = "greater")
+    power <- power_result$power
+    
+    # Store the results
+    df[col, "t_statistic"] <- round(results$statistic, 2)
+    df[col, "p_value"] <- round(results$p.value, 2)
+    df[col, "group_mean_pre"] <- round(mean(pre_col_data), 2)
+    df[col, "sd_pre"] <- round(sd(pre_col_data), 2)
+    df[col, "group_mean_post"] <- round(mean(post_col_data), 2)
+    df[col, "sd_post"] <- round(sd(post_col_data), 2)
+    df[col, "cohen_d"] <- round(cohen_d, 2)
+    df[col, "power"] <- round(power, 2)
+  }
+  
+  # Adjust p-values using Benjamini-Hochberg method for multiple testing of related tasks
+  p_values_adjusted <- p.adjust(p_values_raw, method = "BH")
+  df$p_value_adjusted <- round(p_values_adjusted, 2)
+  
+  return(df)
+}
+
+# Apply the paired Welch t-test to your data
+t_test_table_pre_post <- paired_t_test_mult_cols(pre_data = data_Pat_pre_filtered_imp, post_data = data_Pat_post_filtered_imp, cols = imp_columns)
+pander(t_test_table_pre_post)
+```
+Patients performed better in all measurements of executive functioning after the exposure session. This might be due to a practice effect.
+
+(Manual check)
+```{r}
+# Number of patients in the pre group
+n_pre <- nrow(data_Pat_pre)
+
+# Number of patients in the post group
+n_post <- nrow(data_Pat_post)
+
+# Output the results
+n_pre
+n_post
+```
+
+## Boxplot
+```{r}
+# Add a timepoint variable to the filtered datasets and combine
+data_Pat_pre_filtered_imp$time <- "pre"
+data_Pat_post_filtered_imp$time <- "post"
+Patients_pre_vs_post_long <- rbind(data_Pat_pre_filtered_imp, data_Pat_post_filtered_imp)
+
+# Reshape data from wide to long format
+Patients_pre_vs_post_long <- Patients_pre_vs_post_long %>%
+  pivot_longer(cols = all_of(BIS_columns), # imp_columns to include SSRT
+               names_to = "Condition",
+               values_to = "BIS_Score")
+
+# Add new task variable
+Patients_pre_vs_post_long <- Patients_pre_vs_post_long %>%
+  mutate(Task = case_when(
+    grepl("NumberLetter", Condition) ~ "NumberLetter",
+    grepl("Stroop", Condition) ~ "Stroop",
+    grepl("TwoBack", Condition) ~ "TwoBack"
+  ))
+
+# Remove prefixes from Condition labels, keeping Task intact
+Patients_pre_vs_post_long <- Patients_pre_vs_post_long %>%
+  mutate(Condition = gsub("NumberLetter_BIS_|Stroop_BIS_|TwoBack_BIS_", "", Condition))
+
+# Convert "time" to factor, specify order
+Patients_pre_vs_post_long$time <- factor(Patients_pre_vs_post_long$time, levels = c("pre", "post"))
+
+# Create boxplot with paired observations
+boxplot_Patients_pre_post <- ggplot(Patients_pre_vs_post_long, aes(x = Condition, y = BIS_Score, color = time)) + # group = Subject
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(position = position_jitterdodge(),
+              size = 0.7,
+              shape = 21,
+              fill = NA) +
+  #geom_line(aes(group = Subject)) + # optional, if you want to visualize pairing
+  facet_wrap(~ Task, scales = "free_x") +
+  labs(title = "Boxplots of Task Condition by Time of Measurement",
+       x = "Condition",
+       y = "BIS-Score",
+       color = "Time")
+
+print(boxplot_Patients_pre_post)
+```

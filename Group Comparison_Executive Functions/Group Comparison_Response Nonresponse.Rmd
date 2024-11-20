@@ -1,0 +1,345 @@
+---
+title: "Group Comparison: Responders vs. Nonresponders"
+authors: "Charlotte Meinke, Rebecca Delfendahl, Till Julius Adam"
+date: "2024-09-04"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+---
+<style type="text/css">
+.main-container { /* Adjust main blocks */
+  max-width: 100% !important;
+  margin: auto;
+}
+
+body {
+  font-family: "Georgia", serif !important; /* Set the font for the entire document */
+}
+
+.tocify { /* Adjust table of contents */
+  max-width: 100% !important;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(pander)
+library(effsize)
+library(pwr)
+library(gtsummary)
+library(gt)
+```
+
+## <u>Importing Data</u>
+
+```{r}
+basic_path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/With_wrong_responses"
+data_HC <- read.csv(file.path(basic_path,"Data_HC.csv"))
+data_Pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
+data_Pat_post <- read.csv(file.path(basic_path,"Data_Patients_Post.csv"))
+```
+
+### Prepare dataset
+```{r}
+## 1. Merge patients pre and controls
+Patients_vs_HC <- rbind(data_Pat_pre, data_HC)
+
+## 2. Reduce dataset to executive functions of interest (BIS columns and SSRT)
+BIS_columns <- colnames(Patients_vs_HC)[grep("BIS", colnames(Patients_vs_HC))]
+BIS_columns <- BIS_columns[BIS_columns != "T1_BAT_BIS_11_score"] # BIS-11 is a questionnaire
+imp_columns <- c(BIS_columns, "SSRT")
+Patients_vs_HC_imp <- Patients_vs_HC[,c("Subject","Gruppe",imp_columns)]
+
+## 3. Add confounds (Alter, Geschlecht, Abschluss)
+Patients_vs_HC_imp_conf <- merge(Patients_vs_HC[,c("Subject","Alter","Geschlecht","Abschluss")], Patients_vs_HC_imp, by = "Subject")
+```
+Data for `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1,])` patients and `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0,])` healthy controls were available.
+Find assumption test for normality in script "Testing Normality"
+
+###Testing for variance homogeneity
+```{r}
+# Ensure "Response" is treated as a factor
+data_Pat_pre$Response <- as.factor(data_Pat_pre$Response)
+
+# Perform Levene's test for homogeneity of variance on task performance measures
+levene_test_mult_cols <- function(df_basis, cols) {
+  df <- data.frame(p_value = numeric(length(cols)))
+  rownames(df) <- cols
+  
+  for (i in seq_along(cols)) {
+    col <- cols[i]
+    # Perform Levene's test, treating 'Response' as a factor
+    levene_result <- leveneTest(df_basis[[col]] ~ df_basis[["Response"]])
+    df[col, "p_value"] <- round(levene_result[1, "Pr(>F)"], 4)
+  }
+  
+  return(df)
+}
+
+# Define the columns for which to perform the test (e.g., task performance measures)
+imp_columns <- c("NumberLetter_BIS_Repeat", "NumberLetter_BIS_Switch", 
+                 "NumberLetter_BIS_Diff_Score", "Stroop_BIS_Congruent", 
+                 "Stroop_BIS_Incongruent", "Stroop_BIS_Diff_Score", 
+                 "TwoBack_BIS_Foil", "TwoBack_BIS_Target", "TwoBack_BIS_Total", 
+                 "SSRT")
+
+# Perform Levene's test
+levene_test_table <- levene_test_mult_cols(df_basis = data_Pat_pre, cols = imp_columns)
+pander(levene_test_table, style = "rmarkdown", fontsize = "tiny")
+```
+Levene test shows complete variance homoegeneity for all task conditions between responders and non-responders.
+
+
+### **Calculate t-test**
+```{r}
+# Perform t-tests for each task and store results
+t_test_mult_cols <- function(df_basis, cols) {
+  df <- data.frame(t_statistic = numeric(length(cols)), p_value = numeric(length(cols)),
+                   group_mean_Response = numeric(length(cols)), sd_Response = numeric(length(cols)),
+                   group_mean_NonResponse = numeric(length(cols)), sd_NonResponse = numeric(length(cols)),
+                   cohen_d = numeric(length(cols)))
+  rownames(df) <- cols
+  
+  for (i in seq_along(cols)) {
+    col <- cols[i]
+    
+    # Separate groups by Response = 1 and Response = 0
+    group1 <- na.omit(df_basis[df_basis[["Response"]] == 1, col])
+    group0 <- na.omit(df_basis[df_basis[["Response"]] == 0, col])
+    #Alternativ using formula method:
+      #results <- t.test(df_basis[[col]] ~ df_basis[["Response"]], paired = FALSE, var.equal = TRUE)
+    
+    # Perform standard t-test (since variance homogeneity holds)
+    results <- t.test(group1, group0, paired = FALSE, var.equal = TRUE)
+    
+    # Calculate Cohen's d
+    cohen_d_result <- cohen.d(group1, group0, hedges.correction = FALSE)
+    cohen_d <- cohen_d_result$estimate
+    
+    # Calculate power
+    n0 <- length(group0)
+    n1 <- length(group1)
+    power_result <- pwr.t.test(d = cohen_d, n = min(n0, n1), sig.level = 0.05, type = "two.sample", alternative = "greater")
+    power <- power_result$power
+    
+    # Store the results
+    df[col, "t_statistic"] <- round(results$statistic, 2)
+    df[col, "p_value"] <- round(results$p.value, 4)
+    df[col, "group_mean_Response"] <- round(mean(group1), 2)
+    df[col, "sd_Response"] <- round(sd(group1), 2)
+    df[col, "group_mean_NonResponse"] <- round(mean(group0), 2)
+    df[col, "sd_NonResponse"] <- round(sd(group0), 2)
+    df[col, "cohen_d"] <- round(cohen_d, 2)
+    df[col, "power"] <- round(power, 2)
+  }
+  
+  return(df)
+}
+
+t_test_table <- t_test_mult_cols(df_basis = data_Pat_pre, cols = imp_columns)
+pander(t_test_table, style = "rmarkdown", split.table = Inf, fontsize = "tiny")
+```
+No significant was found for any of the tasks.
+Potential reason: low power. Even the largest power for TwoBack_BIS_Foil of 0.22 with a cohen's d of 0.2 would require a sample size of 144 to find a significant effect, as a priori power power analysis shows. However, the patient group is only about half as large as that (n=89), not to speak of the tasks with even smaller power (e.g., NumberLetter_BIS_Repeat with 0.01)
+
+### Characteristics Table: Descriptive Statistics
+```{r}
+# Data frame that codes variables according to study protocol
+characteristics_data <- Patients_vs_HC %>%
+  select(Gruppe, Alter, Geschlecht, Abschluss, 
+         T1_BAT_BDI_II_score, T1_BAT_STAI_T_score, T1_BAT_BIS_11_score, 
+         T1_BAT_Kirby_k_score, T1_BAT_CFC_14_score, T1_BAT_SRHI_score) %>%
+  mutate(Gruppe = factor(Gruppe, levels = c(0, 1), labels = c("Healthy Controls", "Patients")),
+         Geschlecht = factor(Geschlecht, levels = c(0, 1, 2), labels = c("Male", "Female", "Unknown")),
+         Abschluss = factor(Abschluss, levels = c(1, 2, 3, 4), 
+                            labels = c("Basic secondary education", "Intermediate secondary education",
+                                       "Higher secondary education", "Other")))
+
+# Create a summary table with a subheading for "Baseline Assessment"
+characteristics_table_no_n <- characteristics_data %>%
+  tbl_summary(by = Gruppe,  # Compare by Gruppe (HC vs. Pat)
+              label = list(
+                Alter ~ "Age",
+                Geschlecht ~ "Sex",
+                Abschluss ~ "Education",
+                T1_BAT_BDI_II_score ~ "BDI-II Score",
+                T1_BAT_STAI_T_score ~ "STAI-T Score",
+                T1_BAT_BIS_11_score ~ "BIS-11 Score",
+                T1_BAT_Kirby_k_score ~ "Kirby k Score",
+                T1_BAT_CFC_14_score ~ "CFC-14 Score",
+                T1_BAT_SRHI_score ~ "SRHI Score"
+              ),
+              statistic = list(  # Add mean (SD) for numeric and counts for categorical
+                all_continuous() ~ "{mean} ({sd})",  
+                all_categorical() ~ "{n}"
+              ),
+              missing = "no") %>%
+  modify_header(label ~ "**Characteristic**") %>%
+  modify_spanning_header(
+    starts_with("T1_BAT_") ~ "**Baseline Assessment**"
+  )
+
+characteristics_table_no_n
+```
+
+Alternative: Separate Tables
+```{r}
+# data frame Response vs. Non-response
+response_data <- data_Pat_pre %>%
+  select(Response, Alter, Geschlecht, Abschluss) %>%
+  mutate(Response = factor(Response, levels = c(0, 1), labels = c("Non-Responder", "Responder")),
+         Geschlecht = factor(Geschlecht, levels = c(0, 1, 2), labels = c("Male", "Female", "Unknown")),
+         Abschluss = factor(Abschluss, levels = c(1, 2, 3, 4), 
+                            labels = c("Basic secondary education", "Intermediate secondary education",
+                                       "Higher secondary education", "Other")))
+
+# Create a summary table for Response vs. Non-response
+characteristics_table_response <- response_data %>%
+  tbl_summary(by = Response,  # Compare by Response
+              label = list(
+                Alter ~ "Age",
+                Geschlecht ~ "Sex",
+                Abschluss ~ "Education"
+              ),
+              statistic = list(  # Add mean (SD) for numeric and counts for categorical
+                all_continuous() ~ "{mean} ({sd})",  
+                all_categorical() ~ "{n}"
+              ),
+              missing = "no") %>%
+  modify_header(label ~ "**Characteristic**")
+
+# Data frame for baseline assessment test scores
+baseline_data <- Patients_vs_HC %>%
+  select(Gruppe, T1_BAT_BDI_II_score, T1_BAT_STAI_T_score, T1_BAT_BIS_11_score,
+         T1_BAT_Kirby_k_score, T1_BAT_CFC_14_score, T1_BAT_SRHI_score) %>%
+  mutate(Gruppe = factor(Gruppe, levels = c(0, 1), labels = c("Healthy Controls", "Patients")))
+
+# Create a summary table for baseline assessment scores
+baseline_table <- baseline_data %>%
+  tbl_summary(by = Gruppe,  # Compare by Gruppe (HC vs. Pat)
+              label = list(
+                T1_BAT_BDI_II_score ~ "BDI-II Score",
+                T1_BAT_STAI_T_score ~ "STAI-T Score",
+                T1_BAT_BIS_11_score ~ "BIS-11 Score",
+                T1_BAT_Kirby_k_score ~ "Kirby k Score",
+                T1_BAT_CFC_14_score ~ "CFC-14 Score",
+                T1_BAT_SRHI_score ~ "SRHI Score"
+              ),
+              statistic = list(
+                all_continuous() ~ "{mean} ({sd})"  # Mean (SD) for all continuous variables
+              ),
+              missing = "no") %>%  # Include missing data as counts if any
+  modify_header(label ~ "**Baseline Assessment**")
+
+baseline_table
+characteristics_table_response
+```
+
+
+###  Table: Inferential Statistics
+```{r}
+# data frame with inferential statistics (p-value, Cohen's d, power) for Response vs. Non-response
+inferential_stats_response_df <- data.frame(
+  Task = c("Number Letter Repeat", "Number Letter Switch", "Number Letter Difference BIS Score",
+           "Stroop Congruent", "Stroop Incongruent", "Stroop BIS Difference Score",
+           "Two Back Foil", "Two Back Target", "Two Back Difference BIS Score", "SSRT"),
+  p_value = t_test_table$p_value,
+  cohen_d = t_test_table$cohen_d,
+  power = t_test_table$power
+)
+
+# inferential statistics table for Response vs. Non-response
+inferential_stats_response_table <- inferential_stats_response_df %>%
+  gt() %>%
+  tab_header(
+    title = "Inferential Statistics: Response vs. Non-response"
+  ) %>%
+  cols_label(
+    Task = html("<b>Task</b>"),
+    p_value = html("<b>p-value</b>"),
+    cohen_d = html("<b>Cohen's d</b>"),
+    power = html("<b>Power</b>")
+  ) %>%
+  fmt_number(
+    columns = c(p_value, cohen_d, power),
+    decimals = 2
+  )
+
+inferential_stats_response_table
+```
+
+```{r}
+# Reshape data from wide to long format, including SSRT, for Response vs. Nonresponse
+Response_vs_NonResponse_long <- data_Pat_pre %>%
+  pivot_longer(cols = all_of(imp_columns), # imp_columns now includes SSRT
+               names_to = "Condition",
+               values_to = "BIS_Score") %>%
+  drop_na()
+
+# Add a new task variable for faceting
+Response_vs_NonResponse_long <- Response_vs_NonResponse_long %>%
+  mutate(Task = case_when(
+    grepl("NumberLetter", Condition) ~ "Number-Letter Task",
+    grepl("Stroop", Condition) ~ "Stroop Task",
+    grepl("TwoBack", Condition) ~ "2-Back Task",
+    Condition == "SSRT" ~ "Stop Signal Task"
+  ))
+
+# Remove prefixes from Condition labels, keeping Task intact
+Response_vs_NonResponse_long <- Response_vs_NonResponse_long %>%
+  mutate(Condition = gsub("NumberLetter_BIS_|Stroop_BIS_|TwoBack_BIS_", "", Condition)) %>%
+  mutate(Condition = as.character(Condition)) %>%
+  
+  # Set the condition order for each task separately to avoid conflicts (cannot both be "Diff_Score")
+  mutate(Condition = ifelse(Task == "NumberLetter" & Condition == "Diff_Score", "Diff_Score NL", Condition)) %>%
+  mutate(Condition = ifelse(Task == "Stroop" & Condition == "Diff_Score", "Diff_Score Stroop", Condition)) %>%
+  
+  # Convert Condition to factor with ordering
+  mutate(Condition = case_when(
+    Task == "NumberLetter" ~ factor(Condition, levels = c("Repeat", "Switch", "Diff_Score NL")),
+    Task == "Stroop" ~ factor(Condition, levels = c("Congruent", "Incongruent", "Diff_Score Stroop")),
+    Task == "TwoBack" ~ factor(Condition, levels = c("Target", "Foil", "Total")),
+    TRUE ~ as.factor(Condition)
+  ))
+
+# Convert "Response" to factor
+Response_vs_NonResponse_long$Response <- factor(Response_vs_NonResponse_long$Response, levels = c(0, 1), labels = c("Nonresponders", "Responders"))
+```
+
+```{r}
+# Create violin plots with mean and rename conditions in the plot
+
+violin_plots_response_vs_nonresponse <- ggplot(Response_vs_NonResponse_long, aes(x = Condition, y = BIS_Score, fill = Response)) +
+  geom_violin(position = position_dodge(width = 0.8)) +
+  stat_summary(fun.data = mean_sdl, geom = "pointrange", # mult = 2 (SD) by default
+               position = position_dodge(width = 0.8)) + # width = 0.65, fatten = 2
+  facet_wrap(~ Task, scales = "free") +
+  labs(x = "",
+       y = "Performance Score",
+       fill = "Group") +
+  scale_x_discrete(labels = function(x) {
+    x[x == "Diff_Score"] <- "Difference \nScore"
+    x[x == "Diff_Score Stroop"] <- "Difference \nScore"
+    x[x == "Total"] <- "Difference \nScore"
+    return(x)
+  }) +
+  scale_fill_manual(values = c("Nonresponders" = "#D3D3D3", #colors 
+                               "Responders" = "#48CFCB")) +
+  theme_bw() +
+  theme(
+    text = element_text(family = "Arial"), #Font
+    axis.title = element_text(size = 24),
+    axis.title.y = element_text(size = 24, margin = margin(r = 30)),
+    axis.text = element_text(size = 18),
+    legend.title = element_text(size = 24),
+    legend.text = element_text(size = 18),
+    strip.text = element_text(size = 20),
+    panel.spacing.x = unit(3, "lines")
+  )
+print(violin_plots_response_vs_nonresponse)
+```

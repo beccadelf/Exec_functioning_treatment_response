@@ -1,0 +1,407 @@
+---
+title: "Group Comparison: Healthy Controls vs. Patients"
+authors: "Charlotte Meinke, Rebecca Delfendahl, Till Julius Adam"
+date: "2024-09-04"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+---
+<style type="text/css">
+.main-container { /* Adjust main blocks */
+  max-width: 100% !important;
+  margin: auto;
+}
+
+body {
+  font-family: "Georgia", serif !important; /* Set the font for the entire document */
+}
+
+.tocify { /* Adjust table of contents */
+  max-width: 100% !important;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(pander)
+library(effsize)
+library(pwr)
+library(gtsummary)
+library(gt)
+```
+
+## <u>Importing Data</u>
+
+```{r}
+basic_path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/With_wrong_responses"
+data_HC <- read.csv(file.path(basic_path,"Data_HC.csv"))
+data_Pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
+data_Pat_post <- read.csv(file.path(basic_path,"Data_Patients_Post.csv"))
+```
+
+## <u>Comparison HC vs. Patients</u>
+
+### Prepare dataset
+```{r}
+## 1. Merge patients pre and controls
+Patients_vs_HC <- rbind(data_Pat_pre, data_HC)
+
+## 2. Reduce dataset to executive functions of interest (BIS columns and SSRT)
+BIS_columns <- colnames(Patients_vs_HC)[grep("BIS", colnames(Patients_vs_HC))]
+BIS_columns <- BIS_columns[BIS_columns != "T1_BAT_BIS_11_score"] # BIS-11 is a questionnaire
+imp_columns <- c(BIS_columns, "SSRT")
+Patients_vs_HC_imp <- Patients_vs_HC[,c("Subject","Gruppe",imp_columns)]
+
+## 3. Add confounds (Alter, Geschlecht, Abschluss)
+Patients_vs_HC_imp_conf <- merge(Patients_vs_HC[,c("Subject","Alter","Geschlecht","Abschluss")], Patients_vs_HC_imp, by = "Subject")
+```
+Data for `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1,])` patients and `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0,])` healthy controls were available.
+Find assumption test for normality in script "Testing Normality"
+
+###Testing for variance homogeneity
+```{r}
+# Ensure "Gruppe" is treated as a factor
+Patients_vs_HC_imp$Gruppe <- as.factor(Patients_vs_HC_imp$Gruppe)
+
+# Function to perform Levene's test on multiple columns
+levene_test_mult_cols <- function(df_basis, cols) {
+  df <- data.frame(p_value = numeric(length(cols)))
+  rownames(df) <- cols
+  
+  for (i in seq_along(cols)) {
+    col <- cols[i]
+    # Perform Levene's test, treating 'Gruppe' as a factor
+    levene_result <- leveneTest(df_basis[[col]] ~ df_basis[["Gruppe"]])
+    df[col, "p_value"] <- round(levene_result[1, "Pr(>F)"], 4)
+  }
+  
+  return(df)
+}
+
+# Perform Levene's test for homogeneity of variance
+levene_test_table <- levene_test_mult_cols(df_basis = Patients_vs_HC_imp, cols = imp_columns)
+pander(levene_test_table, style = "rmarkdown", fontsize = "tiny")
+```
+
+### Calculate Welch t-test
+```{r}
+t_test_mult_cols <- function(df_basis, cols) {
+  # Caclualte a t-test for multiple comparisons and store the results in a dataframe
+  df <- data.frame(t_statistic = numeric(length(cols)), p_value = numeric(length(cols)),
+                   group_mean_Patients = numeric(length(cols)), sd_Patients = numeric(length(cols)),
+                   group_mean_HC = numeric(length(cols)), sd_HC = numeric(length(cols)),
+                   cohen_d = numeric(length(cols)))
+  rownames(df) <- cols
+  p_values_raw <- numeric(length(cols))  # Vector to store raw p-values
+  
+  for (i in seq_along(cols)) {
+    col <- cols[i] #seq_along for sequencing column indices
+    
+    # Using the non-formula interface
+    group0 <- na.omit(df_basis[df_basis[["Gruppe"]] == 0, col])
+    group1 <- na.omit(df_basis[df_basis[["Gruppe"]] == 1, col])
+    results <- t.test(group0, group1, paired = FALSE, var.equal = FALSE)
+    #Alternativ using formula method:
+      #results <- t.test(df_basis[[col]] ~ df_basis[["Gruppe"]], paired = FALSE, var.equal = FALSE)
+    
+    # Store raw p-values for BH correction
+    p_values_raw[i] <- results$p.value
+    
+    # Calculate Cohen's d using the cohen.d function (effect size)
+    cohen_d_result <- cohen.d(group0, group1, hedges.correction = FALSE)
+    cohen_d <- cohen_d_result$estimate
+    
+    # Calculate power using pwr.t.test
+    n0 <- length(group0)
+    n1 <- length(group1)
+    power_result <- pwr.t.test(d = cohen_d, n = min(n0, n1), sig.level = 0.05, type = "two.sample", alternative = "greater")
+    power <- power_result$power
+    
+    # Store the results
+    df[col, "t_statistic"] <- round(results$statistic, 2)
+    df[col, "p_value"] <- round(results$p.value, 2)
+    df[col, "group_mean_Patients"] <- round(mean(group1), 2)
+    df[col, "sd_Patients"] <- round(sd(group0), 2)
+    df[col, "group_mean_HC"] <- round(mean(group0), 2)
+    df[col, "sd_HC"] <- round(sd(group1), 2)
+    df[col, "cohen_d"] <- round(cohen_d, 2)
+    df[col, "power"] <- round(power, 2)
+  }
+  
+  # Adjust p-values using Benjamini-Hochberg method for multiple testing of related tasks
+  p_values_adjusted <- p.adjust(p_values_raw, method = "BH")
+  df$p_value_adjusted <- round(p_values_adjusted, 2)
+  
+  return(df)
+}
+
+t_test_table <- t_test_mult_cols(df_basis = Patients_vs_HC_imp, cols = imp_columns)
+pander(t_test_table, style = "rmarkdown", fontsize = "tiny")
+```
+Patients performed worse than healthy controls, especially in the Stroop and the NumberLetter Task. However, please note that we have not tested for baseline differences (e.g., education, age...). This is done in the following step.
+
+### Characteristics Table: Descriptive Statistics
+```{r}
+# Data frame that codes variables according to study protocol
+characteristics_data <- Patients_vs_HC %>%
+  select(Gruppe, Alter, Geschlecht, Abschluss, 
+         T1_BAT_BDI_II_score, T1_BAT_STAI_T_score, T1_BAT_BIS_11_score, 
+         T1_BAT_Kirby_k_score, T1_BAT_CFC_14_score, T1_BAT_SRHI_score) %>%
+  mutate(Gruppe = factor(Gruppe, levels = c(0, 1), labels = c("Healthy Controls", "Patients")),
+         Geschlecht = factor(Geschlecht, levels = c(0, 1, 2), labels = c("Male", "Female", "Unknown")),
+         Abschluss = factor(Abschluss, levels = c(1, 2, 3, 4), 
+                            labels = c("Basic secondary education", "Intermediate secondary education",
+                                       "Higher secondary education", "Other")))
+
+# Data frame that codes variables according to study protocol
+characteristics_data <- Patients_vs_HC %>%
+  select(Gruppe, Alter, Geschlecht, Abschluss, 
+         T1_BAT_BDI_II_score, T1_BAT_STAI_T_score, T1_BAT_BIS_11_score, 
+         T1_BAT_Kirby_k_score, T1_BAT_CFC_14_score, T1_BAT_SRHI_score) %>%
+  mutate(Gruppe = factor(Gruppe, levels = c(0, 1), labels = c("Healthy Controls", "Patients")),
+         Geschlecht = factor(Geschlecht, levels = c(0, 1, 2), labels = c("Male", "Female", "Unknown")),
+         Abschluss = factor(Abschluss, levels = c(1, 2, 3, 4), 
+                            labels = c("Basic secondary education", "Intermediate secondary education",
+                                       "Higher secondary education", "Other")))
+
+# Create the summary table with indented T1_BAT variables
+characteristics_table <- characteristics_data %>%
+  tbl_summary(
+    by = Gruppe,  # Compare by Gruppe (HC vs. Patients)
+    label = list(
+      Alter ~ "Age",
+      Geschlecht ~ "Sex",
+      Abschluss ~ "Education",
+      T1_BAT_BDI_II_score ~ "BDI-II Score",
+      T1_BAT_STAI_T_score ~ "STAI-T Score",
+      T1_BAT_BIS_11_score ~ "BIS-11 Score",
+      T1_BAT_Kirby_k_score ~ "Kirby k Score",
+      T1_BAT_CFC_14_score ~ "CFC-14 Score",
+      T1_BAT_SRHI_score ~ "SRHI Score"
+    ),
+    statistic = list(  # Add mean (SD) for numeric and counts for categorical
+      all_continuous() ~ "{mean} ({sd})",  
+      all_categorical() ~ "{n}"
+    ),
+    missing = "no"  # Exclude missing data
+  ) %>%
+  # Modify the table to add a fake grouping row (Display baseline test scores under separate sub-heading)
+  modify_table_body(
+    ~ .x %>%
+      add_row(
+        variable = "Baseline Assessment",
+        row_type = "label",
+        label = "Baseline Assessment"
+      ) %>%
+      arrange(factor(variable, levels = c(
+        "Age", "Sex", "Education", "Baseline Assessment",
+        "T1_BAT_BDI_II_score", "T1_BAT_STAI_T_score", 
+        "T1_BAT_BIS_11_score", "T1_BAT_Kirby_k_score",
+        "T1_BAT_CFC_14_score", "T1_BAT_SRHI_score"
+      )))
+  ) %>%
+  # Indent the T1_BAT variables
+  modify_table_styling(
+    columns = label,
+    rows = variable %in% c(
+      "T1_BAT_BDI_II_score", "T1_BAT_STAI_T_score", 
+      "T1_BAT_BIS_11_score", "T1_BAT_Kirby_k_score",
+      "T1_BAT_CFC_14_score", "T1_BAT_SRHI_score"
+    ),
+    indent = 3
+  )
+
+characteristics_table
+```
+
+Alternative: Separate Tables
+```{r}
+# Data frame that codes variables according to study protocol
+characteristics_data <- Patients_vs_HC %>%
+  select(Gruppe, Alter, Geschlecht, Abschluss) %>%
+  mutate(Gruppe = factor(Gruppe, levels = c(0, 1), labels = c("Healthy Controls", "Patients")),
+         Geschlecht = factor(Geschlecht, levels = c(0, 1, 2), labels = c("Male", "Female", "Unknown")),
+         Abschluss = factor(Abschluss, levels = c(1, 2, 3, 4), 
+                            labels = c("Basic secondary education", "Intermediate secondary education",
+                                       "Higher secondary education", "Other")))
+
+# Create a summary table
+characteristics_table_no_n <- characteristics_data %>%
+  tbl_summary(by = Gruppe,  # Compare by Gruppe (HC vs. Pat)
+              label = list(
+                Alter ~ "Age",
+                Geschlecht ~ "Sex",
+                Abschluss ~ "Education"
+              ),
+              statistic = list(  # Add mean (SD) for numeric and counts for categorical
+                all_continuous() ~ "{mean} ({sd})",  
+                all_categorical() ~ "{n}"
+              ),
+              missing = "no") %>%  # Include missing data as counts if any
+  modify_header(label ~ "**Characteristic**")
+
+# Data frame for baseline assessment test scores
+baseline_data <- Patients_vs_HC %>%
+  select(Gruppe, T1_BAT_BDI_II_score, T1_BAT_STAI_T_score, T1_BAT_BIS_11_score,
+         T1_BAT_Kirby_k_score, T1_BAT_CFC_14_score, T1_BAT_SRHI_score) %>%
+  mutate(Gruppe = factor(Gruppe, levels = c(0, 1), labels = c("Healthy Controls", "Patients")))
+
+# Create a summary table for baseline assessment scores
+baseline_table <- baseline_data %>%
+  tbl_summary(by = Gruppe,  # Compare by Gruppe (HC vs. Pat)
+              label = list(
+                T1_BAT_BDI_II_score ~ "BDI-II Score",
+                T1_BAT_STAI_T_score ~ "STAI-T Score",
+                T1_BAT_BIS_11_score ~ "BIS-11 Score",
+                T1_BAT_Kirby_k_score ~ "Kirby k Score",
+                T1_BAT_CFC_14_score ~ "CFC-14 Score",
+                T1_BAT_SRHI_score ~ "SRHI Score"
+              ),
+              statistic = list(
+                all_continuous() ~ "{mean} ({sd})"  # Mean (SD) for all continuous variables
+              ),
+              missing = "no") %>%  # Include missing data as counts if any
+  modify_header(label ~ "**Baseline Assessment**")
+
+baseline_table
+characteristics_table_no_n
+```
+
+```{r}
+leveneTest(T1_BAT_STAI_T_score ~ as.factor(Gruppe), data = Patients_vs_HC)
+t_test_result <- t.test(T1_BAT_STAI_T_score ~ Gruppe, data = Patients_vs_HC, var.equal = FALSE)
+print(t_test_result)
+```
+
+
+###  Table: Inferential Statistics
+```{r}
+# Create a data frame with inferential statistics (p-value, adjusted p-value, Cohen's d, power)
+inferential_stats_df <- data.frame(
+  Task = c("Number Letter Repeat", "Number Letter Switch", "Number Letter Difference BIS Score",
+           "Stroop Congruent", "Stroop Incongruent", "Stroop BIS Difference Score",
+           "Two Back Foil", "Two Back Target", "Two Back Difference BIS Score", "SSRT"),  # Include the missing task
+  unadjusted_p_value = t_test_table$p_value,
+  adjusted_p_value = t_test_table$p_value_adjusted,
+  cohen_d = t_test_table$cohen_d,
+  power = t_test_table$power
+)
+
+# Create the inferential statistics table using gt
+inferential_stats_table <- inferential_stats_df %>%
+  gt() %>% # uses gt instead of tbl_summary because easier implementation for inferential tables for which data already computed somewhere else
+  tab_header(
+    title = "Inferential Statistics: Healthy Controls vs. Patients"
+  ) %>%
+  cols_label(
+    Task = html("<b>Task</b>"),
+    unadjusted_p_value = html("<b>Unadjusted p-value</b>"),
+    adjusted_p_value = html("<b>Adjusted p-value</b>"),
+    cohen_d = html("<b>Cohen's d</b>"),
+    power = html("<b>Power</b>")
+  ) %>%
+  fmt_number(
+    columns = c(unadjusted_p_value, adjusted_p_value, cohen_d, power),
+    decimals = 2
+  )
+
+inferential_stats_table
+```
+
+## <u>Plotting</u>
+
+#### Prepare data
+```{r}
+# Reshape data from wide to long format, including SSRT
+Patients_vs_HC_long <- Patients_vs_HC_imp %>%
+  pivot_longer(cols = all_of(imp_columns), # imp_columns now includes SSRT
+               names_to = "Condition",
+               values_to = "BIS_Score")
+
+# Add new task variable to keep the headers intact for faceting
+Patients_vs_HC_long <- Patients_vs_HC_long %>%
+  mutate(Task = case_when(
+    grepl("NumberLetter", Condition) ~ "Number-Letter Task",
+    grepl("Stroop", Condition) ~ "Stroop Task",
+    grepl("TwoBack", Condition) ~ "2-Back Task",
+    Condition == "SSRT" ~ "Stop Signal Task"
+  ))
+
+# Remove prefixes from Condition labels, keeping Task intact
+Patients_vs_HC_long <- Patients_vs_HC_long %>%
+  mutate(Condition = gsub("NumberLetter_BIS_|Stroop_BIS_|TwoBack_BIS_", "", Condition)) %>%
+  mutate(Condition = as.character(Condition)) %>%
+  
+  # Set the condition order for each task separately to avoid conflicts (cannot both be "Diff_Score")
+  mutate(Condition = ifelse(Task == "NumberLetter" & Condition == "Diff_Score", "Diff_Score NL", Condition)) %>%
+  mutate(Condition = ifelse(Task == "Stroop" & Condition == "Diff_Score", "Diff_Score Stroop", Condition)) %>%
+  
+  # Convert Condition to factor with ordering
+  mutate(Condition = case_when(
+    Task == "NumberLetter" ~ factor(Condition, levels = c("Repeat", "Switch", "Diff_Score NL")),
+    Task == "Stroop" ~ factor(Condition, levels = c("Congruent", "Incongruent", "Diff_Score Stroop")),
+    Task == "TwoBack" ~ factor(Condition, levels = c("Target", "Foil", "Total")),
+    TRUE ~ as.factor(Condition)
+  ))
+
+# Convert "Gruppe" to factor
+Patients_vs_HC_long$Gruppe <- factor(Patients_vs_HC_long$Gruppe, levels = c(0, 1), labels = c("Healthy Controls", "Patients"))
+```
+
+##### Violin Plot: Patients vs. Healthy Controls
+```{r}
+# Create violin plots with mean and rename conditions in the plot
+
+violin_plots_patients_hc <- ggplot(Patients_vs_HC_long, aes(x = Condition, y = BIS_Score, fill = Gruppe)) +
+  geom_violin(position = position_dodge(width = 0.8)) +
+  stat_summary(fun.data = mean_sdl, geom = "pointrange", # mult = 2 (SD) by default
+               position = position_dodge(width = 0.8)) + # width = 0.65, fatten = 2
+  facet_wrap(~ Task, scales = "free") +
+  labs(x = "",
+       y = "Performance Score",
+       fill = "Group") +
+  scale_x_discrete(labels = function(x) {
+    x[x == "Diff_Score"] <- "Difference \nScore"
+    x[x == "Diff_Score Stroop"] <- "Difference \nScore"
+    x[x == "Total"] <- "Difference \nScore"
+    return(x)
+  }) +
+  scale_fill_manual(values = c("Healthy Controls" = "#D3D3D3", #colors 
+                                 "Patients" = "#48CFCB")) +
+  theme_bw() +
+  theme(
+    text = element_text(family = "Arial"), #Font
+    axis.title = element_text(size = 24),
+    axis.title.y = element_text(size = 24, margin = margin(r = 30)),
+    axis.text = element_text(size = 18),
+    legend.title = element_text(size = 24),
+    legend.text = element_text(size = 18),
+    strip.text = element_text(size = 20),
+    panel.spacing.x = unit(3, "lines")
+  )
+print(violin_plots_patients_hc)
+ggsave("C:/Users/Till/Desktop/violin_plots_patients_hc.png", plot = violin_plots_patients_hc, width = 16, height = 9, dpi = 300)
+```
+
+##### Boxplot: Patients vs. Healthy Controls
+```{r}
+# Create boxplots
+boxplots_Patients_HC <- ggplot(Patients_vs_HC_long, aes(x = Condition, y = BIS_Score, color = Gruppe)) +
+  geom_boxplot(outlier.shape = NA) + 
+  geom_jitter(position = position_jitterdodge(),
+              size = 0.7,
+              shape = 21,
+              fill = NA) +
+  facet_wrap(~ Task, scales = "free") +
+  #facet_grid(rows = vars(Task), scales = "free_x") +
+  labs(title = "Boxplots of Task Condition by Group",
+       x = "Condition",
+       y = "BIS-Score",
+       color = "Group")
+print(boxplots_Patients_HC)
+```
