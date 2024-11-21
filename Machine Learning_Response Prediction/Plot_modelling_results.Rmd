@@ -11,6 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Packages
 ```{r}
+# windowsFonts(Arial=windowsFont("Arial"))
 library(readr)
 library(dplyr)
 library(ggplot2)
@@ -60,20 +61,6 @@ regression_results <- combined_results[grepl("regressor", combined_results$Folde
 
 # Function to XXX
 ```{r}
-# # Group models for color coding
-# group_mapping <- c("clinical_features_rf_classifier" = "Group1", "all_features_rf_classifier" = "Group1",
-#                    "clinical_features_rf_classifier_oversampled" = "Group2", "all_features_rf_classifier_oversampled" = "Group2",
-#                    "clinical_features_svm_classifier" = "Group3", "all_features_svm_classifier" = "Group3",
-#                    "clinical_features_svm_classifier_oversampled" = "Group4", "all_features_svm_classifier_oversampled" = "Group4")
-# classification_results$Group <- group_mapping[classification_results$FolderName]
-# 
-# # Assign colors based on element position within each group
-# classification_results <- classification_results %>%
-#   group_by(Group) %>%
-#   mutate(ElementPosition = row_number()) %>%  # Assign position within each group
-#   ungroup()
-# classification_results$ElementColor <- ifelse(classification_results$ElementPosition == 1, "Color1", "Color2")
-
 create_classification_plot <- function(results_df){
   # Set factor levels for FolderName to control the x-axis order
   results_df$FolderName <- factor(results_df$FolderName, levels = c(
