@@ -60,6 +60,20 @@ regression_results <- combined_results[grepl("regressor", combined_results$Folde
 
 # Function to XXX
 ```{r}
+# # Group models for color coding
+# group_mapping <- c("clinical_features_rf_classifier" = "Group1", "all_features_rf_classifier" = "Group1",
+#                    "clinical_features_rf_classifier_oversampled" = "Group2", "all_features_rf_classifier_oversampled" = "Group2",
+#                    "clinical_features_svm_classifier" = "Group3", "all_features_svm_classifier" = "Group3",
+#                    "clinical_features_svm_classifier_oversampled" = "Group4", "all_features_svm_classifier_oversampled" = "Group4")
+# classification_results$Group <- group_mapping[classification_results$FolderName]
+# 
+# # Assign colors based on element position within each group
+# classification_results <- classification_results %>%
+#   group_by(Group) %>%
+#   mutate(ElementPosition = row_number()) %>%  # Assign position within each group
+#   ungroup()
+# classification_results$ElementColor <- ifelse(classification_results$ElementPosition == 1, "Color1", "Color2")
+
 create_classification_plot <- function(results_df){
   # Set factor levels for FolderName to control the x-axis order
   results_df$FolderName <- factor(results_df$FolderName, levels = c(
@@ -68,9 +82,18 @@ create_classification_plot <- function(results_df){
     "clinical_features_svm_classifier","all_features_svm_classifier",
     "clinical_features_svm_classifier_oversampled","all_features_svm_classifier_oversampled"))
   
+  ## Define alternating colors for the x-axis levels
+  #colors <- c("white", "#D3D3D3", "white", "#D3D3D3", "white", "#D3D3D3","white", "#D3D3D3")
+  
+  # Define colors and their labels for the legend
+  colors <- c("Clinical Features" = "white", "All Features" = "#D3D3D3")
+  results_df$FeatureGroup <- ifelse(grepl("clinical_features", results_df$FolderName),
+                                    "Clinical Features", "All Features")
+  
   # Create ggplot
-  plot <- ggplot(results_df, aes(x=FolderName, y=balanced_accuracy)) +
+  plot <- ggplot(results_df, aes(x=FolderName, y=balanced_accuracy, fill=FeatureGroup)) +
     geom_violin(scale = "width") +
+    geom_jitter(size = 1) +
     stat_summary(
       geom = "point",
       shape = 24,
@@ -79,8 +102,9 @@ create_classification_plot <- function(results_df){
       fill = "red",
       size = 3
     ) +
-    labs(y = "Balanced accuracy",  x = "") + 
+    labs(y = "Balanced accuracy",  x = "", fill = "Feature Group") + 
     scale_y_continuous(breaks = c(0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8)) +
+    scale_fill_manual(values = colors) + 
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
   return(plot)
