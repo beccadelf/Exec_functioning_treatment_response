@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Packages
 ```{r}
-# windowsFonts(Arial=windowsFont("Arial"))
+windowsFonts(Arial=windowsFont("Arial"))
 library(readr)
 library(dplyr)
 library(ggplot2)
@@ -109,7 +109,7 @@ create_regression_plot <- function(results_df){
     "clinical_features_ridge_regressor", "all_features_ridge_regressor"))
   
   # Create ggplot
-  plot <- ggplot(results_df, aes(x=FolderName, y=MSE)) +
+  plot <- ggplot(results_df, aes(x=MSE, y=FolderName)) +
     geom_violin() +
     stat_summary(
       geom = "point",
@@ -119,8 +119,8 @@ create_regression_plot <- function(results_df){
       fill = "red",
       size = 3
     ) +
-    labs(y = "Mean squared error",  x = "") + 
-    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    labs(x = "Mean squared error",  y = "") #+ 
+    #theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
   return(plot)
 }
