@@ -6,7 +6,7 @@ output: html_document
 ---
 # Setup
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 ```
 
 # Packages
@@ -46,6 +46,7 @@ for (folder_name in results_folders) {
 
 # Combine results
 combined_results <- bind_rows(results_dict, .id = "FolderName")
+
 # Rename folder-names
 combined_results$FolderName <- gsub("random_forest","rf",combined_results$FolderName)
 combined_results$FolderName <- gsub("svm","svm_classifier",combined_results$FolderName) # TODO: delete if scrips have been re-run
@@ -62,25 +63,24 @@ regression_results <- combined_results[grepl("regressor", combined_results$Folde
 # Function to XXX
 ```{r}
 create_classification_plot <- function(results_df){
-  # Set factor levels for FolderName to control the x-axis order
-  results_df$FolderName <- factor(results_df$FolderName, levels = c(
-    "clinical_features_rf_classifier","all_features_rf_classifier",
-    "clinical_features_rf_classifier_oversampled","all_features_rf_classifier_oversampled",
-    "clinical_features_svm_classifier","all_features_svm_classifier",
-    "clinical_features_svm_classifier_oversampled","all_features_svm_classifier_oversampled"))
+  # Create new model variable
+  results_df$Model <- ifelse(grepl("_rf_classifier_oversampled", results_df$FolderName), "Random Forest (Oversampled)",
+                      ifelse(grepl("_rf_classifier", results_df$FolderName), "Random Forest",
+                      ifelse(grepl("_svm_classifier_oversampled", results_df$FolderName), "SVM (Oversampled)",
+                      ifelse(grepl("_svm_classifier", results_df$FolderName), "SVM", NA))))
   
-  ## Define alternating colors for the x-axis levels
-  #colors <- c("white", "#D3D3D3", "white", "#D3D3D3", "white", "#D3D3D3","white", "#D3D3D3")
-  
-  # Define colors and their labels for the legend
+  # Define feature sets and specify colors
   colors <- c("Clinical Features" = "white", "All Features" = "#D3D3D3")
-  results_df$FeatureGroup <- ifelse(grepl("clinical_features", results_df$FolderName),
-                                    "Clinical Features", "All Features")
+  results_df$FeatureSet <- ifelse(grepl("clinical_features", results_df$FolderName),
+                                  "Clinical Features", "All Features")
+  
+  # Set factor levels for FeatureSet to control order in the plot
+  results_df$FeatureSet <- factor(results_df$FeatureSet, levels = c("Clinical Features", "All Features"))
   
   # Create ggplot
-  plot <- ggplot(results_df, aes(x=FolderName, y=balanced_accuracy, fill=FeatureGroup)) +
+  plot <- ggplot(results_df, aes(x=FeatureSet, y=balanced_accuracy, fill=FeatureSet)) +
     geom_violin(scale = "width") +
-    geom_jitter(size = 1) +
+    geom_jitter(size = 1, width = 0.2, height = 0) + 
     stat_summary(
       geom = "point",
       shape = 24,
@@ -89,10 +89,12 @@ create_classification_plot <- function(results_df){
       fill = "red",
       size = 3
     ) +
-    labs(y = "Balanced accuracy",  x = "", fill = "Feature Group") + 
+    labs(y = "Balanced accuracy",  x = "", fill = "Feature Set") + 
     scale_y_continuous(breaks = c(0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8)) +
     scale_fill_manual(values = colors) + 
-    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+          legend.position = "none") +
+    facet_wrap(~Model, nrow = 1)
 
   return(plot)
 }
@@ -103,14 +105,22 @@ classification_plot <- create_classification_plot(results_df = classification_re
 # Function to XXX
 ```{r}
 create_regression_plot <- function(results_df){
-  # Set factor levels for FolderName to control the x-axis order
-  results_df$FolderName <- factor(results_df$FolderName, levels = c(
-    "clinical_features_rf_regressor", "all_features_rf_regressor",
-    "clinical_features_ridge_regressor", "all_features_ridge_regressor"))
+  # Create new model variable
+  results_df$Model <- ifelse(grepl("_rf_regressor", results_df$FolderName), "Random Forest",
+                      ifelse(grepl("_ridge_regressor", results_df$FolderName), "Ridge", NA))
+  
+  # Define feature sets and specify colors
+  colors <- c("Clinical Features" = "white", "All Features" = "#D3D3D3")
+  results_df$FeatureSet <- ifelse(grepl("clinical_features", results_df$FolderName),
+                                  "Clinical Features", "All Features")
+  
+  # Set factor levels for FeatureSet to control order in the plot
+  results_df$FeatureSet <- factor(results_df$FeatureSet, levels = c("Clinical Features", "All Features"))
   
   # Create ggplot
-  plot <- ggplot(results_df, aes(x=MSE, y=FolderName)) +
-    geom_violin() +
+  plot <- ggplot(results_df, aes(x=FeatureSet, y=MSE, fill=FeatureSet)) +
+    geom_violin(scale = "width") +
+    geom_jitter(size = 1, width = 0.2, height = 0) + 
     stat_summary(
       geom = "point",
       shape = 24,
@@ -119,8 +129,11 @@ create_regression_plot <- function(results_df){
       fill = "red",
       size = 3
     ) +
-    labs(x = "Mean squared error",  y = "") #+ 
-    #theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    labs(y = "Mean squared error",  x = "", fill = "Feature Set") + 
+    scale_fill_manual(values = colors) + 
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+          legend.position = "none") +
+    facet_wrap(~Model, nrow = 1)
 
   return(plot)
 }
