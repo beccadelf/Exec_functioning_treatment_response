@@ -137,15 +137,21 @@ def procedure_per_iter(num_iter, args):
     elif args.CLASSIFIER == "svm_classifier":
         clf, feature_weights = fit_svm_classifier(
             X_train_imp_clean_scaled_sel, y_train_final)
-        
+    
     # Calculate model performance metrics
     y_pred_test = clf.predict(X_test_imp_clean_scaled_sel)
-    ev_metrics = calc_eval_metrics_classification(
+    ev_metrics_test = calc_eval_metrics_classification(
         y_true=y_test, y_pred=y_pred_test)
+    
+    # Calculate training metrics
+    y_pred_train = clf.predict(X_train_imp_clean_scaled_sel)
+    ev_metrics_train = calc_eval_metrics_classification(
+        y_true=y_train_final, y_pred=y_pred_train)
     
     # Save relevant information for each iteration in a dictionary
     results_single_iter = {
-        "ev_metrics": ev_metrics,
+        "ev_metrics_test": ev_metrics_test,
+        "ev_metrics_train": ev_metrics_train,
         "sel_features_names": list(features_selected),
         "sel_features_imp": list(feature_weights),
         "excluded_feat": feature_names_excl
@@ -172,9 +178,12 @@ if __name__ == '__main__':
     outcomes[:] = map(procedure_per_iter_spec, runs_list) # We are using map to enable parallel-processing
     
     # Summarize metric and feature results across iterations
-    performance_metrics_across_iters = get_performance_metrics_across_iters(outcomes, key_metrics = "ev_metrics")
-    performance_metrics_summarized = summarize_performance_metrics_across_iters(outcomes, key_metrics = "ev_metrics")
+    ## Test metrics
+    performance_metrics_across_iters = get_performance_metrics_across_iters(outcomes, key_metrics = "ev_metrics_test")
+    performance_metrics_summarized = summarize_performance_metrics_across_iters(outcomes, key_metrics = "ev_metrics_test")
     features_summarized = summarize_features(outcomes=outcomes, key_feat_names="sel_features_names", key_feat_weights="sel_features_imp")
+    ## Training metrics
+    train_performance_summarized = summarize_performance_metrics_across_iters(outcomes, key_metrics = "ev_metrics_train")   
     
     # Save summaries as csv
     performance_metrics_across_iters.to_csv(os.path.join(
@@ -183,6 +192,8 @@ if __name__ == '__main__':
         PATHS["RESULT"], "performance_summary.txt"), sep="\t")
     features_summarized.to_csv(os.path.join(
         PATHS["RESULT"], "features_summary.txt"), sep="\t", na_rep="NA")
+    train_performance_summarized.to_csv(os.path.join(
+        PATHS["RESULT"], "training_performance_summary.txt"), sep="\t")
     
     elapsed_time = time.time() - start_time
     print('\nThe time for running was {}.'.format(elapsed_time))
