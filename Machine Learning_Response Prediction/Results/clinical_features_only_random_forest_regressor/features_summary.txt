@@ -1,3 +1,0 @@
-	selection frequency	mean coefficient
-Realschule	4	0.5852478585133637
-Abitur	4	0.4147521414866363

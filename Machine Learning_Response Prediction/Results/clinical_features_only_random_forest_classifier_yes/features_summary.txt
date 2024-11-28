@@ -1,4 +1,0 @@
-	selection frequency	mean coefficient
-Abitur	4	0.17837465833590685
-Realschule	4	0.17157760506098513
-STAI_T	3	0.8667303154708108
