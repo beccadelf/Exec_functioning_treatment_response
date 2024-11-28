@@ -14,6 +14,7 @@ library(caret)
 ```
 
 # 0. Load relevant data (only data of patients_pre are further processed)
+
 ```{r}
 basic_path <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/With_wrong_responses"
 
@@ -21,14 +22,17 @@ task_data <- read.csv(file.path(basic_path,"Performance_Scores/Task_Performance_
 data_pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
 ```
 
-# 1. Exclude patients 
+# 1. Exclude patients
+
 ```{r}
 data_pat_pre_clean <- data_pat_pre %>%
   filter(!is.na(Response)) # equals to NA at T1_BAT_FAS_score and/or T3_BAT_FAS_score
 ```
 `r nrow(data_pat_pre) - nrow(data_pat_pre_clean)` patients were removed due to missing FAS_T1 and/or FAS_T3 (i.e. response criterion).
 
-# 2. Add overall accuracy as additional feature (and PercentRmv if trials with wrong responses were discarded)
+# 2. Add overall accuracy as additional feature
+Note: also add PercentRmv as control variable if trials with wrong responses were discarded
+
 ```{r}
 features_df <- left_join(x = data_pat_pre_clean,
                          y = task_data %>% select(Subject, NumbLet_Average_PC,
@@ -38,6 +42,7 @@ features_df <- left_join(x = data_pat_pre_clean,
 ```
 
 # 3. Encode classes (for classifier) vs. outcome (for regressor)
+
 ## 3.1. Classes (Responder vs. Non-Responder)
 ```{r Save labels in separate dataframe}
 labels_df <- features_df["Response"]
@@ -50,6 +55,7 @@ outcome_df <- data.frame(FAS_perc_change = ((features_df$T3_BAT_FAS_score - feat
 ```
 
 # 4. Dummy-Vars and renaming of features
+
 ```{r Prepare for ML}
 
 # 1. OneHot-Encoding of variable "Abschluss"
@@ -99,11 +105,17 @@ for (feature in non_bin_cols) {
 }
 ```
 
-# 6. Create feature dataframe without executive task feature for hypothesis testing
+# 6. Create different feature sets
 
 ```{r Reduced feature dataframe}
+# Set 1: Clinical features only
 clin_features <- c("is_woman", "Age", "FAS", "BDI_II", "STAI_T", "BIS_11", "Kirby_k", "CFC_14", "SRHI", "Hauptschule", "Realschule", "Abitur", "anderer_Abschluss")
 clin_features_df_enc <- features_df_enc[clin_features]
+
+# Set 2: All features but without Overall Accuracy
+all_features_final <- features_df_enc[, !names(features_df_enc) %in% c("NumbLet_Average_PC", "Stroop_Average_PC", "TwoBack_Average_PC")]
+
+# Set 3: features_df_enc, includes Overall Accuracy
 ```
 
 # 7. Save all 4 dataframes
@@ -111,7 +123,8 @@ clin_features_df_enc <- features_df_enc[clin_features]
 ```{r Save dataframes}
 file_path <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/2_Machine_learning/Feature_Label_Dataframes/"
 
-write.csv(features_df_enc, paste0(file_path, "all_features.csv"), row.names = FALSE)
+write.csv(all_features_final, paste0(file_path, "all_features.csv"), row.names = FALSE)
+write.csv(features_df_enc, paste0(file_path, "all_features_accuracy.csv"), row.names = FALSE)
 write.csv(clin_features_df_enc, paste0(file_path, "clinical_features_only.csv"), row.names = FALSE)
 write.csv(labels_df, paste0(file_path, "labels.csv"), row.names = FALSE)
 write.csv(outcome_df, paste0(file_path, "outcomes.csv"), row.names = FALSE)
