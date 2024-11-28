@@ -118,7 +118,7 @@ all_features_final <- features_df_enc[, !names(features_df_enc) %in% c("NumbLet_
 # Set 3: features_df_enc, includes Overall Accuracy
 ```
 
-# 7. Save all 4 dataframes
+# 7. Save all 5 dataframes
 
 ```{r Save dataframes}
 file_path <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/2_Machine_learning/Feature_Label_Dataframes/"
