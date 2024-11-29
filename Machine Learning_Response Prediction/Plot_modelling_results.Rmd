@@ -36,6 +36,9 @@ theme_set(theme_classic() + theme(text = element_text(size = size_text, family =
 path_results_folder = "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Results"
 results_folders <- list.files(path = path_results_folder, full.names = FALSE)
 
+# Filter for new results
+results_folders <- results_folders[grepl("new", results_folders)]
+
 # For each folder, save the performance_across_iters-file in dictionary
 results_dict = list()
 for (folder_name in results_folders) {
@@ -48,11 +51,10 @@ for (folder_name in results_folders) {
 combined_results <- bind_rows(results_dict, .id = "FolderName")
 
 # Rename folder-names
-combined_results$FolderName <- gsub("random_forest","rf",combined_results$FolderName)
-combined_results$FolderName <- gsub("svm","svm_classifier",combined_results$FolderName) # TODO: delete if scrips have been re-run
-combined_results$FolderName <- gsub("_no_oversampling","",combined_results$FolderName)
-combined_results$FolderName <- gsub("yes_oversampling","oversampled",combined_results$FolderName)
-combined_results$FolderName <- gsub("clinical_features_only","clinical_features",combined_results$FolderName)
+# combined_results$FolderName <- gsub("random_forest","rf",combined_results$FolderName)
+# combined_results$FolderName <- gsub("_no_oversampling","",combined_results$FolderName)
+# combined_results$FolderName <- gsub("yes_oversampling","oversampled",combined_results$FolderName)
+# combined_results$FolderName <- gsub("clinical_features_only","clinical_features",combined_results$FolderName)
 combined_results$X <- NULL
 
 # Separate into regressor and classifier dataframes
@@ -64,18 +66,24 @@ regression_results <- combined_results[grepl("regressor", combined_results$Folde
 ```{r}
 create_classification_plot <- function(results_df){
   # Create new model variable
-  results_df$Model <- ifelse(grepl("_rf_classifier_oversampled", results_df$FolderName), "Random Forest (Oversampled)",
-                      ifelse(grepl("_rf_classifier", results_df$FolderName), "Random Forest",
-                      ifelse(grepl("_svm_classifier_oversampled", results_df$FolderName), "SVM (Oversampled)",
-                      ifelse(grepl("_svm_classifier", results_df$FolderName), "SVM", NA))))
+  results_df$Model <- ifelse(grepl("random_forest_classifier_yes_oversampling", results_df$FolderName),
+                             "Random Forest (Oversampled)",
+                      ifelse(grepl("random_forest_classifier_yes_smote_oversampling", results_df$FolderName),
+                             "Random Forest (Smote Oversampled)",
+                      ifelse(grepl("random_forest_classifier_no_oversampling", results_df$FolderName),
+                             "Random Forest",
+                      ifelse(grepl("svm_classifier_yes_oversampling", results_df$FolderName), 
+                             "SVM (Oversampled)",
+                      ifelse(grepl("svm_classifier_no_oversampling", results_df$FolderName), 
+                             "SVM", NA)))))
   
   # Define feature sets and specify colors
-  colors <- c("Clinical Features" = "white", "All Features" = "#D3D3D3")
+  colors <- c("Clinical Features" = "white", "Clinical + Executive Functioning Features" = "#D3D3D3")
   results_df$FeatureSet <- ifelse(grepl("clinical_features", results_df$FolderName),
-                                  "Clinical Features", "All Features")
+                                  "Clinical Features", "Clinical + Executive Functioning Features")
   
   # Set factor levels for FeatureSet to control order in the plot
-  results_df$FeatureSet <- factor(results_df$FeatureSet, levels = c("Clinical Features", "All Features"))
+  results_df$FeatureSet <- factor(results_df$FeatureSet, levels = c("Clinical Features", "Clinical + Executive Functioning Features"))
   
   # Create ggplot
   plot <- ggplot(results_df, aes(x=FeatureSet, y=balanced_accuracy, fill=FeatureSet)) +
@@ -106,16 +114,16 @@ classification_plot <- create_classification_plot(results_df = classification_re
 ```{r}
 create_regression_plot <- function(results_df){
   # Create new model variable
-  results_df$Model <- ifelse(grepl("_rf_regressor", results_df$FolderName), "Random Forest",
-                      ifelse(grepl("_ridge_regressor", results_df$FolderName), "Ridge", NA))
+  results_df$Model <- ifelse(grepl("random_forest_regressor", results_df$FolderName), "Random Forest",
+                      ifelse(grepl("ridge_regressor", results_df$FolderName), "Ridge", NA))
   
   # Define feature sets and specify colors
-  colors <- c("Clinical Features" = "white", "All Features" = "#D3D3D3")
+  colors <- c("Clinical Features" = "white", "Clinical + Executive Functioning Features" = "#D3D3D3")
   results_df$FeatureSet <- ifelse(grepl("clinical_features", results_df$FolderName),
-                                  "Clinical Features", "All Features")
+                                  "Clinical Features", "Clinical + Executive Functioning Features")
   
   # Set factor levels for FeatureSet to control order in the plot
-  results_df$FeatureSet <- factor(results_df$FeatureSet, levels = c("Clinical Features", "All Features"))
+  results_df$FeatureSet <- factor(results_df$FeatureSet, levels = c("Clinical Features", "Clinical + Executive Functioning Features"))
   
   # Create ggplot
   plot <- ggplot(results_df, aes(x=FeatureSet, y=MSE, fill=FeatureSet)) +
