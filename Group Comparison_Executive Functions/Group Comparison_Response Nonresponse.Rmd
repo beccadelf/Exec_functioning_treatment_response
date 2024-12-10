@@ -33,6 +33,7 @@ library(effsize)
 library(pwr)
 library(gtsummary)
 library(gt)
+library(car)
 ```
 
 # Import Data 
@@ -51,31 +52,50 @@ data_Pat_pre_clean <- data_Pat_pre[!is.na(data_Pat_pre$Response),]
 
 # Characteristics Table: Descriptive Statistics
 ```{r}
-# data frame Response vs. Non-response
-response_data <- data_Pat_pre %>%
-  select(Response, Alter, Geschlecht, Abschluss) %>%
-  mutate(Response = factor(Response, levels = c(0, 1), labels = c("Non-Responder", "Responder")),
-         Geschlecht = factor(Geschlecht, levels = c(0, 1, 2), labels = c("Male", "Female", "Unknown")),
+# Data frame that codes variables according to study protocol
+characteristics_data <- Patients_vs_HC %>%
+  select(Response, Alter, Geschlecht, Abschluss, 
+         T1_BAT_BDI_II_score, T1_BAT_BIS_11_score, T1_BAT_CFC_14_score, 
+         T1_BAT_FAS_score, T1_BAT_Kirby_k_score, T1_BAT_SRHI_score, T1_BAT_STAI_T_score) %>%
+  mutate(Response = factor(Response, levels = c(1, 0), labels = c("Response", "Non-Response")),
+         Geschlecht = factor(Geschlecht, levels = c(0, 1), labels = c("Male", "Female")),
          Abschluss = factor(Abschluss, levels = c(1, 2, 3, 4), 
                             labels = c("Basic secondary education", "Intermediate secondary education",
                                        "Higher secondary education", "Other")))
 
-# Create a summary table for Response vs. Non-response
-characteristics_table_response <- response_data %>%
-  tbl_summary(by = Response,  # Compare by Response
-              label = list(
-                Alter ~ "Age",
-                Geschlecht ~ "Sex",
-                Abschluss ~ "Education"
-              ),
-              statistic = list(  # Add mean (SD) for numeric and counts for categorical
-                all_continuous() ~ "{mean} ({sd})",  
-                all_categorical() ~ "{n}"
-              ),
-              missing = "no") %>%
-  modify_header(label ~ "**Characteristic**")
+# Create a summary table with a subheading for "Baseline Assessment"
+characteristics_table <- characteristics_data %>%
+  tbl_summary(
+    by = Response,  # Compare by Response (Response vs. Non-Response)
+    label = list(
+      Alter ~ "Age",
+      Geschlecht ~ "Sex",
+      Abschluss ~ "Education",
+      T1_BAT_BDI_II_score ~ "BDI-II Score",
+      T1_BAT_BIS_11_score ~ "BIS-11 Score",
+      T1_BAT_CFC_14_score ~ "CFC-14 Score",
+      T1_BAT_FAS_score ~ "FAS Score",
+      T1_BAT_Kirby_k_score ~ "Kirby k Score",
+      T1_BAT_SRHI_score ~ "SRHI Score",
+      T1_BAT_STAI_T_score ~ "STAI-T Score"
+    ),
+    statistic = list(
+      all_continuous() ~ "{mean} ({sd})",
+      all_categorical() ~ "{n}",
+      Geschlecht ~ "{n} ({p}%)"  # Show counts and percentages for Geschlecht
+    ),
+    missing = "no"
+  ) %>%
+  modify_header(label ~ "**Characteristic**") %>%
+  modify_spanning_header(
+    starts_with("T1_BAT_") ~ "**Baseline Assessment**"
+  ) %>%
+  # Remove the row for "Male" in the "Geschlecht" variable
+  modify_table_body(
+    ~ .x %>% filter(!(variable == "Geschlecht" & label == "Male"))
+  )
 
-characteristics_table_response
+characteristics_table
 ```
 
 # Inferential statistics 
