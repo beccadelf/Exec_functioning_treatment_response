@@ -7,6 +7,9 @@ output:
     toc: true
     toc_float: true
     code_folding: hide
+    df_print: paged
+params:
+  input_data_path: "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\0_Datapreparation\\Daten_Gruppenvergleich\\new\\RT_trimmed_RT_wrong_removed\\BIS\\outliers-removed"
 ---
 <style type="text/css">
 .main-container { /* Adjust main blocks */
@@ -37,7 +40,7 @@ library(gt)
 
 # Importing Data
 ```{r}
-basic_path = "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/With_wrong_responses"
+basic_path = params$input_data_path
 data_HC <- read.csv(file.path(basic_path,"Data_HC.csv"))
 data_Pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
 ```
@@ -56,9 +59,12 @@ Patients_vs_HC_imp <- Patients_vs_HC[,c("Subject","Gruppe",imp_columns)]
 ## 3. Add confounds (Alter, Geschlecht, Abschluss)
 Patients_vs_HC_imp_conf <- merge(Patients_vs_HC[,c("Subject","Alter","Geschlecht","Abschluss")], Patients_vs_HC_imp, by = "Subject")
 ```
-Data for `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1,])` patients and `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0,])` healthy controls were available.
+In total, data for `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1,])` patients and `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0,])` healthy controls were available. When outliers were removed, the number of subjects varied slightly: 
+Number-Letter Task: `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0 & !is.na(Patients_vs_HC_imp$NumberLetter_BIS_Repeat),])` healthy controls,  `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1 & !is.na(Patients_vs_HC_imp$NumberLetter_BIS_Repeat),])`
+Stroop Task: `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0 & !is.na(Patients_vs_HC_imp$Stroop_BIS_Congruent),])` healthy controls,  `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1 & !is.na(Patients_vs_HC_imp$Stroop_BIS_Congruent),])`
+2back-Task: `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0 & !is.na(Patients_vs_HC_imp$TwoBack_BIS_Total),])` healthy controls,  `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1 & !is.na(Patients_vs_HC_imp$TwoBack_BIS_Total),])`
+SSRT: `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0 & !is.na(Patients_vs_HC_imp$SSRT),])` healthy controls,  `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1 & !is.na(Patients_vs_HC_imp$SSRT),])`
 Find assumption test for normality in script "Testing Normality".
-
 
 # Inferential statistics
 ## Check variance homogeneity
@@ -84,15 +90,15 @@ levene_test_mult_cols <- function(df_basis, cols) {
 # Perform Levene's test for homogeneity of variance
 levene_test_table <- levene_test_mult_cols(df_basis = Patients_vs_HC_imp, cols = imp_columns)
 pander(levene_test_table, style = "rmarkdown", fontsize = "tiny")
+levene_test_table
 ```
 
 ## Calculate Welch t-test
 ```{r}
 t_test_mult_cols <- function(df_basis, cols) {
   # Calculate a t-test for multiple comparisons and store the results in a dataframe
-  df <- data.frame(t_statistic = numeric(length(cols)), p_value = numeric(length(cols)),
-                   group_mean_Patients = numeric(length(cols)), sd_Patients = numeric(length(cols)),
-                   group_mean_HC = numeric(length(cols)), sd_HC = numeric(length(cols)),
+  df <- data.frame(group_mean_Patients = numeric(length(cols)), sd_Patients = numeric(length(cols)),
+                   group_mean_HC = numeric(length(cols)), sd_HC = numeric(length(cols)),df = numeric(length(cols)), t_statistic = numeric(length(cols)), p_value = numeric(length(cols)),
                    cohen_d = numeric(length(cols)))
   rownames(df) <- cols
   p_values_raw <- numeric(length(cols))  # Vector to store raw p-values
@@ -121,12 +127,13 @@ t_test_mult_cols <- function(df_basis, cols) {
     power <- power_result$power
     
     # Store the results
-    df[col, "t_statistic"] <- round(results$statistic, 2)
+    df[col, "t-statistic"] <- round(results$statistic, 2)
+    df[col, "df"] <- round(results[["parameter"]][["df"]], 2)
     df[col, "p_value"] <- round(results$p.value, 2)
     df[col, "group_mean_Patients"] <- round(mean(group1), 2)
-    df[col, "sd_Patients"] <- round(sd(group0), 2)
+    df[col, "sd_Patients"] <- round(sd(group1), 2)
     df[col, "group_mean_HC"] <- round(mean(group0), 2)
-    df[col, "sd_HC"] <- round(sd(group1), 2)
+    df[col, "sd_HC"] <- round(sd(group0), 2)
     df[col, "cohen_d"] <- round(cohen_d, 2)
     df[col, "power"] <- round(power, 2)
   }
@@ -139,10 +146,9 @@ t_test_mult_cols <- function(df_basis, cols) {
 }
 
 t_test_table <- t_test_mult_cols(df_basis = Patients_vs_HC_imp, cols = imp_columns)
-pander(t_test_table, style = "rmarkdown", fontsize = "tiny")
+#pander(t_test_table, style = "rmarkdown", fontsize = "tiny")
+t_test_table
 ```
-Patients performed worse than healthy controls, especially in the Stroop and the NumberLetter Task. However, please note that we have not tested for baseline differences (e.g., education, age...). This is done in the following step.
-
 
 ##  Nice table for Inferential Statistics
 ```{r}
@@ -427,7 +433,7 @@ Patients_vs_HC_long$Gruppe <- factor(Patients_vs_HC_long$Gruppe, levels = c(0, 1
 ```
 
 ## Violin Plot: Patients vs. Healthy Controls
-```{r}
+```{r, fig.width = 15, fig.height = 7}
 # Create violin plots with mean and rename conditions in the plot
 
 violin_plots_patients_hc <- ggplot(Patients_vs_HC_long, aes(x = Condition, y = BIS_Score, fill = Gruppe)) +
