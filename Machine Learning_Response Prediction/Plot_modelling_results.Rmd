@@ -19,15 +19,17 @@ library(ggplot2)
 
 # Plot Settings
 ```{r}
-size_text = 10
 family = "Arial"
-theme_set(theme_classic() + theme(text = element_text(size = size_text, family = family),
-                                  axis.title = element_text(size = size_text +2, family = family),
-                                  #plot.title = element_text(size = size_text, family = family),
-                                  #axis.text = element_text(size = size_text, family = family),
-                                  #strip.text =  element_text(size = size_text +4, family = family),
-                                  #legend.text =  element_text(size = size_text, family = family)
+theme_set(theme_bw() + theme(text = element_text(family = family),
+                                  axis.title = element_text(size = 24),
+                                  axis.title.y = element_text(size = 24, margin = margin(r = 30)), 
+                                  axis.text = element_text(size = 18),
+                                  #legend.text = element_text(size = 18),
+                                  strip.text = element_text(size = 20)
+                                  #plot.title = element_text(size = size_text, family = family)
+                                  #panel.spacing.x = unit(3, "lines")
                                   ))
+# or theme_classic()
 ```
 
 # Load and combine results
@@ -49,12 +51,6 @@ for (folder_name in results_folders) {
 
 # Combine results
 combined_results <- bind_rows(results_dict, .id = "FolderName")
-
-# Rename folder-names
-# combined_results$FolderName <- gsub("random_forest","rf",combined_results$FolderName)
-# combined_results$FolderName <- gsub("_no_oversampling","",combined_results$FolderName)
-# combined_results$FolderName <- gsub("yes_oversampling","oversampled",combined_results$FolderName)
-# combined_results$FolderName <- gsub("clinical_features_only","clinical_features",combined_results$FolderName)
 combined_results$X <- NULL
 
 # Separate into regressor and classifier dataframes
@@ -67,23 +63,23 @@ regression_results <- combined_results[grepl("regressor", combined_results$Folde
 create_classification_plot <- function(results_df){
   # Create new model variable
   results_df$Model <- ifelse(grepl("random_forest_classifier_yes_oversampling", results_df$FolderName),
-                             "Random Forest (Oversampled)",
+                             "Random Forest\n(Oversampled)",
                       ifelse(grepl("random_forest_classifier_yes_smote_oversampling", results_df$FolderName),
-                             "Random Forest (Smote Oversampled)",
+                             "Random Forest\n(Smote Oversampled)",
                       ifelse(grepl("random_forest_classifier_no_oversampling", results_df$FolderName),
                              "Random Forest",
                       ifelse(grepl("svm_classifier_yes_oversampling", results_df$FolderName), 
-                             "SVM (Oversampled)",
+                             "SVM\n(Oversampled)",
                       ifelse(grepl("svm_classifier_no_oversampling", results_df$FolderName), 
                              "SVM", NA)))))
   
   # Define feature sets and specify colors
-  colors <- c("Clinical Features" = "white", "Clinical + Executive Functioning Features" = "#D3D3D3")
   results_df$FeatureSet <- ifelse(grepl("clinical_features", results_df$FolderName),
-                                  "Clinical Features", "Clinical + Executive Functioning Features")
+                                  "Clinical Features", "Clinical + Executive\nFunctioning Features")
+  colors <- c("Clinical Features" = "white", "Clinical + Executive\nFunctioning Features" = "#D3D3D3")
   
   # Set factor levels for FeatureSet to control order in the plot
-  results_df$FeatureSet <- factor(results_df$FeatureSet, levels = c("Clinical Features", "Clinical + Executive Functioning Features"))
+  results_df$FeatureSet <- factor(results_df$FeatureSet, levels = c("Clinical Features", "Clinical + Executive\nFunctioning Features"))
   
   # Create ggplot
   plot <- ggplot(results_df, aes(x=FeatureSet, y=balanced_accuracy, fill=FeatureSet)) +
@@ -97,7 +93,7 @@ create_classification_plot <- function(results_df){
       fill = "red",
       size = 3
     ) +
-    labs(y = "Balanced accuracy",  x = "", fill = "Feature Set") + 
+    labs(y = "Balanced Accuracy",  x = "", fill = "Feature Set") + 
     scale_y_continuous(breaks = c(0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8)) +
     scale_fill_manual(values = colors) + 
     theme(axis.text.x = element_text(angle = 45, hjust = 1),
@@ -118,12 +114,12 @@ create_regression_plot <- function(results_df){
                       ifelse(grepl("ridge_regressor", results_df$FolderName), "Ridge", NA))
   
   # Define feature sets and specify colors
-  colors <- c("Clinical Features" = "white", "Clinical + Executive Functioning Features" = "#D3D3D3")
   results_df$FeatureSet <- ifelse(grepl("clinical_features", results_df$FolderName),
-                                  "Clinical Features", "Clinical + Executive Functioning Features")
+                                  "Clinical Features", "Clinical + Executive\nFunctioning Features")
+  colors <- c("Clinical Features" = "white", "Clinical + Executive\nFunctioning Features" = "#D3D3D3")
   
   # Set factor levels for FeatureSet to control order in the plot
-  results_df$FeatureSet <- factor(results_df$FeatureSet, levels = c("Clinical Features", "Clinical + Executive Functioning Features"))
+  results_df$FeatureSet <- factor(results_df$FeatureSet, levels = c("Clinical Features", "Clinical + Executive\nFunctioning Features"))
   
   # Create ggplot
   plot <- ggplot(results_df, aes(x=FeatureSet, y=MSE, fill=FeatureSet)) +
@@ -137,7 +133,7 @@ create_regression_plot <- function(results_df){
       fill = "red",
       size = 3
     ) +
-    labs(y = "Mean squared error",  x = "", fill = "Feature Set") + 
+    labs(y = "Mean Squared Error",  x = "", fill = "Feature Set") + 
     scale_fill_manual(values = colors) + 
     theme(axis.text.x = element_text(angle = 45, hjust = 1),
           legend.position = "none") +
@@ -147,4 +143,10 @@ create_regression_plot <- function(results_df){
 }
 
 regression_plot <- create_regression_plot(results_df = regression_results)
+```
+
+# Save plots
+```{r}
+ggsave("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/2_Machine_learning/Plots/Classification_results_plot.png", plot = classification_plot, width = 16, height = 9, dpi = 300)
+ggsave("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/2_Machine_learning/Plots/Regression_results_plot.png", plot = regression_plot, width = 16, height = 9, dpi = 300)
 ```
