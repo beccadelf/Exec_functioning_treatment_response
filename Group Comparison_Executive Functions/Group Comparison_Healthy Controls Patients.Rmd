@@ -36,6 +36,7 @@ library(effsize)
 library(pwr)
 library(gtsummary)
 library(gt)
+library(car)
 ```
 
 # Importing Data
@@ -150,7 +151,61 @@ t_test_table <- t_test_mult_cols(df_basis = Patients_vs_HC_imp, cols = imp_colum
 t_test_table
 ```
 
-##  Nice table for Inferential Statistics
+### Characteristics Table: Descriptive Statistics
+```{r}
+# Data frame that codes variables according to study protocol
+characteristics_data <- Patients_vs_HC %>%
+  select(Gruppe, Alter, Geschlecht, Abschluss, 
+         T1_BAT_BDI_II_score, T1_BAT_BIS_11_score, T1_BAT_CFC_14_score, 
+         T1_BAT_FAS_score, T1_BAT_Kirby_k_score, T1_BAT_SRHI_score, T1_BAT_STAI_T_score) %>%
+  mutate(Gruppe = factor(Gruppe, levels = c(0, 1), labels = c("Healthy Controls", "Patients")),
+         Geschlecht = factor(Geschlecht, levels = c(0, 1), labels = c("Male", "Female")),
+         Abschluss = factor(Abschluss, levels = c(1, 2, 3, 4), 
+                            labels = c("Basic secondary education", "Intermediate secondary education",
+                                       "Higher secondary education", "Other")))
+
+# Create a summary table with a subheading for "Baseline Assessment"
+characteristics_table <- characteristics_data %>%
+  tbl_summary(by = Gruppe,  # Compare by Gruppe (HC vs. Pat)
+              label = list(
+                Alter ~ "Age",
+                Geschlecht ~ "Sex",
+                Abschluss ~ "Education",
+                T1_BAT_BDI_II_score ~ "BDI-II Score",
+                T1_BAT_BIS_11_score ~ "BIS-11 Score",
+                T1_BAT_CFC_14_score ~ "CFC-14 Score",
+                T1_BAT_FAS_score ~ "FSQ Score",
+                T1_BAT_Kirby_k_score ~ "Kirby k Score",
+                T1_BAT_SRHI_score ~ "SRHI Score",
+                T1_BAT_STAI_T_score ~ "STAI-T Score"
+              ),
+    statistic = list(
+      all_continuous() ~ "{mean} ({sd})",
+      all_categorical() ~ "{n}",
+      Geschlecht ~ "{n} ({p}%)"  # Show counts and percentages for Geschlecht
+    ),
+    missing = "no"
+  ) %>%
+  modify_header(label ~ "**Characteristic**") %>%
+  modify_spanning_header(
+    starts_with("T1_BAT_") ~ "**Baseline Assessment**"
+  ) %>%
+  # Remove the row for "Male" in the "Geschlecht" variable
+  modify_table_body(
+    ~ .x %>% filter(!(variable == "Geschlecht" & label == "Male"))
+  )
+
+characteristics_table
+```
+
+```{r}
+leveneTest(T1_BAT_STAI_T_score ~ as.factor(Gruppe), data = Patients_vs_HC)
+t_test_result <- t.test(T1_BAT_STAI_T_score ~ Gruppe, data = Patients_vs_HC, var.equal = FALSE)
+print(t_test_result)
+```
+
+
+###  Table: Inferential Statistics
 ```{r}
 # Create a data frame with inferential statistics (p-value, adjusted p-value, Cohen's d, power)
 inferential_stats_df <- data.frame(
@@ -184,217 +239,10 @@ inferential_stats_table <- inferential_stats_df %>%
 inferential_stats_table
 ```
 
-# Characteristics Table: Descriptive Statistics
-## Option 1
-```{r}
-# Data frame that codes variables according to study protocol
-characteristics_data <- Patients_vs_HC %>%
-  select(Gruppe, Alter, Geschlecht, Abschluss, 
-         T1_BAT_BDI_II_score, T1_BAT_STAI_T_score, T1_BAT_BIS_11_score, 
-         T1_BAT_Kirby_k_score, T1_BAT_CFC_14_score, T1_BAT_SRHI_score) %>%
-  mutate(Gruppe = factor(Gruppe, levels = c(0, 1), labels = c("Healthy Controls", "Patients")),
-         Geschlecht = factor(Geschlecht, levels = c(0, 1, 2), labels = c("Male", "Female", "Unknown")),
-         Abschluss = factor(Abschluss, levels = c(1, 2, 3, 4), 
-                            labels = c("Basic secondary education", "Intermediate secondary education",
-                                       "Higher secondary education", "Other")))
 
-# Data frame that codes variables according to study protocol
-characteristics_data <- Patients_vs_HC %>%
-  select(Gruppe, Alter, Geschlecht, Abschluss, 
-         T1_BAT_BDI_II_score, T1_BAT_STAI_T_score, T1_BAT_BIS_11_score, 
-         T1_BAT_Kirby_k_score, T1_BAT_CFC_14_score, T1_BAT_SRHI_score) %>%
-  mutate(Gruppe = factor(Gruppe, levels = c(0, 1), labels = c("Healthy Controls", "Patients")),
-         Geschlecht = factor(Geschlecht, levels = c(0, 1, 2), labels = c("Male", "Female", "Unknown")),
-         Abschluss = factor(Abschluss, levels = c(1, 2, 3, 4), 
-                            labels = c("Basic secondary education", "Intermediate secondary education",
-                                       "Higher secondary education", "Other")))
+## <u>Plotting</u>
 
-# Create the summary table with indented T1_BAT variables
-characteristics_table <- characteristics_data %>%
-  tbl_summary(
-    by = Gruppe,  # Compare by Gruppe (HC vs. Patients)
-    label = list(
-      Alter ~ "Age",
-      Geschlecht ~ "Sex",
-      Abschluss ~ "Education",
-      T1_BAT_BDI_II_score ~ "BDI-II Score",
-      T1_BAT_STAI_T_score ~ "STAI-T Score",
-      T1_BAT_BIS_11_score ~ "BIS-11 Score",
-      T1_BAT_Kirby_k_score ~ "Kirby k Score",
-      T1_BAT_CFC_14_score ~ "CFC-14 Score",
-      T1_BAT_SRHI_score ~ "SRHI Score"
-    ),
-    statistic = list(  # Add mean (SD) for numeric and counts for categorical
-      all_continuous() ~ "{mean} ({sd})",  
-      all_categorical() ~ "{n}"
-    ),
-    missing = "no"  # Exclude missing data
-  ) %>%
-  # Modify the table to add a fake grouping row (Display baseline test scores under separate sub-heading)
-  modify_table_body(
-    ~ .x %>%
-      add_row(
-        variable = "Baseline Assessment",
-        row_type = "label",
-        label = "Baseline Assessment"
-      ) %>%
-      arrange(factor(variable, levels = c(
-        "Age", "Sex", "Education", "Baseline Assessment",
-        "T1_BAT_BDI_II_score", "T1_BAT_STAI_T_score", 
-        "T1_BAT_BIS_11_score", "T1_BAT_Kirby_k_score",
-        "T1_BAT_CFC_14_score", "T1_BAT_SRHI_score"
-      )))
-  ) %>%
-  # Indent the T1_BAT variables
-  modify_table_styling(
-    columns = label,
-    rows = variable %in% c(
-      "T1_BAT_BDI_II_score", "T1_BAT_STAI_T_score", 
-      "T1_BAT_BIS_11_score", "T1_BAT_Kirby_k_score",
-      "T1_BAT_CFC_14_score", "T1_BAT_SRHI_score"
-    ),
-    indent = 3
-  )
-
-characteristics_table
-```
-
-## Option 2: Alternative: Separate Tables
-```{r}
-# Data frame that codes variables according to study protocol
-characteristics_data <- Patients_vs_HC %>%
-  select(Gruppe, Alter, Geschlecht, Abschluss) %>%
-  mutate(Gruppe = factor(Gruppe, levels = c(0, 1), labels = c("Healthy Controls", "Patients")),
-         Geschlecht = factor(Geschlecht, levels = c(0, 1, 2), labels = c("Male", "Female", "Unknown")),
-         Abschluss = factor(Abschluss, levels = c(1, 2, 3, 4), 
-                            labels = c("Basic secondary education", "Intermediate secondary education",
-                                       "Higher secondary education", "Other")))
-
-# Create a summary table
-characteristics_table_no_n <- characteristics_data %>%
-  tbl_summary(by = Gruppe,  # Compare by Gruppe (HC vs. Pat)
-              label = list(
-                Alter ~ "Age",
-                Geschlecht ~ "Sex",
-                Abschluss ~ "Education"
-              ),
-              statistic = list(  # Add mean (SD) for numeric and counts for categorical
-                all_continuous() ~ "{mean} ({sd})",  
-                all_categorical() ~ "{n}"
-              ),
-              missing = "no") %>%  # Include missing data as counts if any
-  modify_header(label ~ "**Characteristic**")
-
-# Data frame for baseline assessment test scores
-baseline_data <- Patients_vs_HC %>%
-  select(Gruppe, T1_BAT_BDI_II_score, T1_BAT_STAI_T_score, T1_BAT_BIS_11_score,
-         T1_BAT_Kirby_k_score, T1_BAT_CFC_14_score, T1_BAT_SRHI_score) %>%
-  mutate(Gruppe = factor(Gruppe, levels = c(0, 1), labels = c("Healthy Controls", "Patients")))
-
-# Create a summary table for baseline assessment scores
-baseline_table <- baseline_data %>%
-  tbl_summary(by = Gruppe,  # Compare by Gruppe (HC vs. Pat)
-              label = list(
-                T1_BAT_BDI_II_score ~ "BDI-II Score",
-                T1_BAT_STAI_T_score ~ "STAI-T Score",
-                T1_BAT_BIS_11_score ~ "BIS-11 Score",
-                T1_BAT_Kirby_k_score ~ "Kirby k Score",
-                T1_BAT_CFC_14_score ~ "CFC-14 Score",
-                T1_BAT_SRHI_score ~ "SRHI Score"
-              ),
-              statistic = list(
-                all_continuous() ~ "{mean} ({sd})"  # Mean (SD) for all continuous variables
-              ),
-              missing = "no") %>%  # Include missing data as counts if any
-  modify_header(label ~ "**Baseline Assessment**")
-
-baseline_table
-characteristics_table_no_n
-```
-
-## Differences in trait anxiety - significant?
-```{r}
-car::leveneTest(T1_BAT_STAI_T_score ~ as.factor(Gruppe), data = Patients_vs_HC)
-t_test_result <- t.test(T1_BAT_STAI_T_score ~ Gruppe, data = Patients_vs_HC, var.equal = FALSE)
-print(t_test_result)
-```
-## Explorative analysis: trait anxiety?
-```{r}
-ggplot(Patients_vs_HC, aes(x = Gruppe, y = T1_BAT_STAI_T_score, color = Gruppe)) +
-  geom_boxplot(outlier.shape = NA, alpha = 0.6) +  # Boxplot to show group distribution
-  geom_jitter(width = 0.2, size = 2, alpha = 0.7) + # Add points for individual values
-  labs(
-    title = "T1 BAT STAI T Score by Group",
-    x = "Group (Gruppe)",
-    y = "T1 BAT STAI T Score"
-  )
-
-t_test_mult_cols <- function(df_basis, cols, split_col) {
-  # Perform a t-test for multiple variables after splitting based on the median of `split_col`
-  
-  # Perform median split on the specified column (split_col)
-  median_value <- median(df_basis[[split_col]], na.rm = TRUE)
-  df_basis$Anxiety_Group <- ifelse(df_basis[[split_col]] > median_value, "High", "Low")
-  
-  # Create a dataframe to store results
-  df <- data.frame(
-    t_statistic = numeric(length(cols)), 
-    p_value = numeric(length(cols)),
-    group_mean_High = numeric(length(cols)), 
-    sd_High = numeric(length(cols)),
-    group_mean_Low = numeric(length(cols)), 
-    sd_Low = numeric(length(cols)),
-    cohen_d = numeric(length(cols)), 
-    power = numeric(length(cols))
-  )
-  rownames(df) <- cols
-  p_values_raw <- numeric(length(cols))  # Store raw p-values
-  
-  for (i in seq_along(cols)) {
-    col <- cols[i]  # Current column
-    
-    # Split the data into high and low anxiety groups
-    group_high <- na.omit(df_basis[df_basis$Anxiety_Group == "High", col])
-    group_low <- na.omit(df_basis[df_basis$Anxiety_Group == "Low", col])
-    
-    # Perform t-test
-    results <- t.test(group_high, group_low, paired = FALSE, var.equal = FALSE)
-    p_values_raw[i] <- results$p.value  # Store raw p-value
-    
-    # Calculate Cohen's d
-    cohen_d_result <- cohen.d(group_high, group_low, hedges.correction = FALSE)
-    cohen_d <- cohen_d_result$estimate
-    
-    # Calculate power
-    n_high <- length(group_high)
-    n_low <- length(group_low)
-    power_result <- pwr.t.test(d = cohen_d, n = min(n_high, n_low), sig.level = 0.05, type = "two.sample", alternative = "greater")
-    power <- power_result$power
-    
-    # Store the results
-    df[col, "t_statistic"] <- round(results$statistic, 2)
-    df[col, "p_value"] <- round(results$p.value, 2)
-    df[col, "group_mean_High"] <- round(mean(group_high), 2)
-    df[col, "sd_High"] <- round(sd(group_high), 2)
-    df[col, "group_mean_Low"] <- round(mean(group_low), 2)
-    df[col, "sd_Low"] <- round(sd(group_low), 2)
-    df[col, "cohen_d"] <- round(cohen_d, 2)
-    df[col, "power"] <- round(power, 2)
-  }
-  
-  # Adjust p-values using the Benjamini-Hochberg method
-  p_values_adjusted <- p.adjust(p_values_raw, method = "BH")
-  df$p_value_adjusted <- round(p_values_adjusted, 2)
-  
-  return(df)
-}
-
-t_test_mult_cols(df_basis = Patients_vs_HC, cols = imp_columns, split_col = "T1_BAT_STAI_T_score")
-```
-
-# Plotting
-
-## Prepare data
+#### Prepare data
 ```{r}
 # Reshape data from wide to long format, including SSRT
 Patients_vs_HC_long <- Patients_vs_HC_imp %>%
@@ -424,7 +272,7 @@ Patients_vs_HC_long <- Patients_vs_HC_long %>%
   mutate(Condition = case_when(
     Task == "NumberLetter" ~ factor(Condition, levels = c("Repeat", "Switch", "Diff_Score NL")),
     Task == "Stroop" ~ factor(Condition, levels = c("Congruent", "Incongruent", "Diff_Score Stroop")),
-    Task == "TwoBack" ~ factor(Condition, levels = c("Target", "Foil", "Total")),
+    Task == "TwoBack" ~ factor(Condition, levels = c("Foil", "Target", "Total")),
     TRUE ~ as.factor(Condition)
   ))
 
@@ -432,8 +280,8 @@ Patients_vs_HC_long <- Patients_vs_HC_long %>%
 Patients_vs_HC_long$Gruppe <- factor(Patients_vs_HC_long$Gruppe, levels = c(0, 1), labels = c("Healthy Controls", "Patients"))
 ```
 
-## Violin Plot: Patients vs. Healthy Controls
-```{r, fig.width = 15, fig.height = 7}
+##### Violin Plot: Patients vs. Healthy Controls
+```{r}
 # Create violin plots with mean and rename conditions in the plot
 
 violin_plots_patients_hc <- ggplot(Patients_vs_HC_long, aes(x = Condition, y = BIS_Score, fill = Gruppe)) +
@@ -464,10 +312,10 @@ violin_plots_patients_hc <- ggplot(Patients_vs_HC_long, aes(x = Condition, y = B
     panel.spacing.x = unit(3, "lines")
   )
 print(violin_plots_patients_hc)
-#ggsave("C:/Users/Till/Desktop/violin_plots_patients_hc.png", plot = violin_plots_patients_hc, width = 16, height = 9, dpi = 300)
+ggsave("violin_plots_patients_hc.png", plot = violin_plots_patients_hc, width = 16, height = 9, dpi = 300)
 ```
 
-## Boxplot: Patients vs. Healthy Controls
+##### Boxplot: Patients vs. Healthy Controls
 ```{r}
 # Create boxplots
 boxplots_Patients_HC <- ggplot(Patients_vs_HC_long, aes(x = Condition, y = BIS_Score, color = Gruppe)) +
