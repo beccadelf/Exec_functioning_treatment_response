@@ -41,6 +41,36 @@ library(flextable)
 library(officer)
 ```
 
+## Settings flextable
+```{r, echo = FALSE}
+# Flextable
+set_flextable_defaults(font.family = "Arial",
+font.size = 8,
+padding.bottom = 3,
+padding.top = 3,
+padding.left = 0.5,
+paddings.right = 0.5,
+#theme_fun = "theme_apa",
+theme_fun = NULL,
+text.align = "center",
+line_spacing = 1.5)
+
+# Word documents to save flextables
+margins <- page_mar(
+  bottom = 0.5,
+  top = 0.5,
+  right = 0.5,
+  left = 0.5,
+  header = 0.5,
+  footer = 0.5,
+  gutter = 0.5
+)
+
+format_table_wide <- prop_section(
+  page_size = page_size(orient = "landscape"),
+  page_margins = margins)
+```
+
 # Importing Data
 ```{r}
 basic_path = params$input_data_path
@@ -151,6 +181,31 @@ t_test_mult_cols <- function(df_basis, cols) {
 t_test_table <- t_test_mult_cols(df_basis = Patients_vs_HC_imp, cols = imp_columns)
 #pander(t_test_table, style = "rmarkdown", fontsize = "tiny")
 t_test_table
+```
+
+## Create flextable with study characteristics
+```{r flextable settings, echo=FALSE, warning = FALSE}
+
+# Reduce t_test_table to important statistics
+t_test_table_pub <- cbind(performance_measures = rownames(t_test_table), t_test_table)
+t_test_table_pub <- t_test_table %>% select(-cohen_d, -power)
+
+# Create flextable
+ft_t_test <- flextable(t_test_table_pub)
+
+# Change header labels
+ft_t_test <- set_header_labels(ft_t_test, 
+                               "performance_measures" = "Performance Measure",
+                               "group_mean_Patients" = "Mean (Patients)",
+                               "sd_Patients" = "SD (Patients)",
+                               "group_mean_HC" = "Mean (HC)",
+                               "sd_HC" = "SD (HC)",
+                               "df" = "df",
+                               "t_statistic" = "t-Statistic",
+                               "p_value" = "p-Value",
+                               "p_value_adjusted" = "p-Value adj.")
+
+ft_t_test
 ```
 
 ##  Table: Inferential Statistics
