@@ -40,7 +40,7 @@ library(nlme)
 
 # Import Task Performance Data
 ```{r}
-task_performance_path = "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/With_wrong_responses"
+task_performance_path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/With_wrong_responses"
 data_HC <- read.csv(file.path(task_performance_path, "Data_HC.csv"))
 data_Pat_pre <- read.csv(file.path(task_performance_path, "Data_Patients_Pre.csv"))
 ```
@@ -419,5 +419,5 @@ table_ANCOVA <- ANCOVA_mult_cols(df_basis = Patients_vs_HC_imp_conf,
                                  covariates = c("Alter", "Geschlecht", "Abschluss"))
 
 # final table
-pander(table_ANCOVA, style = "rmarkdown", split.table = Inf, fontsize = "tiny")
+pander(table_ANCOVA, style = "rmarkdown", fontsize = "tiny")
 ```
