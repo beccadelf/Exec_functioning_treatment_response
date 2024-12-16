@@ -414,7 +414,7 @@ ft <- bold(ft, part = "header")
 ft <- autofit(ft)
 
 # Write to Word
-save_as_docx(ft, path="Characteristics Table.docx", pr_section = format_table_wide)
+save_as_docx(ft, path="Characteristics Table HC vs Pat.docx", pr_section = format_table_wide)
 ```
 
 
