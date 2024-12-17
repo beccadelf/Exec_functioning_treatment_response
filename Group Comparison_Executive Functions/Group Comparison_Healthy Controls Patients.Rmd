@@ -41,7 +41,7 @@ library(flextable)
 library(officer)
 ```
 
-## Settings flextable
+# Settings flextable
 ```{r, echo = FALSE}
 # Flextable
 set_flextable_defaults(font.family = "Arial",
@@ -55,7 +55,7 @@ set_flextable_defaults(font.family = "Arial",
                        #text.align = "center",
                        line_spacing = 1.5)
 
-# Word documents to save flextables
+# Word document to save flextable
 margins <- page_mar(
   bottom = 2 / 2.54,
   top = 2.5 / 2.54,
@@ -67,8 +67,8 @@ margins <- page_mar(
 )
 
 format_table_long <- prop_section(
-  page_size = page_size(orient = "portrait"),  # Standard portrait dimensions # width = 8.5, height = 11
-  page_margins = margins     # 1-inch margins
+  page_size = page_size(orient = "portrait"),
+  page_margins = margins
 )
 ```
 
@@ -195,19 +195,21 @@ t_test_table_pub <- t_test_table_pub %>%
     `Patients Mean (SD)` = paste0(round(group_mean_Patients, 2), " (", round(sd_Patients, 2), ")"),
     `HC Mean (SD)` = paste0(round(group_mean_HC, 2), " (", round(sd_HC, 2), ")")
     ) %>%
-  mutate(performance_measures = recode(
-    performance_measures,
-    'NumberLetter_BIS_Repeat' = "BIS Number-Letter Repeat",
-    'NumberLetter_BIS_Switch' = "BIS Number-Letter Switch",
-    'NumberLetter_BIS_Diff_Score' = "Difference BIS Switch - BIS Repeat",
-    'Stroop_BIS_Congruent' = "BIS Stroop Congruent",
-    'Stroop_BIS_Incongruent' = "BIS Stroop Incongruent",
-    'Stroop_BIS_Diff_Score' = "Difference BIS Incongruent - BIS Congruent",
-    'TwoBack_BIS_Foil' = "BIS 2-Back Foil",
-    'TwoBack_BIS_Target' = "BIS 2-Back Target",
-    'TwoBack_BIS_Total' = "BIS 2-Back Total",
-    'SSRT' = "Stop-Signal RT")) %>%
   select(performance_measures, `Patients Mean (SD)`, `HC Mean (SD)`, df, t_statistic, p_value, p_value_adjusted)
+
+# Rename performance measures using a named vector
+rename_map <- c(
+  'NumberLetter_BIS_Repeat' = "BIS Number-Letter Repeat",
+  'NumberLetter_BIS_Switch' = "BIS Number-Letter Switch",
+  'NumberLetter_BIS_Diff_Score' = "Difference BIS Switch - BIS Repeat",
+  'Stroop_BIS_Congruent' = "BIS Stroop Congruent",
+  'Stroop_BIS_Incongruent' = "BIS Stroop Incongruent",
+  'Stroop_BIS_Diff_Score' = "Difference BIS Incongruent - BIS Congruent",
+  'TwoBack_BIS_Foil' = "BIS 2-Back Foil",
+  'TwoBack_BIS_Target' = "BIS 2-Back Target",
+  'TwoBack_BIS_Total' = "BIS 2-Back Total",
+  'SSRT' = "Stop-Signal RT")
+t_test_table_pub$performance_measures <- rename_map[t_test_table_pub$performance_measures]
 ```
 
 ## Create and save flextable
@@ -219,7 +221,7 @@ ft_t_test <- flextable(t_test_table_pub)
 ft_t_test <- set_header_labels(ft_t_test, 
                                "performance_measures" = "Performance Measure",
                                "Patients Mean (SD)" = "Patients Mean (SD)",
-                               "HC Mean (SD)" = "HC Mean (SD)",
+                               "HCs Mean (SD)" = "HC Mean (SD)",
                                "df" = "df",
                                "t_statistic" = "t-Statistic",
                                "p_value" = "p-Value",
@@ -239,7 +241,7 @@ ft_t_test <- align(ft_t_test, j = 2:ncol(t_test_table_pub), align = "center", pa
 # Export flextable
 save_as_docx(
   ft_t_test,
-  path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Submission/Tables/t-test_Pats_HCs.docx", 
+  path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Submission/Tables/t-test_Patients_HCs.docx", 
   pr_section = format_table_long)
 ```
 
