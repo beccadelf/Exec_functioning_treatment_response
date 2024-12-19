@@ -199,15 +199,15 @@ t_test_table_pub <- t_test_table_pub %>%
 
 # Rename performance measures using a named vector
 rename_map <- c(
-  'NumberLetter_BIS_Repeat' = "BIS Number-Letter Repeat",
-  'NumberLetter_BIS_Switch' = "BIS Number-Letter Switch",
-  'NumberLetter_BIS_Diff_Score' = "Difference BIS Switch - BIS Repeat",
-  'Stroop_BIS_Congruent' = "BIS Stroop Congruent",
-  'Stroop_BIS_Incongruent' = "BIS Stroop Incongruent",
-  'Stroop_BIS_Diff_Score' = "Difference BIS Incongruent - BIS Congruent",
-  'TwoBack_BIS_Foil' = "BIS 2-Back Foil",
-  'TwoBack_BIS_Target' = "BIS 2-Back Target",
-  'TwoBack_BIS_Total' = "BIS 2-Back Total",
+  'NumberLetter_BIS_Repeat' = "Number-Letter: Repeat",
+  'NumberLetter_BIS_Switch' = "Number-Letter: Switch",
+  'NumberLetter_BIS_Diff_Score' = "Number-Letter: Switch - Repeat",
+  'Stroop_BIS_Congruent' = "Stroop: Congruent",
+  'Stroop_BIS_Incongruent' = "Stroop: Incongruent",
+  'Stroop_BIS_Diff_Score' = "Stroop: Incongruent - Congruent",
+  'TwoBack_BIS_Foil' = "2-Back: Foil",
+  'TwoBack_BIS_Target' = "2-Back: Target",
+  'TwoBack_BIS_Total' = "2-Back: Total",
   'SSRT' = "Stop-Signal RT")
 t_test_table_pub$performance_measures <- rename_map[t_test_table_pub$performance_measures]
 ```
