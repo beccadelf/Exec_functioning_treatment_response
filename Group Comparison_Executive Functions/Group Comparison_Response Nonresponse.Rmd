@@ -37,6 +37,42 @@ library(pwr)
 library(gtsummary)
 library(gt)
 library(car)
+library(flextable)
+```
+
+# Settings flextable
+```{r, echo = FALSE}
+# Flextable
+set_flextable_defaults(font.family = "Arial",
+                       font.size = 8,
+                       padding.bottom = 3,
+                       padding.top = 3,
+                       padding.left = 0.5,
+                       paddings.right = 0.5,
+                       #theme_fun = "theme_apa",
+                       theme_fun = NULL,
+                       text.align = "center",
+                       line_spacing = 1.5)
+
+# Word documents to save flextables
+margins <- page_mar(
+  bottom = 2 / 2.54,
+  top = 2.5 / 2.54,
+  right = 2.5 / 2.54,
+  left = 2.5 / 2.54,
+  header = 0.5,
+  footer = 0.5,
+  gutter = 0.5
+)
+
+format_table_wide <- prop_section(
+  page_size = page_size(orient = "landscape"),
+  page_margins = margins)
+
+format_table_long <- prop_section(
+  page_size = page_size(orient = "portrait"),
+  page_margins = margins
+)
 ```
 
 # Import Data 
@@ -203,39 +239,8 @@ characteristics_tasks <- cbind(
 )
 ```
 
-Flextable
-```{r, echo = FALSE}
-# Specify Settings
-# Flextable
-set_flextable_defaults(font.family = "Arial",
-font.size = 8,
-padding.bottom = 3,
-padding.top = 3,
-padding.left = 0.5,
-paddings.right = 0.5,
-#theme_fun = "theme_apa",
-theme_fun = NULL,
-text.align = "center",
-line_spacing = 1.5)
-
-# Word documents to save flextables
-margins <- page_mar(
-  bottom = 0.5,
-  top = 0.5,
-  right = 0.5,
-  left = 0.5,
-  header = 0.5,
-  footer = 0.5,
-  gutter = 0.5
-)
-
-format_table_wide <- prop_section(
-  page_size = page_size(orient = "landscape"),
-  page_margins = margins)
-```
-
+## Create and save flextable
 ```{r}
-# Create Flextable
 # Rename columns to ensure uniqueness
 colnames(characteristics_tasks) <- c(
   "Characteristic", 
@@ -283,7 +288,20 @@ ft <- autofit(ft)
 save_as_docx(ft, path="Characteristics Table Response vs Nonresponse.docx", pr_section = format_table_wide)
 ```
 
-# Inferential statistics 
+# Inferential statistics
+## Preparation
+```{r}
+# Ensure "Response" is treated as a factor
+data_Pat_pre_clean$Response <- as.factor(data_Pat_pre_clean$Response)
+
+# Define the columns for which to perform the test (i.e., task performance measures)
+imp_columns <- c("NumberLetter_BIS_Repeat", "NumberLetter_BIS_Switch", 
+                 "NumberLetter_BIS_Diff_Score", "Stroop_BIS_Congruent", 
+                 "Stroop_BIS_Incongruent", "Stroop_BIS_Diff_Score", 
+                 "TwoBack_BIS_Foil", "TwoBack_BIS_Target", "TwoBack_BIS_Total", 
+                 "SSRT")
+```
+
 ## Test for variance homogeneity
 ### Define function
 ```{r}
@@ -308,22 +326,10 @@ levene_test_mult_cols <- function(df_basis, cols) {
 
 ### Perform levene test
 ```{r}
-# Ensure "Response" is treated as a factor
-data_Pat_pre_clean$Response <- as.factor(data_Pat_pre_clean$Response)
-
-# Define the columns for which to perform the test (e.g., task performance measures)
-imp_columns <- c("NumberLetter_BIS_Repeat", "NumberLetter_BIS_Switch", 
-                 "NumberLetter_BIS_Diff_Score", "Stroop_BIS_Congruent", 
-                 "Stroop_BIS_Incongruent", "Stroop_BIS_Diff_Score", 
-                 "TwoBack_BIS_Foil", "TwoBack_BIS_Target", "TwoBack_BIS_Total", 
-                 "SSRT")
-
-# Perform Levene's test
 levene_test_table <- levene_test_mult_cols(df_basis = data_Pat_pre_clean, cols = imp_columns)
 pander(levene_test_table, style = "rmarkdown", fontsize = "tiny")
 ```
 Levene test shows complete variance homoegeneity for all task conditions between responders and non-responders.
-
 
 ## Calculate t-tests 
 ### Define function
@@ -331,11 +337,12 @@ Levene test shows complete variance homoegeneity for all task conditions between
 # Perform t-tests for each task and store results
 t_test_mult_cols <- function(df_basis, cols) {
   # Initialize empty dataframe
-  df <- data.frame(t_statistic = numeric(length(cols)), p_value = numeric(length(cols)),
-                   group_mean_Response = numeric(length(cols)), sd_Response = numeric(length(cols)),
+  df <- data.frame(group_mean_Response = numeric(length(cols)), sd_Response = numeric(length(cols)),
                    group_mean_NonResponse = numeric(length(cols)), sd_NonResponse = numeric(length(cols)),
-                   cohen_d = numeric(length(cols)))
+                   df = numeric(length(cols)), t_statistic = numeric(length(cols)), 
+                   p_value = numeric(length(cols)), cohen_d = numeric(length(cols)))
   rownames(df) <- cols
+  p_values_raw <- numeric(length(cols))  # Vector to store raw p-values
   
   for (i in seq_along(cols)) {
     col <- cols[i]
@@ -349,6 +356,9 @@ t_test_mult_cols <- function(df_basis, cols) {
     # Perform standard t-test (since variance homogeneity holds)
     results <- t.test(group1, group0, paired = FALSE, var.equal = TRUE)
     
+    # Store raw p-values for BH correction
+    p_values_raw[i] <- results$p.value
+    
     # Calculate Cohen's d
     cohen_d_result <- cohen.d(group1, group0, hedges.correction = FALSE)
     cohen_d <- cohen_d_result$estimate
@@ -361,7 +371,8 @@ t_test_mult_cols <- function(df_basis, cols) {
     
     # Store the results
     df[col, "t_statistic"] <- round(results$statistic, 2)
-    df[col, "p_value"] <- round(results$p.value, 4)
+    df[col, "df"] <- round(results[["parameter"]][["df"]], 2)
+    df[col, "p_value"] <- round(results$p.value, 2)
     df[col, "group_mean_Response"] <- round(mean(group1), 2)
     df[col, "sd_Response"] <- round(sd(group1), 2)
     df[col, "group_mean_NonResponse"] <- round(mean(group0), 2)
@@ -369,6 +380,10 @@ t_test_mult_cols <- function(df_basis, cols) {
     df[col, "cohen_d"] <- round(cohen_d, 2)
     df[col, "power"] <- round(power, 2)
   }
+  
+  # Adjust p-values using Benjamini-Hochberg method for multiple testing of related tasks
+  p_values_adjusted <- p.adjust(p_values_raw, method = "BH")
+  df$p_value_adjusted <- round(p_values_adjusted, 2)
   
   return(df)
 }
@@ -382,38 +397,58 @@ pander(t_test_table, style = "rmarkdown", split.table = Inf, fontsize = "tiny")
 No significant was found for any of the tasks.
 Potential reason: low power. Even the largest power for TwoBack_BIS_Foil of 0.22 with a cohen's d of 0.2 would require a sample size of 144 to find a significant effect, as a priori power power analysis shows. However, the patient group is only about half as large as that (n=89), not to speak of the tasks with even smaller power (e.g., NumberLetter_BIS_Repeat with 0.01)
 
+### Prepare table for publication
+```{r table preparation, echo=FALSE, warning = FALSE}
 
-###  Table: Inferential Statistics
-```{r}
-# data frame with inferential statistics (p-value, Cohen's d, power) for Response vs. Non-response
-inferential_stats_response_df <- data.frame(
-  Task = c("Number Letter Repeat", "Number Letter Switch", "Number Letter Difference BIS Score",
-           "Stroop Congruent", "Stroop Incongruent", "Stroop BIS Difference Score",
-           "Two Back Foil", "Two Back Target", "Two Back Difference BIS Score", "SSRT"),
-  p_value = t_test_table$p_value,
-  cohen_d = t_test_table$cohen_d,
-  power = t_test_table$power
-)
+t_test_table_pub <- cbind(performance_measures = rownames(t_test_table), t_test_table)
 
-# inferential statistics table for Response vs. Non-response
-inferential_stats_response_table <- inferential_stats_response_df %>%
-  gt() %>%
-  tab_header(
-    title = "Inferential Statistics: Response vs. Non-response"
-  ) %>%
-  cols_label(
-    Task = html("<b>Task</b>"),
-    p_value = html("<b>p-value</b>"),
-    cohen_d = html("<b>Cohen's d</b>"),
-    power = html("<b>Power</b>")
-  ) %>%
-  fmt_number(
-    columns = c(p_value, cohen_d, power),
-    decimals = 2
-  )
+# Combine "Mean" and "SD" columns and reduce dataframe
+t_test_table_pub <- t_test_table_pub %>%
+  mutate(
+    `Responder Mean (SD)` = paste0(round(group_mean_Response, 2), " (", round(sd_Response, 2), ")"),
+    `Nonresponder Mean (SD)` = paste0(round(group_mean_NonResponse, 2), " (", round(sd_NonResponse, 2), ")")
+    ) %>%
+  select(performance_measures, `Responder Mean (SD)`, `Nonresponder Mean (SD)`, df, t_statistic, p_value, p_value_adjusted)
 
-inferential_stats_response_table
+# Rename performance measures using a named vector
+rename_map <- c(
+  'NumberLetter_BIS_Repeat' = "Number-Letter: Repeat",
+  'NumberLetter_BIS_Switch' = "Number-Letter: Switch",
+  'NumberLetter_BIS_Diff_Score' = "Number-Letter: Switch - Repeat",
+  'Stroop_BIS_Congruent' = "Stroop: Congruent",
+  'Stroop_BIS_Incongruent' = "Stroop: Incongruent",
+  'Stroop_BIS_Diff_Score' = "Stroop: Incongruent - Congruent",
+  'TwoBack_BIS_Foil' = "2-Back: Foil",
+  'TwoBack_BIS_Target' = "2-Back: Target",
+  'TwoBack_BIS_Total' = "2-Back: Total",
+  'SSRT' = "Stop-Signal RT")
+t_test_table_pub$performance_measures <- rename_map[t_test_table_pub$performance_measures]
+
+# Change colnames
+colnames(t_test_table_pub) <- c("Performance Measure", "Responder Mean (SD)", "Non-Responder Mean (SD)", "df", "t-Statistic", "p-Value", "adj. p-Value")
 ```
+
+### Create and save flextable
+```{r flextable settings, echo=FALSE, warning = FALSE}
+ft_t_test <- flextable(t_test_table_pub)
+
+# Set table properties
+ft_t_test <- set_table_properties(ft_t_test, width = 1, layout = "autofit")
+
+# Header in bold
+ft_t_test <- bold(ft_t_test, bold = TRUE, part = "header")
+
+# Alignments
+ft_t_test <- align(ft_t_test, j = 1, align = "left", part = "all") # first column
+ft_t_test <- align(ft_t_test, j = 2:ncol(t_test_table_pub), align = "center", part = "all") # rest
+
+# Export flextable
+save_as_docx(
+  ft_t_test,
+  path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Submission/Tables/t-test_Responder_Nonresponder.docx", 
+  pr_section = format_table_long)
+```
+
 
 # Visualization of group differences
 ## Prepare data
