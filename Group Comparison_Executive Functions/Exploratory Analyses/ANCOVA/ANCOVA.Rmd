@@ -40,7 +40,7 @@ library(nlme)
 
 # Import Task Performance Data
 ```{r}
-task_performance_path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/With_wrong_responses"
+task_performance_path = "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/With_wrong_responses"
 data_HC <- read.csv(file.path(task_performance_path, "Data_HC.csv"))
 data_Pat_pre <- read.csv(file.path(task_performance_path, "Data_Patients_Pre.csv"))
 ```
@@ -51,7 +51,8 @@ data_Pat_pre <- read.csv(file.path(task_performance_path, "Data_Patients_Pre.csv
 Patients_vs_HC <- rbind(data_Pat_pre, data_HC)
 
 ## 2. Reduce dataset to BIS columns and SSRT
-performance_tasks <- colnames(Patients_vs_HC_imp_conf)[grep("BIS|SSRT", colnames(Patients_vs_HC_imp_conf))]
+performance_tasks <- colnames(Patients_vs_HC)[grep("BIS|SSRT", colnames(Patients_vs_HC))]
+performance_tasks <- performance_tasks[performance_tasks != "T1_BAT_BIS_11_score"]
 Patients_vs_HC_imp_conf <- Patients_vs_HC[,c("Subject","Alter", "Geschlecht","Gruppe","Abschluss", performance_tasks)]
 ```
 Data for `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1,])` patients and `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0,])` healthy controls were available.
@@ -63,8 +64,6 @@ table1 <-
   Patients_vs_HC_imp_conf %>%
   tbl_summary(include = c(Alter, Geschlecht, Abschluss), by = Gruppe)
 pander(as.data.frame(table1))
-# TODO: Direkt als word speichern
-# TODO: Was sind die Unknown-Werte? Die rausnehmen und Zahlen aktualisieren! Abschluss umkodieren (1,2,3,4)
 ```
 
 # Testing assumptions for ANCOVA
@@ -98,7 +97,7 @@ for (task in performance_tasks) {
 }
 ```
 
-### spllited by groups
+### splitted by groups
 ```{r}
 # Loop through each task performance variable and plot Task Performance~Age within groups (HC vs. Pat)
 for (task in performance_tasks) {
@@ -230,51 +229,6 @@ for (i in seq_along(performance_tasks)) {
 
 # Output the table to review the results
 pander(interaction_results, style = "rmarkdown", split.table = Inf, fontsize = "tiny")
-```
-
-<u>Additional: Difference between Patients and Healthy Control groups in the covariates (indipendence)</u>
-```{r}
-#Calculate t-test to test for difference in age between Pat vs HC
-t_test_age <- t.test(Alter ~ Gruppe, data = Patients_vs_HC_imp_conf)
-mean_age_pat <- t_test_age$estimate[2]
-mean_age_hc <- t_test_age$estimate[1]
-
-#2x2 table with Female/Male | Pat/HC tested for independence
-contingency_table_gender <- table(Patients_vs_HC_imp_conf$Geschlecht, Patients_vs_HC_imp_conf$Gruppe)
-chi_square_test_gender <- chisq.test(contingency_table_gender)
-
-#Contingency table with 4 levels of education and Pat/HC
-contingency_table_education <- table(Patients_vs_HC_imp_conf$Abschluss, Patients_vs_HC_imp_conf$Gruppe)
-fisher_test_education <- fisher.test(contingency_table_education) # Fisher because some cells have <5 values (Chi-squared approximation may be imprecise)
-
-# Extract p-values from each test
-age_p_value <- t_test_age$p.value
-gender_p_value <- chi_square_test_gender$p.value
-education_p_value <- fisher_test_education$p.value
-
-# Create a data frame with the covariates and their corresponding p-values
-p_value_table <- data.frame(
-  Covariate = c("Age", "Sex", "Education"),
-  `p-value` = c(age_p_value, gender_p_value, education_p_value)
-)
-
-pander::pander(p_value_table, style = "rmarkdown")
-
-# average age of Pat and HC groups
-average_age_table <- data.frame(
-  Group = c("Patients", "Healthy Controls"),
-  `Average Age` = c(mean_age_pat, mean_age_hc)
-)
-cat("\n**Average Age of Groups**\n")
-pander::pander(average_age_table, style = "rmarkdown")
-
-# contingency table for gender (Male/Female | Pat/HC)
-cat("\n**Contingency Table: Gender (Male/Female) vs. Group (Pat/HC)**\n")
-pander::pander(contingency_table_gender, style = "rmarkdown")
-
-# contingency table for education levels vs. group
-cat("\n**Contingency Table: Education Levels vs. Group (Pat/HC)**\n")
-pander::pander(contingency_table_education, style = "rmarkdown")
 ```
 
 # Comprehensive ANCOVA
@@ -420,4 +374,49 @@ table_ANCOVA <- ANCOVA_mult_cols(df_basis = Patients_vs_HC_imp_conf,
 
 # final table
 pander(table_ANCOVA, style = "rmarkdown", fontsize = "tiny")
+```
+
+# Difference between Patients and Healthy Control groups in the covariates (independence)
+```{r}
+#Calculate t-test to test for difference in age between Pat vs HC
+t_test_age <- t.test(Alter ~ Gruppe, data = Patients_vs_HC_imp_conf)
+mean_age_pat <- t_test_age$estimate[2]
+mean_age_hc <- t_test_age$estimate[1]
+
+#2x2 table with Female/Male | Pat/HC tested for independence
+contingency_table_gender <- table(Patients_vs_HC_imp_conf$Geschlecht, Patients_vs_HC_imp_conf$Gruppe)
+chi_square_test_gender <- chisq.test(contingency_table_gender)
+
+#Contingency table with 4 levels of education and Pat/HC
+contingency_table_education <- table(Patients_vs_HC_imp_conf$Abschluss, Patients_vs_HC_imp_conf$Gruppe)
+fisher_test_education <- fisher.test(contingency_table_education) # Fisher because some cells have <5 values (Chi-squared approximation may be imprecise)
+
+# Extract p-values from each test
+age_p_value <- t_test_age$p.value
+gender_p_value <- chi_square_test_gender$p.value
+education_p_value <- fisher_test_education$p.value
+
+# Create a data frame with the covariates and their corresponding p-values
+p_value_table <- data.frame(
+  Covariate = c("Age", "Sex", "Education"),
+  `p-value` = c(age_p_value, gender_p_value, education_p_value)
+)
+
+pander::pander(p_value_table, style = "rmarkdown")
+
+# average age of Pat and HC groups
+average_age_table <- data.frame(
+  Group = c("Patients", "Healthy Controls"),
+  `Average Age` = c(mean_age_pat, mean_age_hc)
+)
+cat("\n**Average Age of Groups**\n")
+pander::pander(average_age_table, style = "rmarkdown")
+
+# contingency table for gender (Male/Female | Pat/HC)
+cat("\n**Contingency Table: Gender (Male/Female) vs. Group (Pat/HC)**\n")
+pander::pander(contingency_table_gender, style = "rmarkdown")
+
+# contingency table for education levels vs. group
+cat("\n**Contingency Table: Education Levels vs. Group (Pat/HC)**\n")
+pander::pander(contingency_table_education, style = "rmarkdown")
 ```

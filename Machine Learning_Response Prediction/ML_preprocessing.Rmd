@@ -3,26 +3,28 @@ title: "Preprocessing_for_ML"
 author: "Rebecca Delfendahl"
 date: "2024-08-06"
 output: html_document
+params:
+  input_data_path: "Y://PsyThera//Projekte_Meinke//Old_projects//Labrotation_Rebecca//0_Datapreparation//Daten_Gruppenvergleich//new//RT_trimmed_RT_wrong_removed//BIS//outliers-removed"
 ---
 
 ```{r R Setup, include = FALSE}
-
+source("../Useful_functions.R")
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,rows.print = 6, cols.min.print = 3)
 library(dplyr)
 library(tidyverse)
 library(caret)
 ```
 
-# 0. Load relevant data (only data of patients_pre are further processed)
+# 0. Load relevant data
 
 ```{r}
-basic_path <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/With_wrong_responses"
+basic_path <- params$input_data_path
 
-task_data <- read.csv(file.path(basic_path,"Performance_Scores/Task_Performance_Scores.csv")) # contains overall accuracy
+task_data <- read.csv(file.path(basic_path,"Performance_scoresTask_Performance_Scores.csv")) # contains overall accuracy
 data_pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
 ```
 
-# 1. Exclude patients
+# 1. Exclude patients due to missing values
 
 ```{r}
 data_pat_pre_clean <- data_pat_pre %>%
@@ -41,7 +43,7 @@ features_df <- left_join(x = data_pat_pre_clean,
                          by = "Subject")
 ```
 
-# 3. Encode classes (for classifier) vs. outcome (for regressor)
+# 3. Add classes (for classifier) and outcome (for regressor)
 
 ## 3.1. Classes (Responder vs. Non-Responder)
 ```{r Save labels in separate dataframe}
@@ -49,15 +51,16 @@ labels_df <- features_df["Response"]
 features_df$Response <- NULL
 ```
 
-## 3.2. Outcome (Percent-change in FAS)
+## 3.2. Regression: Outcome (Percent-change in FAS)
 ```{r}
-outcome_df <- data.frame(FAS_perc_change = ((features_df$T3_BAT_FAS_score - features_df$T1_BAT_FAS_score) / features_df$T1_BAT_FAS_score) * 100)
+outcome_df <- round(data.frame(FAS_perc_change = ((features_df$T3_BAT_FAS_score - features_df$T1_BAT_FAS_score) / features_df$T1_BAT_FAS_score) * 100) * (-1),2)
 ```
 
 # 4. Dummy-Vars and renaming of features
-
+The only variable that needed one-hot encoding was "Abschluss" (education). As we had no missings in this variable, we were allowed to perform one-hot encoding outside the loop. Otherwise, we would need to perform it inside the loop, just after imputation. 
 ```{r Prepare for ML}
-
+# 0 Check missings in "Abschluss"
+any(is.na(features_df$Abschluss))
 # 1. OneHot-Encoding of variable "Abschluss"
 features_df$Abschluss <- as.character(features_df$Abschluss)
 dummy <- dummyVars(" ~ Abschluss", data = features_df)
@@ -90,7 +93,6 @@ features_df_enc <- features_df_enc %>%
 # 5. Recode missing values for binary and non-binary features
 
 ```{r Missing values}
-
 #var_category <- find_bin_cols(features_df_enc_clean)
 # TEST
 bin_cols <- c("is_woman", "Hauptschule", "Realschule", "Abitur", "anderer_Abschluss")
@@ -121,11 +123,12 @@ all_features_final <- features_df_enc[, !names(features_df_enc) %in% c("NumbLet_
 # 7. Save all 5 dataframes
 
 ```{r Save dataframes}
-file_path <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/2_Machine_learning/Feature_Label_Dataframes/"
+output_mainpath <- "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/2_Machine_learning/Feature_Label_Dataframes"
+output_path <- create_results_folder(inputdata_path = params$input_data_path,output_mainpath = output_mainpath)
 
-write.csv(all_features_final, paste0(file_path, "all_features.csv"), row.names = FALSE)
-write.csv(features_df_enc, paste0(file_path, "all_features_accuracy.csv"), row.names = FALSE)
-write.csv(clin_features_df_enc, paste0(file_path, "clinical_features_only.csv"), row.names = FALSE)
-write.csv(labels_df, paste0(file_path, "labels.csv"), row.names = FALSE)
-write.csv(outcome_df, paste0(file_path, "outcomes.csv"), row.names = FALSE)
+write.csv(all_features_final, file.path(output_path, "all_features.csv"), row.names = FALSE)
+write.csv(features_df_enc, file.path(output_path, "all_features_accuracy.csv"), row.names = FALSE)
+write.csv(clin_features_df_enc, file.path(output_path, "clinical_features_only.csv"), row.names = FALSE)
+write.csv(labels_df, file.path(output_path, "labels.csv"), row.names = FALSE)
+write.csv(outcome_df, file.path(output_path, "outcomes.csv"), row.names = FALSE)
 ```
