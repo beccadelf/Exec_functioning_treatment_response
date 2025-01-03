@@ -84,23 +84,10 @@ Find assumption test for normality in script "Testing Normality".
 # Ensure "Gruppe" is treated as a factor
 Patients_vs_HC_imp$Gruppe <- as.factor(Patients_vs_HC_imp$Gruppe)
 
-# Function to perform Levene's test on multiple columns
-levene_test_mult_cols <- function(df_basis, cols) {
-  df <- data.frame(p_value = numeric(length(cols)))
-  rownames(df) <- cols
-  
-  for (i in seq_along(cols)) {
-    col <- cols[i]
-    # Perform Levene's test, treating 'Gruppe' as a factor
-    levene_result <- car::leveneTest(df_basis[[col]] ~ df_basis[["Gruppe"]])
-    df[col, "p_value"] <- round(levene_result[1, "Pr(>F)"], 4)
-  }
-  
-  return(df)
-}
-
 # Perform Levene's test for homogeneity of variance
-levene_test_table <- levene_test_mult_cols(df_basis = Patients_vs_HC_imp, cols = imp_columns)
+levene_test_table <- levene_test_mult_cols(df_basis = Patients_vs_HC_imp, 
+                                           cols = imp_columns, 
+                                           grouping_variable = "Gruppe")
 pander(levene_test_table, style = "rmarkdown", fontsize = "tiny")
 levene_test_table
 ```
@@ -113,11 +100,10 @@ ttest_results_columns <- c(
   "df", "t_statistic", "p_value", "cohen_d", "power"
 )
 
-t_test_table <- t_test_mult_cols(df_basis = Patients_vs_HC_imp, cols = imp_columns, df_results_columns = ttest_results_columns, grouping_variable = "Gruppe")
-#pander(t_test_table, style = "rmarkdown", fontsize = "tiny")
+t_test_table <- t_test_mult_cols(df_basis = Patients_vs_HC_imp, cols = imp_columns, 
+                                 df_results_columns = ttest_results_columns, grouping_variable = "Gruppe")
+pander(t_test_table, style = "rmarkdown", fontsize = "tiny")
 t_test_table
-
-# TODO: why is df not an integer?
 ```
 
 ## Prepare table for publication

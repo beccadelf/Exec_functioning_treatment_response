@@ -1,6 +1,11 @@
 # Useful Functions
 
+####################################################
+# File Management and Settings
+####################################################
+
 # This function creates a new folder named after the folder-structure the data imported was part of
+
 create_results_folder <- function(inputdata_path, output_mainpath){
   # Get the part of the file-path describing the dealing with outliers
   outliers_part = basename(inputdata_path)
@@ -17,6 +22,7 @@ create_results_folder <- function(inputdata_path, output_mainpath){
 }
 
 # Function to configure flextable settings and Word document formatting
+
 flextable_settings <- function(
     word_orientation = "portrait" # Orientation: "portrait" or "landscape"
     ){
@@ -51,7 +57,14 @@ flextable_settings <- function(
   return(format_table)
 }
 
-# Function to calculate an independent-sample t-test for multiple comparisons and store the results in a dataframe
+
+####################################################
+# Statistical Analyses
+####################################################
+
+# Function to calculate an independent-sample t-test for multiple comparisons 
+# and store the results in a dataframe
+
 t_test_mult_cols <- function(df_basis, cols, df_results_columns, grouping_variable) {
   # Initialize an empty results dataframe
   df_results <- data.frame(matrix(NA, nrow = length(cols), ncol = length(df_results_columns)))
@@ -105,4 +118,24 @@ t_test_mult_cols <- function(df_basis, cols, df_results_columns, grouping_variab
   df_results$p_value_adjusted <- round(p_values_adjusted, 2)
   
   return(df_results)
+}
+
+
+# Function to perform Levene's test for homogeneity of variance on multiple independent variables
+
+levene_test_mult_cols <- function(df_basis, cols, grouping_variable) {
+  df <- data.frame(p_value = numeric(length(cols)))
+  rownames(df) <- cols
+  
+  for (i in seq_along(cols)) {
+    col <- cols[i]
+    # Remove NA-cases per variable/task
+    df_basis_nomissings <- df_basis[!is.na(df_basis[[col]]),]
+    df_basis_nomissings[[col]] <- as.numeric(df_basis_nomissings[[col]])
+    # Perform Levene's test
+    levene_result <- car::leveneTest(df_basis_nomissings[[col]] ~ df_basis_nomissings[[grouping_variable]])
+    df[col, "p_value"] <- round(levene_result[1, "Pr(>F)"], 4)
+  }
+  
+  return(df)
 }
