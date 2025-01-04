@@ -1,0 +1,505 @@
+---
+title: "Group Comparison"
+authors: "Charlotte Meinke, Rebecca Delfendahl, Till Julius Adam"
+date: "2024-09-04"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+---
+<style type="text/css">
+.main-container { /* Adjust main blocks */
+  max-width: 100% !important;
+  margin: auto;
+}
+
+body {
+  font-family: "Georgia", serif !important; /* Set the font for the entire document */
+}
+
+.tocify { /* Adjust table of contents */
+  max-width: 100% !important;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(pander)
+library(effsize)
+library(pwr)
+library(gtsummary)
+library(stats)
+library(lmtest)
+library(sandwich)
+library(nlme)
+```
+
+# Import Task Performance Data
+```{r}
+task_performance_path = "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/new/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
+data_HC <- read.csv(file.path(task_performance_path, "Data_HC.csv"))
+data_Pat_pre <- read.csv(file.path(task_performance_path, "Data_Patients_Pre.csv"))
+```
+
+# Prepare dataset
+```{r}
+## 1. Merge patients pre and controls
+Patients_vs_HC <- rbind(data_Pat_pre, data_HC)
+
+## 2. Reduce dataset to BIS columns and SSRT
+performance_tasks <- colnames(Patients_vs_HC)[grep("BIS|SSRT", colnames(Patients_vs_HC))]
+performance_tasks <- performance_tasks[performance_tasks != "T1_BAT_BIS_11_score"]
+Patients_vs_HC_imp_conf <- Patients_vs_HC[,c("Subject","Alter", "Geschlecht","Gruppe","Abschluss", performance_tasks)]
+```
+Data for `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1,])` patients and `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0,])` healthy controls were available.
+
+## Descriptive statistics for covariates
+```{r}
+#Descriptive statistics
+Patients_vs_HC_imp_conf$Abschluss <- as.factor(Patients_vs_HC_imp_conf$Abschluss)
+levels(Patients_vs_HC_imp_conf$Abschluss) <- list("Hauptschule" = "1", "Realschule" = "2", "Gymnasium" = "3", "Anderes" = "4")
+
+table1 <- 
+  Patients_vs_HC_imp_conf %>%
+  tbl_summary(include = c(Alter, Geschlecht, Abschluss), by = Gruppe)
+pander(as.data.frame(table1))
+```
+
+## Dummy coding
+As can be seen from the descriptives table, the variable "Abschluss" has the level "Hauptschule" with only one subject and the variables "Anderes" ("Other") which is not meaningful for regression. Therefore, to use "Abschluss" (Education) in our analysis, we turned it into a dummy variable.
+```{r}
+# Set level "Anderes" (= other degree) to NA as it is not meaningful
+Patients_vs_HC_imp_conf$Abschluss[Patients_vs_HC_imp_conf$Abschluss == "Anderes"] <- NA
+
+# Add Hauptschule to Realschule and create dummy-variable "Gymnasium"
+Patients_vs_HC_imp_conf$Abschluss_Gymnasium <- dplyr::recode(Patients_vs_HC_imp_conf$Abschluss, "Hauptschule" = 0, "Realschule" = 0, "Gymnasium" = 1)
+
+# Control
+#Patients_vs_HC_imp_conf[,c("Abschluss_Gymnasium", "Abschluss")]
+```
+
+## Final dataset
+```{r}
+Patients_vs_HC_imp_conf_final <- 
+Patients_vs_HC_imp_conf[!(is.na(Patients_vs_HC_imp_conf$Alter)|is.na(Patients_vs_HC_imp_conf$Abschluss_Gymnasium)|
+                         is.na(Patients_vs_HC_imp_conf$Geschlecht)),]
+```
+`r nrow(Patients_vs_HC_imp_conf) - nrow(Patients_vs_HC_imp_conf_final)` subjects were removed due to missing values in the covariates. The final sample consists of `r nrow(Patients_vs_HC_imp_conf_final)` subjects.
+
+
+
+# ANCOVA: Basis Function
+```{r}
+run_ancova <- function(data, formula, heterosced = FALSE){
+  # data = basis dataset
+  # formula = formula 
+  # heterosced = indicate whether is hetero- or homogeneuos
+  # Initalize results-list
+  ancova_results <- list()
+  
+  # Run model with covariates
+  full <- lm(formula,data)
+  # Get variance analysis and test for significant contribution to variance explanation for each predictor/covariate
+  anova_results_sign <- car::Anova(full, type = 3, white = heterosced)
+  # If correction for heteroscedacity is applied, the output slightly differs from the default output
+  # To still combine them at a later stage, the naming is unified here.
+  if (heterosced == TRUE){
+    anova_results_sign[["Sum Sq"]] <- rep(NA_real_)
+    colnames(anova_results_sign)[colnames(anova_results_sign)=="F"] <- 'F value'
+  }
+  
+  # Indicate whether a default Anova, or a correction for heteroscedasitcy of variance was applied or an interaction term was added
+  # Check whether interaction is in formula
+  formula_type <- as.formula(formula)
+  formula_terms <- attr(terms(formula_type), "term.labels")
+  interaction_term <- grep(":", formula_terms, value = TRUE)
+  if (length(interaction_term) > 0) {
+    condition <- paste0("interaction term ", interaction_term,"added")
+  } else if (heterosced == TRUE){
+    condition <- "correction for heteroscedasticity"
+  } else {
+    condition <- "no correction"
+  }
+  
+  
+  # Calculate Adjusted means for the first predictor after ~ in the formula
+  ind_vars <- as.character(strsplit(formula, " ~ ")[[1]][2])
+  dv <- as.character(strsplit(formula, " ~ ")[[1]][1])
+  var_of_interest <- strsplit(ind_vars, " \\+")[[1]][1]
+  adj_means <- as.data.frame(emmeans::emmeans(full, as.formula(paste("~", var_of_interest))))
+  
+  # Calculate effect size (partial omega squared is recommended) for ancova
+  F_effect = anova_results_sign$F[2]
+  df_effect = abs(anova_results_sign$Df)[2]
+  n_sub = nrow(data)
+  partial_omega_squared = round(df_effect*(F_effect - 1) / (df_effect*(F_effect-1)+ n_sub),3)
+  
+  # Collect results
+  ancova_results$anova_results_sign <- anova_results_sign
+  ancova_results$adj_means <- adj_means
+  ancova_results$partial_omega_squared <- partial_omega_squared
+  ancova_results$model <- full
+  ancova_results$condition <- condition
+  
+  return(ancova_results)
+}
+
+summarize_ancova_results <- function(results_list){
+  # Input: named list with results
+  # Output: dataframe
+  res <- results_list[1]$NumberLetter_BIS_Repeat
+  results_prepared <- lapply(results_list, function(res) {
+    index_2nd_df <- length(res[["anova_results_sign"]][["Df"]])
+    data.frame(
+      error_reduction_due_to_predictor = ifelse(is.na(res[["anova_results_sign"]][["Sum Sq"]][[2]]), NA, res[["anova_results_sign"]][["Sum Sq"]][[2]]),
+      df = paste(res[["anova_results_sign"]][["Df"]][[2]], res[["anova_results_sign"]][["Df"]][index_2nd_df], sep = ", "),
+      F_value = res[["anova_results_sign"]][["F value"]][[2]],
+      p_value = res[["anova_results_sign"]][["Pr(>F)"]][[2]],
+      partial_omega_squared =  res[["partial_omega_squared"]],
+      correction_for = res[["condition"]]
+    )
+  })
+  #adj_mean_HC =  res[["anova_results_sign"]][["Pr(>F)"]][[2]]
+  
+  # Convert results list to a data frame
+  df <- do.call(rbind, results_prepared)
+  df <- data.frame(Name = names(results_prepared), df, row.names = NULL)
+  
+  return(df)
+}
+```
+
+# ANCOVA specific functions
+```{r}
+ANCOVA_mult_cols_no_violation <- function(df_basis, cols, covariates){
+  
+  # Build the covariates effects for the formula
+  covariate_main_effects <- paste(covariates, collapse = " + ")
+  
+  # Perform the uncorrected ANCOVA
+  results_uncorrected <- list()
+  for (i in seq_along(cols)){
+    col <- cols[i]
+    # 1. ANCOVA (uncorrected) for every executive functioning measure
+    formula_ancova <- paste(col, "~ Gruppe +", covariate_main_effects)
+    results_uncorrected[[col]] <- run_ancova(data = df_basis,formula = formula_ancova)
+  }
+    
+  # Summarize results in a table
+  df <- summarize_ancova_results(results_list = results_uncorrected)
+  
+  return(df)
+}
+
+ANCOVA_mult_cols <- function(df_basis, cols, covariates, homoskedasticity_violations, interaction_violations){
+  
+  # Build the covariates effects for the formula
+  covariate_main_effects <- paste(covariates, collapse = " + ")
+  covariate_interaction_effects <- paste(paste("Gruppe",covariates, sep = ":"), collapse = " + ")
+  
+  # Perform the uncorrected ANCOVA
+  results_ancova <- list()
+  for (i in seq_along(cols)){
+    col <- cols[i]
+    # 1. ANCOVA (uncorrected) for every executive functioning measure
+    formula_ancova <- paste(col, "~ Gruppe +", covariate_main_effects)
+    results_ancova[[col]] <- run_ancova(data = df_basis,formula = formula_ancova, heterosced = FALSE)
+    results_ancova[[col]][["condition"]] <- "none"
+  }
+    
+  # Perform a corrected ANCOVA if violations of assumptions occurred
+  for (i in seq_along(cols)){
+    col <- cols[i]
+    interaction_violation <- interaction_violations[i]
+    homoskedasticity_violation <- homoskedasticity_violations[i]
+    
+    # Needed for the violation of noninteraction
+    formula_ancova_interact <- paste(col, "~ Gruppe +", covariate_main_effects, "+", covariate_interaction_effects)
+    
+    # Both non-interaction-assumption and homoskedasticity-assumption are violated
+    if (interaction_violation == "Violated" && homoskedasticity_violation == "Violated") {
+      results_ancova[[col]]<- run_ancova(formula = formula_ancova_interact, data = df_basis, heterosced = TRUE)
+      results_ancova[[col]][["condition"]] <- "both"
+      # Add sums of squared error as NA 
+      results_ancova[[col]][["anova_results_sign"]][["Sum Sq"]] <- rep(NA_real_)
+
+    #  Only non-interaction-assumption violated: Model the interaction
+    } else if (interaction_violation == "Violated") {
+      results_ancova[[col]]<- run_ancova(formula = formula_ancova_interact, data = df_basis, heterosced = FALSE)
+      results_ancova[[col]][["condition"]] <- "noninteraction"
+
+    # Only homoskedasticity-assumption violated: Apply robust estimator of variation
+    } else if (homoskedasticity_violation == "Violated") {
+      results_ancova[[col]] <- run_ancova(formula = formula_ancova_interact, data = df_basis, heterosced = TRUE)
+      results_ancova[[col]][["condition"]] <- "heteroscedasticity"
+       # Add sums of squared error as NA 
+      results_ancova[[col]][["anova_results_sign"]][["Sum Sq"]] <- rep(NA_real_)
+    }
+  }
+  
+  # Summarize results
+  df <- summarize_ancova_results(results_list = results_ancova)
+  
+  
+  return(df)
+}
+
+```
+
+# 1. Round Test uncorrected models for GLM assumptions
+## Run Uncorrected models
+```{r}
+covariates = c("Alter", "Geschlecht", "Abschluss_Gymnasium")
+covariate_main_effects <- paste(covariates, collapse = " + ")
+df_basis = Patients_vs_HC_imp_conf_final
+cols = performance_tasks
+results_uncorrected <- list()
+for (i in seq_along(cols)){
+    col <- cols[i]
+    # 1. ANCOVA (uncorrected) for every executive functioning measure
+    formula_ancova <- paste(col, "~ Gruppe +", covariate_main_effects)
+    results_uncorrected[[col]] <- run_ancova(data = df_basis,formula = formula_ancova)
+}
+```
+
+
+## Visualizations
+```{r}
+# Create a list of those models used for the ANCOVA
+get_models <- function(results_list){
+  models_list <- setNames(
+  lapply(names(results_list), function(name) results_list[[name]]$model),
+  names(results_list)
+ )
+  return(models_list)
+}
+
+test_assumptions_of_MLR <- function(list_models){
+  # list_models = named List of models
+  plot_list <- list()
+  for (dep_var in names(list_models)) {
+    model <- list_models[[dep_var]]
+    #par(mfrow = c(2, 2))
+    # Residuals plot
+    resid_plot <- ggplot(model, aes(x = .fitted, y = .resid)) + 
+      geom_point() +
+      geom_smooth(se = FALSE, method = "loess", color = "red")+
+      geom_hline(yintercept = 0) +
+      labs(title= dep_var)
+    qq_plot <- ggplot(model, aes(sample = .resid)) + 
+      stat_qq() +
+      stat_qq_line() +
+      labs(title= dep_var, x = ".fitted", y = ".resid")
+    plot_list <- c(plot_list, list(resid_plot, qq_plot))
+  }
+  gridExtra::grid.arrange(grobs = plot_list,ncol = 4)
+}
+
+models_list <- get_models(results_uncorrected)
+test_assumptions_of_MLR(models_list)
+```
+
+## Statistics
+### Normality
+```{r}
+# Shapiro-Wilk for normality
+apply(Patients_vs_HC_imp_conf_final[,performance_tasks],2, FUN = shapiro.test)
+```
+For each executive functioning measure, the normality assumption is violated
+
+### Homogeneity of variance
+Breusch-Pagan Test in Koenker-version (more robust if normality is violated)
+```{r}
+conduct_BPtest_multcols<- function(models_list){
+  results_df <- do.call(rbind, lapply(names(models_list), function(model_name) {
+  test_result <- bptest(models_list[[model_name]], studentize = TRUE)
+  c(name = model_name, BP = round(test_result$statistic,2), 
+    df = test_result$parameter, 
+    p_value = round(test_result$p.value,3))
+  }))
+
+# Convert to a dataframe
+results_df <- as.data.frame(results_df, stringsAsFactors = FALSE)
+return(results_df)
+}
+conduct_BPtest_multcols(models_list)
+```
+For around half of the tests, the variance homogeneneity is violated.
+
+## Define tasks with severe violations
+```{r}
+tasks_GLMviolated <- c("NumberLetter_BIS_Repeat","NumberLetter_BIS_Switch","Stroop_BIS_Congruent","NumberLetter_BIS_Diff_Score", "Stroop_BIS_Incongruent",
+                       "TwoBack_BIS_Target")
+```
+
+# 2. Round: Test specific ANCOVA assumptions
+## Linearity splitted by groups (only for continuous covariates: here age)
+Regression of the dependent variable on the covariates is linear for each treatment condition.
+(The residuals plot has shown that this is valid in general, now we look at age extra)
+
+```{r, fig.height= 10, fig.width = 9 }
+# Loop through each task performance variable and plot Task Performance ~ Covariate per group (HC vs. Pat)
+plot_linearity_pergroup <- function(data, covariate, performance_tasks){
+   plot_list <- list()
+  for (task in performance_tasks) {
+    # Create the scatterplot of Age vs. Task Performance with Lowess Fit Line by group
+    p <- ggplot(data, aes(x = !!sym(covariate), y = !!sym(task), color = as.factor(Gruppe))) +
+      geom_point(alpha = 0.6) +  # Scatterplot points
+      geom_smooth(method = "loess", se = TRUE) +  # Lowess Fit Line per group
+      labs(title = paste(covariate, "vs.", task, "for HC vs. Pat"),
+           x = covariate,
+           y = task,
+           color = "Group") +  # Correct label for legend
+      scale_color_manual(values = c("blue", "red"), labels = c("HC", "Pat")) +  # Define colors and labels for groups
+      theme_minimal()
+    plot_list <- c(plot_list, list(p))
+  }
+  gridExtra::grid.arrange(grobs = plot_list,ncol = 2)
+}
+
+plot_linearity_pergroup(data = Patients_vs_HC_imp_conf_final, covariate = "Alter", performance_tasks = tasks_GLMviolated)
+```
+
+## Non-interaction between covariates and Group
+```{r}
+# Function to add interaction term
+data <- Patients_vs_HC_imp_conf_final
+test_interaction <- function(data, performance_task, covariates, cov_interest){
+  covariate_main_effects <- paste(covariates, collapse = " + ")
+  covariate_int_effect <- paste0("Gruppe:", cov_interest)
+  formula_int <- paste(task, "~ Gruppe +", covariate_main_effects, "+", covariate_int_effect)
+  full <- lm(formula_int,data)
+  
+  # Get variance analysis and test for significant contribution to variance explanation for each predictor/covariate
+  #options(contrasts = c("contr.sum"))
+  anova_results_sign <- car::Anova(full, type = 3, white = FALSE)
+  p_value <- round(anova_results_sign[covariate_int_effect, "Pr(>F)"],3)
+  return(p_value)
+}
+
+# Initialize a dataframe to store results, with an extra column for "Violated" or "Not Violated"
+interaction_results <- data.frame(Task = tasks_GLMviolated, 
+                                  Interaction_Group_Sex_p_value = numeric(length(tasks_GLMviolated)),
+                                  Interaction_Group_Education_p_value = numeric(length(tasks_GLMviolated)),
+                                  Interaction_Group_Age_p_value = numeric(length(tasks_GLMviolated)),
+                                  Interaction_Violated = character(length(tasks_GLMviolated)),  # New column
+                                  stringsAsFactors = FALSE)
+
+# Loop through each task and perform the interaction tests
+for (i in seq_along(tasks_GLMviolated)) {
+  task <- tasks_GLMviolated[i]
+  # 1. Sex
+  interaction_results$Interaction_Group_Sex_p_value[i] <- test_interaction(data = data, performance_task = task, covariates = covariates, cov_interest = "Geschlecht") 
+  # 2. Age
+  interaction_results$Interaction_Group_Age_p_value[i] <- test_interaction(data = data, performance_task = task, covariates = covariates, cov_interest = "Alter")
+  # 3. Education
+  interaction_results$Interaction_Group_Education_p_value[i] <- test_interaction(data = data, performance_task = task, covariates = covariates, cov_interest = "Abschluss_Gymnasium")
+ 
+  # Check if any of the p-values are less than 0.05
+  if (interaction_results$Interaction_Group_Sex_p_value[i] < 0.05 || 
+      interaction_results$Interaction_Group_Education_p_value[i] < 0.05 || 
+      interaction_results$Interaction_Group_Age_p_value[i] < 0.05) {
+    interaction_results$Interaction_Violated[i] <- "Violated"
+  } else {
+    interaction_results$Interaction_Violated[i] <- "Not Violated"
+  }
+}
+
+# Output the table to review the results
+pander(interaction_results, style = "rmarkdown", split.table = Inf, fontsize = "tiny")
+```
+
+### 3. Rerun models wiht interaction terms
+```{r, fig.width = 10}
+results_corrected_interaction <- list()
+for (task in tasks_GLMviolated) {
+  task_row <- which(interaction_results$Task == task)
+
+  # Check if any of the p-values in the row are below 0.05
+  if (any(interaction_results[task_row, 2:4] < 0.05)) {
+    # Get the column names for the interaction p-values
+    colnames_interaction <- colnames(interaction_results)[2:4]  # Interaction p-values columns
+    
+    # Find which column has a p-value < 0.05
+    p_value_column <- which(interaction_results[task_row, 2:4] < 0.05)
+    
+    # Assign corresponding covariate interaction term based on column
+    if (colnames_interaction[p_value_column] == "Interaction_Group_Sex_p_value") {
+      covariate_int_effect <- "Gruppe:Geschlecht"  # Interaction with Sex
+    } else if (colnames_interaction[p_value_column] == "Interaction_Group_Education_p_value") {
+      covariate_int_effect <- "Gruppe:Abschluss_Gymnasium"  # Interaction with Education
+    } else if (colnames_interaction[p_value_column] == "Interaction_Group_Age_p_value") {
+      covariate_int_effect <- "Gruppe:Alter"  # Interaction with Age
+    }
+    
+    # Define the main effects (assuming it's another variable in your dataset)
+    formula_interaction_switch <- paste(task, "~ Gruppe +", covariate_main_effects, "+", covariate_int_effect)
+    
+    # Run ANCOVA (or another statistical model function)
+    results_corrected_interaction[[task]] <- run_ancova(data = Patients_vs_HC_imp_conf_final, formula = formula_interaction_switch)
+  }
+}
+
+list_models_corrected_interaction <- get_models(results_corrected_interaction)
+test_assumptions_of_MLR(list_models_corrected_interaction)
+```
+The model-fit seems to be much better than before.
+
+# 4. Rerun models for those that did not improve with correction for heteroscedasticity
+```{r}
+tasks_no_improvement <- tasks_GLMviolated[!(tasks_GLMviolated %in% names(list_models_corrected_interaction))]
+
+results_corrected_homogeneity <- list()
+for (task in tasks_no_improvement) {
+  # 1. ANCOVA (uncorrected) for every executive functioning measure
+  formula_ancova <- paste(task, "~ Gruppe +", covariate_main_effects)
+  results_corrected_homogeneity[[task]] <- run_ancova(data = Patients_vs_HC_imp_conf_final,formula = formula_ancova, heterosced = TRUE)
+}
+```
+
+# Collect results
+```{r}
+combined_results <- results_uncorrected
+
+for (task in names(results_corrected_interaction)) {
+    combined_results[[task]] <- results_corrected_interaction[[task]]
+}
+for (task in names(results_corrected_homogeneity)) {
+    combined_results[[task]] <- results_corrected_homogeneity[[task]]
+}
+
+# Combine results to a table
+summarize_ancova_results(results_list = combined_results)
+
+summarize_ancova_results(results_list = results_uncorrected)
+```
+
+# Comprehensive ANCOVA
+## Corrected
+```{r}
+table_ANCOVA <- ANCOVA_mult_cols(df_basis = Patients_vs_HC_imp_conf, 
+                                 cols = performance_tasks, 
+                                 covariates = c("Alter","Geschlecht","Abschluss"),
+                                 homoskedasticity_violations = homoskedasticity_results$Homoscedasticity_Violated,
+                                 interaction_violations = interaction_results$Interaction_Violated)
+
+# final table
+pander(table_ANCOVA, style = "rmarkdown", fontsize = "tiny")
+```
+
+## Corrected for violations if needed
+```{r}
+
+
+table_ANCOVA <- ANCOVA_mult_cols_no_violation(df_basis = Patients_vs_HC_imp_conf_final,
+                                cols = performance_tasks,
+                                covariates = c("Alter", "Geschlecht", "Abschluss_Gymnasium"))
+
+# final table
+pander(table_ANCOVA, style = "rmarkdown", fontsize = "tiny")
+```
+
