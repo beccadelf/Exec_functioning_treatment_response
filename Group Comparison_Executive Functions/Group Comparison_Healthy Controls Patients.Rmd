@@ -39,37 +39,15 @@ library(gt)
 library(car)
 library(flextable)
 library(officer)
+
+# User-defined functions
+source("../Useful_functions.R")
 ```
 
 # Settings flextable
 ```{r, echo = FALSE}
-# Flextable
-set_flextable_defaults(font.family = "Arial",
-                       font.size = 8,
-                       padding.bottom = 3,
-                       padding.top = 3,
-                       padding.left = 0.5,
-                       paddings.right = 0.5,
-                       #theme_fun = "theme_apa",
-                       theme_fun = NULL,
-                       #text.align = "center",
-                       line_spacing = 1.5)
-
-# Word document to save flextable
-margins <- page_mar(
-  bottom = 2 / 2.54,
-  top = 2.5 / 2.54,
-  right = 2.5 / 2.54,
-  left = 2.5 / 2.54
-  #header = 0.5,
-  #footer = 0.5,
-  #gutter = 0.5
-)
-
-format_table_long <- prop_section(
-  page_size = page_size(orient = "portrait"),
-  page_margins = margins
-)
+format_flextable_portrait <- flextable_settings(word_orientation = "portrait")
+format_flextable_landscape <- flextable_settings(word_orientation = "landscape")
 ```
 
 # Importing Data
@@ -106,81 +84,25 @@ Find assumption test for normality in script "Testing Normality".
 # Ensure "Gruppe" is treated as a factor
 Patients_vs_HC_imp$Gruppe <- as.factor(Patients_vs_HC_imp$Gruppe)
 
-# Function to perform Levene's test on multiple columns
-levene_test_mult_cols <- function(df_basis, cols) {
-  df <- data.frame(p_value = numeric(length(cols)))
-  rownames(df) <- cols
-  
-  for (i in seq_along(cols)) {
-    col <- cols[i]
-    # Perform Levene's test, treating 'Gruppe' as a factor
-    levene_result <- car::leveneTest(df_basis[[col]] ~ df_basis[["Gruppe"]])
-    df[col, "p_value"] <- round(levene_result[1, "Pr(>F)"], 4)
-  }
-  
-  return(df)
-}
-
 # Perform Levene's test for homogeneity of variance
-levene_test_table <- levene_test_mult_cols(df_basis = Patients_vs_HC_imp, cols = imp_columns)
+levene_test_table <- levene_test_mult_cols(df_basis = Patients_vs_HC_imp, 
+                                           cols = imp_columns, 
+                                           grouping_variable = "Gruppe")
 pander(levene_test_table, style = "rmarkdown", fontsize = "tiny")
 levene_test_table
 ```
 
 ## Calculate Welch t-test
 ```{r}
-t_test_mult_cols <- function(df_basis, cols) {
-  # Calculate a t-test for multiple comparisons and store the results in a dataframe
-  df <- data.frame(group_mean_Patients = numeric(length(cols)), sd_Patients = numeric(length(cols)),
-                   group_mean_HC = numeric(length(cols)), sd_HC = numeric(length(cols)),df = numeric(length(cols)), t_statistic = numeric(length(cols)), p_value = numeric(length(cols)),
-                   cohen_d = numeric(length(cols)))
-  rownames(df) <- cols
-  p_values_raw <- numeric(length(cols))  # Vector to store raw p-values
-  
-  for (i in seq_along(cols)) {
-    col <- cols[i] #seq_along for sequencing column indices
-    
-    # Using the non-formula interface
-    group0 <- na.omit(df_basis[df_basis[["Gruppe"]] == 0, col])
-    group1 <- na.omit(df_basis[df_basis[["Gruppe"]] == 1, col])
-    results <- t.test(group0, group1, paired = FALSE, var.equal = FALSE)
-    #Alternativ using formula method:
-      #results <- t.test(df_basis[[col]] ~ df_basis[["Gruppe"]], paired = FALSE, var.equal = FALSE)
-    
-    # Store raw p-values for BH correction
-    p_values_raw[i] <- results$p.value
-    
-    # Calculate Cohen's d using the cohen.d function (effect size)
-    cohen_d_result <- cohen.d(group0, group1, hedges.correction = FALSE)
-    cohen_d <- cohen_d_result$estimate
-    
-    # Calculate power using pwr.t.test
-    n0 <- length(group0)
-    n1 <- length(group1)
-    power_result <- pwr.t.test(d = cohen_d, n = min(n0, n1), sig.level = 0.05, type = "two.sample", alternative = "greater")
-    power <- power_result$power
-    
-    # Store the results
-    df[col, "t_statistic"] <- round(results$statistic, 2)
-    df[col, "df"] <- round(results[["parameter"]][["df"]], 2)
-    df[col, "p_value"] <- round(results$p.value, 2)
-    df[col, "group_mean_Patients"] <- round(mean(group1), 2)
-    df[col, "sd_Patients"] <- round(sd(group1), 2)
-    df[col, "group_mean_HC"] <- round(mean(group0), 2)
-    df[col, "sd_HC"] <- round(sd(group0), 2)
-    df[col, "cohen_d"] <- round(cohen_d, 2)
-    df[col, "power"] <- round(power, 2)
-  }
-  
-  # Adjust p-values using Benjamini-Hochberg method for multiple testing of related tasks
-  p_values_adjusted <- p.adjust(p_values_raw, method = "BH")
-  df$p_value_adjusted <- round(p_values_adjusted, 2)
-  
-  return(df)
-}
+ttest_results_columns <- c(
+  "group_mean_Patients", "sd_Patients",
+  "group_mean_HC", "sd_HC",
+  "df", "t_statistic", "p_value", "cohen_d", "power"
+)
 
-t_test_table <- t_test_mult_cols(df_basis = Patients_vs_HC_imp, cols = imp_columns)
-#pander(t_test_table, style = "rmarkdown", fontsize = "tiny")
+t_test_table <- t_test_mult_cols(df_basis = Patients_vs_HC_imp, cols = imp_columns, 
+                                 df_results_columns = ttest_results_columns, grouping_variable = "Gruppe")
+pander(t_test_table, style = "rmarkdown", fontsize = "tiny")
 t_test_table
 ```
 
@@ -233,42 +155,9 @@ ft_t_test <- align(ft_t_test, j = 2:ncol(t_test_table_pub), align = "center", pa
 save_as_docx(
   ft_t_test,
   path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Submission/Tables/t-test_Patients_HCs.docx", 
-  pr_section = format_table_long)
+  pr_section = format_flextable_portrait)
 ```
 
-##  Table: Inferential Statistics
-```{r}
-# Create a data frame with inferential statistics (p-value, adjusted p-value, Cohen's d, power)
-inferential_stats_df <- data.frame(
-  Task = c("Number Letter Repeat", "Number Letter Switch", "Number Letter Difference BIS Score",
-           "Stroop Congruent", "Stroop Incongruent", "Stroop BIS Difference Score",
-           "Two Back Foil", "Two Back Target", "Two Back Difference BIS Score", "SSRT"),  # Include the missing task
-  unadjusted_p_value = t_test_table$p_value,
-  adjusted_p_value = t_test_table$p_value_adjusted,
-  cohen_d = t_test_table$cohen_d,
-  power = t_test_table$power
-)
-
-# Create the inferential statistics table using gt
-inferential_stats_table <- inferential_stats_df %>%
-  gt() %>% # uses gt instead of tbl_summary because easier implementation for inferential tables for which data already computed somewhere else
-  tab_header(
-    title = "Inferential Statistics: Healthy Controls vs. Patients"
-  ) %>%
-  cols_label(
-    Task = html("<b>Task</b>"),
-    unadjusted_p_value = html("<b>Unadjusted p-value</b>"),
-    adjusted_p_value = html("<b>Adjusted p-value</b>"),
-    cohen_d = html("<b>Cohen's d</b>"),
-    power = html("<b>Power</b>")
-  ) %>%
-  fmt_number(
-    columns = c(unadjusted_p_value, adjusted_p_value, cohen_d, power),
-    decimals = 2
-  )
-
-inferential_stats_table
-```
 
 # Descriptive Statistics
 Characteristics Table
@@ -420,37 +309,6 @@ characteristics_tasks <- cbind(
 )
 ```
 
-Flextable
-```{r, echo = FALSE}
-# Specify Settings
-# Flextable
-set_flextable_defaults(font.family = "Arial",
-font.size = 8,
-padding.bottom = 3,
-padding.top = 3,
-padding.left = 0.5,
-paddings.right = 0.5,
-#theme_fun = "theme_apa",
-theme_fun = NULL,
-text.align = "center",
-line_spacing = 1.5)
-
-# Word documents to save flextables
-margins <- page_mar(
-  bottom = 0.5,
-  top = 0.5,
-  right = 0.5,
-  left = 0.5,
-  header = 0.5,
-  footer = 0.5,
-  gutter = 0.5
-)
-
-format_table_wide <- prop_section(
-  page_size = page_size(orient = "landscape"),
-  page_margins = margins)
-```
-
 ```{r}
 # Create Flextable
 # Rename columns to ensure uniqueness
@@ -497,7 +355,7 @@ ft <- bold(ft, part = "header")
 ft <- autofit(ft)
 
 # Write to Word
-save_as_docx(ft, path="Characteristics Table HC vs Pat.docx", pr_section = format_table_wide)
+save_as_docx(ft, path="Characteristics Table HC vs Pat.docx", pr_section = format_flextable_landscape)
 ```
 
 

@@ -38,41 +38,16 @@ library(gtsummary)
 library(gt)
 library(car)
 library(flextable)
+library(officer)
+
+# User-defined functions
+source("../Useful_functions.R")
 ```
 
 # Settings flextable
 ```{r, echo = FALSE}
-# Flextable
-set_flextable_defaults(font.family = "Arial",
-                       font.size = 8,
-                       padding.bottom = 3,
-                       padding.top = 3,
-                       padding.left = 0.5,
-                       paddings.right = 0.5,
-                       #theme_fun = "theme_apa",
-                       theme_fun = NULL,
-                       text.align = "center",
-                       line_spacing = 1.5)
-
-# Word documents to save flextables
-margins <- page_mar(
-  bottom = 2 / 2.54,
-  top = 2.5 / 2.54,
-  right = 2.5 / 2.54,
-  left = 2.5 / 2.54,
-  header = 0.5,
-  footer = 0.5,
-  gutter = 0.5
-)
-
-format_table_wide <- prop_section(
-  page_size = page_size(orient = "landscape"),
-  page_margins = margins)
-
-format_table_long <- prop_section(
-  page_size = page_size(orient = "portrait"),
-  page_margins = margins
-)
+format_flextable_portrait <- flextable_settings(word_orientation = "portrait")
+format_flextable_landscape <- flextable_settings(word_orientation = "landscape")
 ```
 
 # Import Data 
@@ -285,7 +260,8 @@ ft <- bold(ft, part = "header")
 ft <- autofit(ft)
 
 # Write to Word
-save_as_docx(ft, path="Characteristics Table Response vs Nonresponse.docx", pr_section = format_table_wide)
+save_as_docx(ft, path="Characteristics Table Response vs Nonresponse.docx", 
+             pr_section = format_flextable_landscape)
 ```
 
 # Inferential statistics
@@ -302,102 +278,30 @@ imp_columns <- c("NumberLetter_BIS_Repeat", "NumberLetter_BIS_Switch",
                  "SSRT")
 ```
 
-## Test for variance homogeneity
-### Define function
+## Levene's test for variance homogeneity
 ```{r}
-# Perform Levene's test for homogeneity of variance on task performance measures
-levene_test_mult_cols <- function(df_basis, cols) {
-  df <- data.frame(p_value = numeric(length(cols)))
-  rownames(df) <- cols
-  
-  for (i in seq_along(cols)) {
-    col <- cols[i]
-    # Remove NA-cases per variable/task
-    df_basis_nomissings <- df_basis[!is.na(df_basis[[col]]),]
-    df_basis_nomissings[[col]] <- as.numeric(df_basis_nomissings[[col]])
-    # Perform Levene's test, treating 'Response' as a factor
-    levene_result <- car::leveneTest(df_basis_nomissings[[col]] ~ df_basis_nomissings[["Response"]])
-    df[col, "p_value"] <- round(levene_result[1, "Pr(>F)"], 4)
-  }
-  
-  return(df)
-}
-```
-
-### Perform levene test
-```{r}
-levene_test_table <- levene_test_mult_cols(df_basis = data_Pat_pre_clean, cols = imp_columns)
+levene_test_table <- levene_test_mult_cols(df_basis = data_Pat_pre_clean, cols = imp_columns, grouping_variable = "Response")
 pander(levene_test_table, style = "rmarkdown", fontsize = "tiny")
+levene_test_table
 ```
 Levene test shows complete variance homoegeneity for all task conditions between responders and non-responders.
 
 ## Calculate t-tests 
-### Define function
 ```{r}
-# Perform t-tests for each task and store results
-t_test_mult_cols <- function(df_basis, cols) {
-  # Initialize empty dataframe
-  df <- data.frame(group_mean_Response = numeric(length(cols)), sd_Response = numeric(length(cols)),
-                   group_mean_NonResponse = numeric(length(cols)), sd_NonResponse = numeric(length(cols)),
-                   df = numeric(length(cols)), t_statistic = numeric(length(cols)), 
-                   p_value = numeric(length(cols)), cohen_d = numeric(length(cols)))
-  rownames(df) <- cols
-  p_values_raw <- numeric(length(cols))  # Vector to store raw p-values
-  
-  for (i in seq_along(cols)) {
-    col <- cols[i]
-    
-    # Separate groups by Response = 1 and Response = 0
-    group1 <- na.omit(df_basis[df_basis[["Response"]] == 1, col])
-    group0 <- na.omit(df_basis[df_basis[["Response"]] == 0, col])
-    #Alternativ using formula method:
-      #results <- t.test(df_basis[[col]] ~ df_basis[["Response"]], paired = FALSE, var.equal = TRUE)
-    
-    # Perform standard t-test (since variance homogeneity holds)
-    results <- t.test(group1, group0, paired = FALSE, var.equal = TRUE)
-    
-    # Store raw p-values for BH correction
-    p_values_raw[i] <- results$p.value
-    
-    # Calculate Cohen's d
-    cohen_d_result <- cohen.d(group1, group0, hedges.correction = FALSE)
-    cohen_d <- cohen_d_result$estimate
-    
-    # Calculate power
-    n0 <- length(group0)
-    n1 <- length(group1)
-    power_result <- pwr.t.test(d = cohen_d, n = min(n0, n1), sig.level = 0.05, type = "two.sample", alternative = "greater")
-    power <- power_result$power
-    
-    # Store the results
-    df[col, "t_statistic"] <- round(results$statistic, 2)
-    df[col, "df"] <- round(results[["parameter"]][["df"]], 2)
-    df[col, "p_value"] <- round(results$p.value, 2)
-    df[col, "group_mean_Response"] <- round(mean(group1), 2)
-    df[col, "sd_Response"] <- round(sd(group1), 2)
-    df[col, "group_mean_NonResponse"] <- round(mean(group0), 2)
-    df[col, "sd_NonResponse"] <- round(sd(group0), 2)
-    df[col, "cohen_d"] <- round(cohen_d, 2)
-    df[col, "power"] <- round(power, 2)
-  }
-  
-  # Adjust p-values using Benjamini-Hochberg method for multiple testing of related tasks
-  p_values_adjusted <- p.adjust(p_values_raw, method = "BH")
-  df$p_value_adjusted <- round(p_values_adjusted, 2)
-  
-  return(df)
-}
-```
+ttest_results_columns <- c(
+  "group_mean_Response", "sd_Response",
+  "group_mean_NonReponse", "sd_NonResponse",
+  "df", "t_statistic", "p_value", "cohen_d", "power"
+)
 
-### Perform t-test
-```{r}
-t_test_table <- t_test_mult_cols(df_basis = data_Pat_pre_clean, cols = imp_columns)
+t_test_table <- t_test_mult_cols(df_basis = data_Pat_pre_clean, cols = imp_columns, df_results_columns = ttest_results_columns, grouping_variable = "Response")
 pander(t_test_table, style = "rmarkdown", split.table = Inf, fontsize = "tiny")
+t_test_table
 ```
 No significant was found for any of the tasks.
 Potential reason: low power. Even the largest power for TwoBack_BIS_Foil of 0.22 with a cohen's d of 0.2 would require a sample size of 144 to find a significant effect, as a priori power power analysis shows. However, the patient group is only about half as large as that (n=89), not to speak of the tasks with even smaller power (e.g., NumberLetter_BIS_Repeat with 0.01)
 
-### Prepare table for publication
+## Prepare table for publication
 ```{r table preparation, echo=FALSE, warning = FALSE}
 
 t_test_table_pub <- cbind(performance_measures = rownames(t_test_table), t_test_table)
@@ -406,7 +310,7 @@ t_test_table_pub <- cbind(performance_measures = rownames(t_test_table), t_test_
 t_test_table_pub <- t_test_table_pub %>%
   mutate(
     `Responder Mean (SD)` = paste0(round(group_mean_Response, 2), " (", round(sd_Response, 2), ")"),
-    `Nonresponder Mean (SD)` = paste0(round(group_mean_NonResponse, 2), " (", round(sd_NonResponse, 2), ")")
+    `Nonresponder Mean (SD)` = paste0(round(group_mean_NonReponse, 2), " (", round(sd_NonResponse, 2), ")")
     ) %>%
   select(performance_measures, `Responder Mean (SD)`, `Nonresponder Mean (SD)`, df, t_statistic, p_value, p_value_adjusted)
 
@@ -428,7 +332,7 @@ t_test_table_pub$performance_measures <- rename_map[t_test_table_pub$performance
 colnames(t_test_table_pub) <- c("Performance Measure", "Responder Mean (SD)", "Non-Responder Mean (SD)", "df", "t-Statistic", "p-Value", "adj. p-Value")
 ```
 
-### Create and save flextable
+## Create and save flextable
 ```{r flextable settings, echo=FALSE, warning = FALSE}
 ft_t_test <- flextable(t_test_table_pub)
 
@@ -446,7 +350,7 @@ ft_t_test <- align(ft_t_test, j = 2:ncol(t_test_table_pub), align = "center", pa
 save_as_docx(
   ft_t_test,
   path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Submission/Tables/t-test_Responder_Nonresponder.docx", 
-  pr_section = format_table_long)
+  pr_section = format_flextable_portrait)
 ```
 
 
