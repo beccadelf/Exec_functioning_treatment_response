@@ -27,7 +27,7 @@ flextable_settings <- function(
     word_orientation = "portrait" # Orientation: "portrait" or "landscape"
     ){
   # Set flextable defaults
-  set_flextable_defaults(font.family = "Arial",
+  flextable::set_flextable_defaults(font.family = "Arial",
                          font.size = 8,
                          padding.bottom = 3,
                          padding.top = 3,
@@ -39,24 +39,23 @@ flextable_settings <- function(
                          line_spacing = 1.5)
   
   # Word document formatting 
-  margins <- page_mar(
+  margins <- officer::page_mar(
     bottom = 2 / 2.54,
     top = 2.5 / 2.54,
     right = 2.5 / 2.54,
-    left = 2.5 / 2.54
+    left = 1 / 2.54
     #header = 0.5,
     #footer = 0.5,
     #gutter = 0.5
   )
   
-  format_table <- prop_section(
-    page_size = page_size(orient = word_orientation),
+  format_table <- officer::prop_section(
+    page_size = officer::page_size(orient = word_orientation),
     page_margins = margins
   )
   
   return(format_table)
 }
-
 
 ####################################################
 # Statistical Analyses
