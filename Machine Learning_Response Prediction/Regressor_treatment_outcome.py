@@ -9,6 +9,7 @@ in the "Fear of Spyders Questionnaire" in percent.
 #%% Import libraries and functions
 
 import os
+import numpy as np
 import argparse
 import time
 from functools import partial
@@ -21,7 +22,7 @@ os.chdir(script_wd)
 
 # Import self-defined functions
 from lib.Preprocessing_Classes import FeatureSelector
-from lib.Pipeline import load_data, impute_data, z_scale_data, select_features
+from lib.Pipeline import load_data, impute_data, z_scale_data, select_features_regression
 from lib.Models import fit_random_forest_regressor, fit_ridge_regressor
 from lib.ModelPerformance import calc_eval_metrics_regression, get_performance_metrics_across_iters, summarize_performance_metrics_across_iters
 from lib.FeatureStats import summarize_features
@@ -37,8 +38,9 @@ def set_options_and_paths():
     """
 
     def generate_and_create_results_path(args):
-        model_name = f"{args.NAME_RESULTS_FOLDER}"
-        PATH_RESULTS = os.path.join(args.PATH_RESULTS_BASE, model_name)
+        model_name = f"{args.NAME_RESULTS_FOLDER}_new4"
+        path_results_base = args.PATH_INPUT_DATA.replace( "Feature_Label_Dataframes","Results")
+        PATH_RESULTS = os.path.join(path_results_base, model_name)
         os.makedirs(PATH_RESULTS, exist_ok=True)
         PATH_RESULTS_PLOTS = os.path.join(PATH_RESULTS, "plots")
         os.makedirs(PATH_RESULTS_PLOTS, exist_ok=True)
@@ -73,13 +75,13 @@ def set_options_and_paths():
     except:
         print("Using arguments given in the script")
         args = parser.parse_args([
-            '--PATH_INPUT_DATA', "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Feature_Label_Dataframes",
-            '--PATH_RESULTS_BASE', "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Results",
-            '--ANALYSIS', "all_features", 
-            '--REGRESSOR', 'random_forest_regressor',
-            '--NUMBER_REPETITIONS', "5"
+            '--PATH_INPUT_DATA', "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Feature_Label_Dataframes\\RT_trimmed_RT_wrong_removed_outliers-removed",
+            '--PATH_RESULTS_BASE', "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Results",
+            '--ANALYSIS', "clinical_features_only", 
+            '--REGRESSOR', 'ridge_regressor',
+            '--NUMBER_REPETITIONS', "10"
         ])
-        args.NAME_RESULTS_FOLDER = f"{args.ANALYSIS}_{args.CLASSIFIER}"
+        args.NAME_RESULTS_FOLDER = f"{args.ANALYSIS}_{args.REGRESSOR}"
         PATHS = generate_and_create_results_path(args)
         
     return args, PATHS
@@ -96,7 +98,7 @@ def procedure_per_iter(num_iter, args):
     y_import_path = os.path.join(args.PATH_INPUT_DATA, "outcomes.csv")
     X, y, feature_names = load_data(X_import_path, y_import_path)
     
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.25,
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2,
                                                         random_state = num_iter) # TODO: stratify = y rausnehmen?
     # By changing the random_state with each iteration, we always get a different split
     
@@ -115,12 +117,16 @@ def procedure_per_iter(num_iter, args):
     
     X_train_imp_clean_scaled, X_test_imp_clean_scaled = z_scale_data(X_train_imp_clean, X_test_imp_clean)
     
-    X_train_imp_clean_scaled_sel, X_test_imp_clean_scaled_sel, features_selected = select_features(X_train_imp_clean_scaled, X_test_imp_clean_scaled, y_train, feature_names_clean)
+    X_train_imp_clean_scaled_sel, X_test_imp_clean_scaled_sel, features_selected = select_features_regression(X_train_imp_clean_scaled, X_test_imp_clean_scaled, y_train, feature_names_clean)
+    #X_train_imp_clean_scaled_sel = X_train_imp_clean_scaled
+    #X_test_imp_clean_scaled_sel =  X_test_imp_clean_scaled
+    #features_selected = feature_names_clean 
     
-    # Fit classifier
+    # Fit Regressor
     if args.REGRESSOR == "random_forest_regressor":
+        max_features = X_train_imp_clean_scaled_sel.shape[1]//3
         clf, feature_weights = fit_random_forest_regressor(
-            X_train_imp_clean_scaled_sel, y_train)
+            X_train_imp_clean_scaled_sel, y_train, max_features)
     elif args.REGRESSOR == "ridge_regressor":
         clf, feature_weights = fit_ridge_regressor(
             X_train_imp_clean_scaled_sel, y_train)

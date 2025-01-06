@@ -35,11 +35,12 @@ theme_set(theme_bw() + theme(text = element_text(family = family),
 # Load and combine results
 ```{r}
 # Get all folders in the results folder (each containing the results of another model)
-path_results_folder = "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Results"
+basic_path = "Y:\\Psythera"
+path_results_folder = file.path(basic_path, "Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Results\\RT_trimmed_RT_wrong_removed_outliers-removed")
 results_folders <- list.files(path = path_results_folder, full.names = FALSE)
 
 # Filter for new results
-results_folders <- results_folders[grepl("new", results_folders)]
+results_folders <- results_folders[grepl("new4", results_folders)]
 
 # For each folder, save the performance_across_iters-file in dictionary
 results_dict = list()
@@ -62,16 +63,18 @@ regression_results <- combined_results[grepl("regressor", combined_results$Folde
 ```{r}
 create_classification_plot <- function(results_df){
   # Create new model variable
-  results_df$Model <- ifelse(grepl("random_forest_classifier_yes_oversampling", results_df$FolderName),
+  results_df$Model <- ifelse(grepl("random_forest_classifier_yes_simple", results_df$FolderName),
                              "Random Forest\n(Oversampled)",
                       ifelse(grepl("random_forest_classifier_yes_smote_oversampling", results_df$FolderName),
                              "Random Forest\n(Smote Oversampled)",
                       ifelse(grepl("random_forest_classifier_no_oversampling", results_df$FolderName),
                              "Random Forest",
-                      ifelse(grepl("svm_classifier_yes_oversampling", results_df$FolderName), 
+                      ifelse(grepl("svm_classifier_C1_yes_smote", results_df$FolderName),
+                             "SVM\n(Smote Oversampled)",
+                      ifelse(grepl("svm_classifier_C1_yes_simple", results_df$FolderName), 
                              "SVM\n(Oversampled)",
-                      ifelse(grepl("svm_classifier_no_oversampling", results_df$FolderName), 
-                             "SVM", NA)))))
+                      ifelse(grepl("svm_classifier_C1_no_oversampling", results_df$FolderName), 
+                             "SVM", NA))))))
   
   # Define feature sets and specify colors
   results_df$FeatureSet <- ifelse(grepl("clinical_features", results_df$FolderName),
@@ -147,6 +150,7 @@ regression_plot <- create_regression_plot(results_df = regression_results)
 
 # Save plots
 ```{r}
-ggsave("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/2_Machine_learning/Plots/Classification_results_plot.png", plot = classification_plot, width = 16, height = 9, dpi = 300)
-ggsave("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/2_Machine_learning/Plots/Regression_results_plot.png", plot = regression_plot, width = 16, height = 9, dpi = 300)
+plots_path = file.path(basic_path, "Projekte_Meinke/Old_projects/Labrotation_Rebecca/2_Machine_learning/Plots/")
+ggsave(file.path(plots_path,"Classification_results_plot.png"), plot = classification_plot, width = 16, height = 9, dpi = 300)
+ggsave(file.path(plots_path, "Regression_results_plot.png"), plot = regression_plot, width = 16, height = 9, dpi = 300)
 ```

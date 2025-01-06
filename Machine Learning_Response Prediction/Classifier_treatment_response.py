@@ -15,6 +15,7 @@ from functools import partial
 import sklearn
 from sklearn.model_selection import train_test_split
 from imblearn.over_sampling import RandomOverSampler
+from imblearn.over_sampling import SMOTE
 
 # Ensure cwd is script's directory
 script_wd = os.path.dirname(os.path.abspath(__file__))
@@ -22,7 +23,7 @@ os.chdir(script_wd)
 
 # Import self-defined functions
 from lib.Preprocessing_Classes import FeatureSelector
-from lib.Pipeline import load_data, impute_data, z_scale_data, select_features
+from lib.Pipeline import load_data, impute_data, z_scale_data, select_features_classification
 from lib.Models import fit_random_forest_classifier, fit_svm_classifier
 from lib.ModelPerformance import calc_eval_metrics_classification, get_performance_metrics_across_iters, summarize_performance_metrics_across_iters
 from lib.FeatureStats import summarize_features
@@ -38,8 +39,9 @@ def set_options_and_paths():
     """
 
     def generate_and_create_results_path(args):
-        model_name = f"{args.NAME_RESULTS_FOLDER}"
-        PATH_RESULTS = os.path.join(args.PATH_RESULTS_BASE, model_name)
+        model_name = f"{args.NAME_RESULTS_FOLDER}_new4"
+        path_results_base = args.PATH_INPUT_DATA.replace( "Feature_Label_Dataframes","Results")
+        PATH_RESULTS = os.path.join(path_results_base, model_name)
         os.makedirs(PATH_RESULTS, exist_ok=True)
         PATH_RESULTS_PLOTS = os.path.join(PATH_RESULTS, "plots")
         os.makedirs(PATH_RESULTS_PLOTS, exist_ok=True)
@@ -63,7 +65,7 @@ def set_options_and_paths():
                         help='Features to include, set all_features or clinical_features_only')
     parser.add_argument('--CLASSIFIER', type=str,
                         help='Classifier to use, set random_forest_classifier or svm_classifier')
-    parser.add_argument('--OVERSAMPLING', type=str, default="Yes",
+    parser.add_argument('--OVERSAMPLING', type=str, default="yes_simple",
                         help='Should training and testset be oversampled to represent distribution in sample?')
     parser.add_argument('--NUMBER_REPETITIONS', type=int, default=100,
                         help='Number of repetitions of the cross-validation')
@@ -77,12 +79,12 @@ def set_options_and_paths():
     except:
         print("Using arguments given in the script")
         args = parser.parse_args([
-            '--PATH_INPUT_DATA', "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Feature_Label_Dataframes",
-            '--PATH_RESULTS_BASE', "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Results",
+            '--PATH_INPUT_DATA', "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Feature_Label_Dataframes\\RT_trimmed_RT_wrong_removed_outliers-removed",
+            '--PATH_RESULTS_BASE', "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Results",
             '--ANALYSIS', "all_features",
             '--CLASSIFIER', 'random_forest_classifier',
-            '--OVERSAMPLING', 'no',
-            '--NUMBER_REPETITIONS', "5"
+            '--OVERSAMPLING', 'yes_smote',
+            '--NUMBER_REPETITIONS', "100"
         ])
         args.NAME_RESULTS_FOLDER = f"{args.ANALYSIS}_{args.CLASSIFIER}_{args.OVERSAMPLING}" + "_oversampling"
         PATHS = generate_and_create_results_path(args)
@@ -101,15 +103,18 @@ def procedure_per_iter(num_iter, args):
     y_import_path = os.path.join(args.PATH_INPUT_DATA, "labels.csv")
     X, y, feature_names = load_data(X_import_path, y_import_path)
     
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.25,
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2,
                                                         stratify=y,
                                                         random_state = num_iter)
     # By changing the random_state with each iteration, we always get a different split
     
     # Oversample XXX
-    if args.OVERSAMPLING == "yes":
+    if args.OVERSAMPLING == "yes_simple":
         oversample = RandomOverSampler(sampling_strategy = 'minority')
         X_train_final, y_train_final = oversample.fit_resample(X_train, y_train)
+    elif args.OVERSAMPLING == "yes_smote":
+        sm = SMOTE(random_state=42)
+        X_train_final, y_train_final = sm.fit_resample(X_train, y_train)
     elif args.OVERSAMPLING == "no":
         X_train_final, y_train_final = X_train, y_train
     
@@ -128,15 +133,27 @@ def procedure_per_iter(num_iter, args):
     X_train_imp_clean_scaled, X_test_imp_clean_scaled = z_scale_data(X_train_imp_clean, X_test_imp_clean)
     
     # Select features
-    X_train_imp_clean_scaled_sel, X_test_imp_clean_scaled_sel, features_selected = select_features(X_train_imp_clean_scaled, X_test_imp_clean_scaled, y_train_final, feature_names_clean)
+    X_train_imp_clean_scaled_sel, X_test_imp_clean_scaled_sel, features_selected = select_features_classification(X_train_imp_clean_scaled, X_test_imp_clean_scaled, y_train_final, feature_names_clean)
     
     # Fit classifier
     if args.CLASSIFIER == "random_forest_classifier":
         clf, feature_weights = fit_random_forest_classifier(
             X_train_imp_clean_scaled_sel, y_train_final)
-    elif args.CLASSIFIER == "svm_classifier":
+    # elif args.CLASSIFIER == "random_forest_classifier_0.8":
+    #     clf, feature_weights = fit_random_forest_classifier(
+    #         X_train_imp_clean_scaled_sel, y_train_final, max_features = 0.8)
+    # elif args.CLASSIFIER == "random_forest_classifier_0.9":
+    #     clf, feature_weights = fit_random_forest_classifier(
+    #         X_train_imp_clean_scaled_sel, y_train_final, max_features = 0.9)
+    elif args.CLASSIFIER == "svm_classifier_C1":
         clf, feature_weights = fit_svm_classifier(
-            X_train_imp_clean_scaled_sel, y_train_final)
+            X_train_imp_clean_scaled_sel, y_train_final, C=1)
+    # elif args.CLASSIFIER == "svm_classifier_C0.01":
+    #     clf, feature_weights = fit_svm_classifier(
+    #         X_train_imp_clean_scaled_sel, y_train_final, C=1)
+    # elif args.CLASSIFIER == "svm_classifier_C1":
+    #     clf, feature_weights = fit_svm_classifier(
+    #         X_train_imp_clean_scaled_sel, y_train_final, kernel = "rbf")
     
     # Calculate model performance metrics
     y_pred_test = clf.predict(X_test_imp_clean_scaled_sel)

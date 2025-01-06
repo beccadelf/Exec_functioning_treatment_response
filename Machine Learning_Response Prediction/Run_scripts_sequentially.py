@@ -19,12 +19,12 @@ os.chdir(script_wd)
 
 # Define the parameters
 regressors = ["random_forest_regressor", "ridge_regressor"]
-classifiers = ["random_forest_classifier", "svm_classifier"]
+classifiers = ["random_forest_classifier", "svm_classifier_C1"]
 analysis = ["all_features", "clinical_features_only"]
-oversampling = ["yes", "no"]
+oversampling = ["yes_simple","yes_smote", "no"]
 
-path_input_data = "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Feature_Label_Dataframes"
-path_results_base = "Z:\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Results"
+path_input_data = "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Feature_Label_Dataframes\\RT_trimmed_RT_wrong_removed_outliers-removed"
+path_results_base = "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\RT_trimmed_RT_wrong_removed_outliers-removed\\Results"
 
 # Generate argument_sets
 # Regression
@@ -37,7 +37,7 @@ for combo in all_combinations_regression:
         'NAME_RESULTS_FOLDER': "_".join(combo),
         'ANALYSIS': combo[0],
         'REGRESSOR': combo[1],
-        'NUMBER_REPETITIONS': 5
+        'NUMBER_REPETITIONS': 100
     })
 # Classification
 argument_sets_classification = []
@@ -50,7 +50,7 @@ for combo in all_combinations_classification:
         'ANALYSIS': combo[0],
         'CLASSIFIER': combo[1],
         'OVERSAMPLING': combo[2], 
-        'NUMBER_REPETITIONS': 5
+        'NUMBER_REPETITIONS': 100
     })
 
 
@@ -91,4 +91,4 @@ def run_script(script_path, argument_sets):
 
 # Run the scripts with generated argument sets
 run_script(script_paths["regression"], argument_sets_regression)
-run_script(script_paths["classification"], argument_sets_classification)
+#run_script(script_paths["classification"], argument_sets_classification)
