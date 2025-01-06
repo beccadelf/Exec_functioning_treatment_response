@@ -58,14 +58,16 @@ outcome_df <- round(data.frame(FAS_perc_change = ((features_df$T3_BAT_FAS_score 
 
 # 4. Dummy-Vars and renaming of features
 The only variable that needed one-hot encoding was "Abschluss" (education). As we had no missings in this variable, we were allowed to perform one-hot encoding outside the loop. Otherwise, we would need to perform it inside the loop, just after imputation. 
+As "Abschluss" (education) had two levels with a very low number of subjects (level 1/Basic education/Hauptschule: 1 subject, level 4/Other/Anderes: 4 subjects), we decided to turn it only into one dummy-coded variable, coding the presence of level 3/High education/Gymnasium 
 ```{r Prepare for ML}
 # 0 Check missings in "Abschluss"
 any(is.na(features_df$Abschluss))
+# 0 Check frequency of levels
+table(features_df$Abschluss)
 # 1. OneHot-Encoding of variable "Abschluss"
-features_df$Abschluss <- as.character(features_df$Abschluss)
-dummy <- dummyVars(" ~ Abschluss", data = features_df)
-trsf <- data.frame(predict(dummy, newdata = features_df, fullRank=TRUE))
-features_df_enc <- cbind(features_df, trsf)
+features_df_enc <- features_df
+features_df_enc$Abschluss_Gymnasium <- dplyr::recode(features_df_enc$Abschluss, "1" = 0, "2" = 0, "3" = 1, "4" = 1)
+
 
 # 2. Drop variables "Abschluss", "Subject", "Gruppe", and "T3_BAT_FAS_score"
 features_df_enc$Subject <- NULL
@@ -84,10 +86,7 @@ features_df_enc <- features_df_enc %>%
          Kirby_k = T1_BAT_Kirby_k_score,
          CFC_14 = T1_BAT_CFC_14_score,
          SRHI = T1_BAT_SRHI_score,
-         Hauptschule = Abschluss1,
-         Realschule = Abschluss2,
-         Abitur = Abschluss3,
-         anderer_Abschluss = Abschluss4)
+         Abschluss_Gymnasium = Abschluss_Gymnasium)
 ```
 
 # 5. Recode missing values for binary and non-binary features
@@ -95,10 +94,9 @@ features_df_enc <- features_df_enc %>%
 ```{r Missing values}
 #var_category <- find_bin_cols(features_df_enc_clean)
 # TEST
-bin_cols <- c("is_woman", "Hauptschule", "Realschule", "Abitur", "anderer_Abschluss")
+bin_cols <- c("is_woman", "Abschluss_Gymnasium")
 non_bin_cols <- setdiff(names(features_df_enc), bin_cols) 
 
-# TODO: Replace bin_cols with var_category$binary and non_bin_cols with var_category$non_binary as soon as function find_bin_cols works
 for (feature in bin_cols) {
   features_df_enc[[feature]][is.na(features_df_enc[[feature]])] <- 77777
 }
@@ -111,7 +109,7 @@ for (feature in non_bin_cols) {
 
 ```{r Reduced feature dataframe}
 # Set 1: Clinical features only
-clin_features <- c("is_woman", "Age", "FAS", "BDI_II", "STAI_T", "BIS_11", "Kirby_k", "CFC_14", "SRHI", "Hauptschule", "Realschule", "Abitur", "anderer_Abschluss")
+clin_features <- c("is_woman", "Age", "FAS", "BDI_II", "STAI_T", "BIS_11", "Kirby_k", "CFC_14", "SRHI", "Abschluss_Gymnasium")
 clin_features_df_enc <- features_df_enc[clin_features]
 
 # Set 2: All features but without Overall Accuracy
