@@ -12,7 +12,7 @@ import numpy as np
 
 from sklearn.experimental import enable_iterative_imputer # must be imported to use IterativeImputer
 from sklearn.impute import SimpleImputer, IterativeImputer
-from sklearn.linear_model import BayesianRidge, ElasticNet
+from sklearn.linear_model import BayesianRidge, ElasticNet, LogisticRegression
 from sklearn.feature_selection import SelectFromModel
 
 from lib.Preprocessing_Classes import ZScalerDimVars
@@ -100,7 +100,7 @@ def z_scale_data(X_train, X_test):
     return X_train_scaled, X_test_scaled
 
 
-def select_features(X_train, X_test, y_train, feature_names):
+def select_features_classification(X_train, X_test, y_train, feature_names):
     """
     Perform feature selection using ElasticNet regularization, retaining 
     features based on a threshold applied to model coefficients.
@@ -123,7 +123,45 @@ def select_features(X_train, X_test, y_train, feature_names):
         selection. Features are selected if their importance meets or exceeds the mean coefficient 
         magnitude across features, as determined by the model.
     """
-    clf_elastic = ElasticNet(alpha=0.1, l1_ratio=0.5, fit_intercept=False,
+    clf_elastic = LogisticRegression(penalty = "elasticnet", solver="saga", C = 0.1,
+                                     l1_ratio= 0.5,
+                             max_iter=1000, tol=0.0001, 
+                             random_state=0)
+    sfm = SelectFromModel(clf_elastic, threshold="mean")
+    sfm.fit(X_train, y_train)
+    X_train_selected = sfm.transform(X_train)
+    X_test_selected = sfm.transform(X_test)
+    # Get feature names of selected features
+    is_selected = sfm.get_support()
+    feature_names_selected = feature_names[is_selected]
+    
+    return X_train_selected, X_test_selected, feature_names_selected
+
+
+def select_features_regression(X_train, X_test, y_train, feature_names):
+    """
+    Perform feature selection using ElasticNet regularization, retaining 
+    features based on a threshold applied to model coefficients.
+
+    Arguments:
+        - X_train: array or DataFrame (n_samples_train, n_features), feature set for training.
+        - X_test: array or DataFrame (n_samples_test, n_features), feature set for testing.
+        - y_train: array (n_samples_train,), target values for training.
+        - feature_names: array (n_features,), names of all features initially provided.
+
+    Returns:
+        - X_train_selected: numpy array (n_samples_train, n_selected_features), 
+                            training data with selected features.
+        - X_test_selected: numpy array (n_samples_test, n_selected_features), 
+                           testing data with selected features.
+        - feature_names_selected: array of shape (n_selected_features,), names of the selected features.
+
+    Notes:
+        This function uses an ElasticNet model with specified regularization parameters for feature 
+        selection. Features are selected if their importance meets or exceeds the mean coefficient 
+        magnitude across features, as determined by the model.
+    """
+    clf_elastic = ElasticNet(alpha=0.1, l1_ratio=0.5, fit_intercept=True,
                              max_iter=1000, tol=0.0001, 
                              random_state=0, selection='cyclic')
     sfm = SelectFromModel(clf_elastic, threshold="mean")
