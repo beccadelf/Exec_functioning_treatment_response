@@ -57,11 +57,12 @@ performance_tasks <- colnames(Patients_vs_HC)[grep("BIS|SSRT", colnames(Patients
 performance_tasks <- performance_tasks[performance_tasks != "T1_BAT_BIS_11_score"]
 Patients_vs_HC_imp_conf <- Patients_vs_HC[,c("Subject","Alter", "Geschlecht","Gruppe","Abschluss", performance_tasks)]
 ```
-Data for `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1,])` patients and `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0,])` healthy controls were available.
+
 
 ## Descriptive statistics for covariates
 ```{r}
 #Descriptive statistics
+#Data for `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1,])` patients and `r #n#row(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0,])` healthy controls were available.
 Patients_vs_HC_imp_conf$Abschluss <- as.factor(Patients_vs_HC_imp_conf$Abschluss)
 levels(Patients_vs_HC_imp_conf$Abschluss) <- list("Hauptschule" = "1", "Realschule" = "2", "Gymnasium" = "3", "Anderes" = "4")
 
@@ -379,7 +380,7 @@ The model-fit seems to be much better than before.
 tasks_no_improvement <- tasks_GLMviolated[!(tasks_GLMviolated %in% names(list_models_corrected_interaction))]
 
 results_corrected_homogeneity <- list()
-for (task in tasks_no_improvement) {
+for (task in tasks_GLMviolated) {
   # 1. ANCOVA (uncorrected) for every executive functioning measure
   formula_ancova <- paste(task, "~ Gruppe +", covariate_main_effects)
   results_corrected_homogeneity[[task]] <- run_ancova(data = Patients_vs_HC_imp_conf_final,formula = formula_ancova, heterosced = TRUE)
@@ -403,7 +404,7 @@ table_summary <- summarize_ancova_results(results_list = combined_results)
 ## Correct results for multiple comparisons
 ```{r}
 # Apply correction for multiple comparisons
-table_summary$p_values_adjusted <- round(p.adjust(table_summary$p_value, method = "BH"),3)
+table_summary$p_values_adjusted <- p.adjust(table_summary$p_value, method = "BH")
 table_summary$F_value <- round(table_summary$F_value,2)
 table_summary$error_reduction_due_to_predictor <- round(table_summary$error_reduction_due_to_predictor,2)
 table_summary$p_value <- round(table_summary$p_value,3)
@@ -428,7 +429,7 @@ rename_map <- c(
 table_summary$Name <- recode(table_summary$Name, !!!rename_map)
 
 colnames(table_summary) <- recode(colnames(table_summary),"Name" = "Performance Measure", 
-                                  "error_reduction_due_to_predictor" = "Type III SS explained by Group",
+                                  "error_reduction_due_to_predictor" = "Type III SSq explained by Group",
                                   "F_value" = "F-Value",
                                   "p_value" = "p-Value",
                                   "partial_omega_squared" = "Partial Omega Squared",

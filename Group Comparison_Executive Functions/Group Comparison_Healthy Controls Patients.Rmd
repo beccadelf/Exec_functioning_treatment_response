@@ -9,7 +9,7 @@ output:
     code_folding: hide
     df_print: paged
 params:
-  input_data_path: "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/new/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
+  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/new/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
 ---
 <style type="text/css">
 .main-container { /* Adjust main blocks */
@@ -152,10 +152,10 @@ ft_t_test <- align(ft_t_test, j = 1, align = "left", part = "all") # first colum
 ft_t_test <- align(ft_t_test, j = 2:ncol(t_test_table_pub), align = "center", part = "all") # rest
 
 # Export flextable
-save_as_docx(
-  ft_t_test,
-  path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Submission/Tables/t-test_Patients_HCs.docx", 
-  pr_section = format_flextable_portrait)
+# save_as_docx(
+#   ft_t_test,
+#   path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Submission/Tables/t-test_Patients_HCs.docx", 
+#   pr_section = format_flextable_portrait)
 ```
 
 

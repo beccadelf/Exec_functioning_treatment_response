@@ -63,18 +63,18 @@ regression_results <- combined_results[grepl("regressor", combined_results$Folde
 ```{r}
 create_classification_plot <- function(results_df){
   # Create new model variable
-  results_df$Model <- ifelse(grepl("random_forest_classifier_yes_simple", results_df$FolderName),
-                             "Random Forest\n(Oversampled)",
-                      ifelse(grepl("random_forest_classifier_yes_smote_oversampling", results_df$FolderName),
-                             "Random Forest\n(Smote Oversampled)",
+  results_df$Model <- ifelse(grepl("random_forest_classifier_yes_smote_oversampling", results_df$FolderName),
+                             "Random Forest\n(OS: SMOTE)",
+                      ifelse(grepl("random_forest_classifier_yes_simple", results_df$FolderName),
+                             "Random Forest\n(OS: Simple)",
                       ifelse(grepl("random_forest_classifier_no_oversampling", results_df$FolderName),
-                             "Random Forest",
+                             "Random Forest\n(OS: no)",
                       ifelse(grepl("svm_classifier_C1_yes_smote", results_df$FolderName),
-                             "SVM\n(Smote Oversampled)",
+                             "Rbf-SVM\n(OS: SMOTE)",
                       ifelse(grepl("svm_classifier_C1_yes_simple", results_df$FolderName), 
-                             "SVM\n(Oversampled)",
+                             "Rbf-SVM\n(OS: Simple)",
                       ifelse(grepl("svm_classifier_C1_no_oversampling", results_df$FolderName), 
-                             "SVM", NA))))))
+                             "Rbf-SVM\n(OS: no)", NA))))))
   
   # Define feature sets and specify colors
   results_df$FeatureSet <- ifelse(grepl("clinical_features", results_df$FolderName),

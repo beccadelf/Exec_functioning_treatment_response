@@ -9,7 +9,7 @@ output:
     code_folding: hide
     df_print: paged
 params:
-  basic_path: "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/new/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
+  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/new/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
 ---
 <style type="text/css">
 .main-container { /* Adjust main blocks */
@@ -53,8 +53,7 @@ format_flextable_landscape <- flextable_settings(word_orientation = "landscape")
 # Import Data 
 
 ```{r}
-basic_path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/With_wrong_responses/outliers-removed"
-param_suffix = basename(basic_path)
+basic_path <- params$input_data_path
 data_Pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
 ```
 
@@ -63,6 +62,7 @@ Remove all patients that had no post-treatment score
 ```{r}
 data_Pat_pre_clean <- data_Pat_pre[!is.na(data_Pat_pre$Response),]
 ```
+We had `r nrow(data_Pat_pre[!is.na(data_Pat_pre$Response),])` patients with a post-value available, and `r nrow(data_Pat_pre_clean[data_Pat_pre_clean$Response == 1,])`
 
 # Descriptive Statistics
 Characteristics Table
