@@ -1,6 +1,7 @@
 ## Function: Calc SSRT with 
-#This function is based on the function https://github.com/agleontyev/SSRTcalc/blob/master/R/Integration_adaptiveSSD.R
-#for calculating the SSD based on integration.
+
+# This function is based on the function https://github.com/agleontyev/SSRTcalc/blob/master/R/Integration_adaptiveSSD.R
+# for calculating the SSD based on integration.
 
 integration_adaptiveSSD_more_info <- function(df, stop_col, rt_col, acc_col, ssd_col, response_col) {
   
