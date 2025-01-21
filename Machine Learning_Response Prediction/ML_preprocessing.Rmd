@@ -2,20 +2,39 @@
 title: "Preprocessing_for_ML"
 author: "Rebecca Delfendahl"
 date: "2024-08-06"
-output: html_document
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+    df_print: paged
 params:
-  input_data_path: "Y://PsyThera//Projekte_Meinke//Old_projects//Labrotation_Rebecca//0_Datapreparation//Daten_Gruppenvergleich//new//RT_trimmed_RT_wrong_removed//BIS//outliers-removed"
+  input_data_path: "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/new/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
 ---
+<style type="text/css">
+.main-container { /* Adjust main blocks */
+  max-width: 100% !important;
+  margin: auto;
+}
+
+body {
+  font-family: "Georgia", serif !important; /* Set the font for the entire document */
+}
+
+.tocify { /* Adjust table of contents */
+  max-width: 100% !important;
+}
+</style>
 
 ```{r R Setup, include = FALSE}
-source("../Useful_functions.R")
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,rows.print = 6, cols.min.print = 3)
 library(dplyr)
 library(tidyverse)
 library(caret)
+source("../Useful_functions.R")
 ```
 
-# 0. Load relevant data
+## 0. Load relevant data
 
 ```{r}
 basic_path <- params$input_data_path
@@ -24,7 +43,7 @@ task_data <- read.csv(file.path(basic_path,"Performance_scoresTask_Performance_S
 data_pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
 ```
 
-# 1. Exclude patients due to missing values
+## 1. Exclude patients due to missing values
 
 ```{r}
 data_pat_pre_clean <- data_pat_pre %>%
@@ -32,7 +51,7 @@ data_pat_pre_clean <- data_pat_pre %>%
 ```
 `r nrow(data_pat_pre) - nrow(data_pat_pre_clean)` patients were removed due to missing FAS_T1 and/or FAS_T3 (i.e. response criterion).
 
-# 2. Add overall accuracy as additional feature
+## 2. Add overall accuracy as additional feature
 Note: also add PercentRmv as control variable if trials with wrong responses were discarded
 
 ```{r}
@@ -43,20 +62,20 @@ features_df <- left_join(x = data_pat_pre_clean,
                          by = "Subject")
 ```
 
-# 3. Add classes (for classifier) and outcome (for regressor)
+## 3. Add classes (for classifier) and outcome (for regressor)
 
-## 3.1. Classes (Responder vs. Non-Responder)
+### 3.1. Classes (Responder vs. Non-Responder)
 ```{r Save labels in separate dataframe}
 labels_df <- features_df["Response"]
 features_df$Response <- NULL
 ```
 
-## 3.2. Regression: Outcome (Percent-change in FAS)
+### 3.2. Regression: Outcome (Percent-change in FAS)
 ```{r}
 outcome_df <- round(data.frame(FAS_perc_change = ((features_df$T3_BAT_FAS_score - features_df$T1_BAT_FAS_score) / features_df$T1_BAT_FAS_score) * 100) * (-1),2)
 ```
 
-# 4. Dummy-Vars and renaming of features
+## 4. Dummy-Vars and renaming of features
 The only variable that needed one-hot encoding was "Abschluss" (education). As we had no missings in this variable, we were allowed to perform one-hot encoding outside the loop. Otherwise, we would need to perform it inside the loop, just after imputation. 
 As "Abschluss" (education) had two levels with a very low number of subjects (level 1/Basic education/Hauptschule: 1 subject, level 4/Other/Anderes: 4 subjects), we decided to turn it only into one dummy-coded variable, coding the presence of level 3/High education/Gymnasium 
 ```{r Prepare for ML}
@@ -89,7 +108,7 @@ features_df_enc <- features_df_enc %>%
          Abschluss_Gymnasium = Abschluss_Gymnasium)
 ```
 
-# 5. Recode missing values for binary and non-binary features
+## 5. Recode missing values for binary and non-binary features
 
 ```{r Missing values}
 #var_category <- find_bin_cols(features_df_enc_clean)
@@ -105,7 +124,7 @@ for (feature in non_bin_cols) {
 }
 ```
 
-# 6. Create different feature sets
+## 6. Create different feature sets
 
 ```{r Reduced feature dataframe}
 # Set 1: Clinical features only
@@ -118,10 +137,10 @@ all_features_final <- features_df_enc[, !names(features_df_enc) %in% c("NumbLet_
 # Set 3: features_df_enc, includes Overall Accuracy
 ```
 
-# 7. Save all 5 dataframes
+## 7. Save all 5 dataframes
 
-```{r Save dataframes}
-output_mainpath <- "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/2_Machine_learning/Feature_Label_Dataframes"
+```{r Save dataframes, warning=FALSE}
+output_mainpath <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/2_Machine_learning/Feature_Label_Dataframes"
 output_path <- create_results_folder(inputdata_path = params$input_data_path,output_mainpath = output_mainpath)
 
 write.csv(all_features_final, file.path(output_path, "all_features.csv"), row.names = FALSE)
@@ -130,3 +149,4 @@ write.csv(clin_features_df_enc, file.path(output_path, "clinical_features_only.c
 write.csv(labels_df, file.path(output_path, "labels.csv"), row.names = FALSE)
 write.csv(outcome_df, file.path(output_path, "outcomes.csv"), row.names = FALSE)
 ```
+
