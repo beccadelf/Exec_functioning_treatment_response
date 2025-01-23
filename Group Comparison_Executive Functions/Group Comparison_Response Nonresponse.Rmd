@@ -9,7 +9,8 @@ output:
     code_folding: hide
     df_print: paged
 params:
-  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/new/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
+  input_data_path: "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/new/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
+  
 ---
 <style type="text/css">
 .main-container { /* Adjust main blocks */
@@ -44,29 +45,30 @@ library(officer)
 source("../Useful_functions.R")
 ```
 
-# Settings flextable
-```{r, echo = FALSE}
+# Set-Up
+### 1. Settings flextable
+```{r}
 format_flextable_portrait <- flextable_settings(word_orientation = "portrait")
 format_flextable_landscape <- flextable_settings(word_orientation = "landscape")
 ```
 
-# Import Data 
-
+### 2. Import Data 
 ```{r}
 basic_path <- params$input_data_path
+param_suffix = basename(basic_path)
 data_Pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
 ```
 
-# Prepare dataset
+### 3. Prepare dataset
 Remove all patients that had no post-treatment score
 ```{r}
 data_Pat_pre_clean <- data_Pat_pre[!is.na(data_Pat_pre$Response),]
 ```
 We had `r nrow(data_Pat_pre[!is.na(data_Pat_pre$Response),])` patients with a post-value available, and `r nrow(data_Pat_pre_clean[data_Pat_pre_clean$Response == 1,])`
 
+
 # Descriptive Statistics
-Characteristics Table
-Task-specific characteristics tables using tbl_summary
+### 1. Prepare task-specific data frame of characteristics
 ```{r}
 # 1. Subset data frame by non-NA for respective tasks
 task_list <- list(
@@ -93,9 +95,8 @@ task_list <- list(
       filter(!is.na(SSRT))
   )
 )
-```
 
-```{r}
+
 # 2. Function to generate characteristics table
 generate_characteristics_table <- function(data, task_name) {
   data %>%
@@ -146,10 +147,9 @@ characteristics_tables <- lapply(names(task_list), function(task_name) {
 
 # Name the tables for easy reference
 names(characteristics_tables) <- names(task_list)
-```
 
-Combined data frame of task-specific descriptive characteristics
-```{r}
+
+# 3. Combined data frame of task-specific descriptive characteristics
 # Calculate N for Healthy Controls and Patients for each task
 calculate_n <- function(data) {
   data %>%
@@ -214,7 +214,7 @@ characteristics_tasks <- cbind(
 )
 ```
 
-## Create and save flextable
+### 2. Flextable of characteristics by task
 ```{r}
 # Rename columns to ensure uniqueness
 colnames(characteristics_tasks) <- c(
@@ -260,12 +260,20 @@ ft <- bold(ft, part = "header")
 ft <- autofit(ft)
 
 # Write to Word
-save_as_docx(ft, path="Characteristics Table Response vs Nonresponse.docx", 
-             pr_section = format_flextable_landscape)
+save_as_docx(
+  ft,
+  path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Submission/Tables/Characteristics_Response_Nonresponse.docx", 
+  pr_section = format_flextable_portrait)
+save_as_docx(
+  ft,
+  path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/R_vs_NR/Characteristics_Response_Nonresponse.docx", 
+  pr_section = format_flextable_portrait)
+ft
 ```
 
+
 # Inferential statistics
-## Preparation
+### 1. Preparation
 ```{r}
 # Ensure "Response" is treated as a factor
 data_Pat_pre_clean$Response <- as.factor(data_Pat_pre_clean$Response)
@@ -278,15 +286,15 @@ imp_columns <- c("NumberLetter_BIS_Repeat", "NumberLetter_BIS_Switch",
                  "SSRT")
 ```
 
-## Levene's test for variance homogeneity
+### 2. Test for variance homogeneity
 ```{r}
 levene_test_table <- levene_test_mult_cols(df_basis = data_Pat_pre_clean, cols = imp_columns, grouping_variable = "Response")
-pander(levene_test_table, style = "rmarkdown", fontsize = "tiny")
+#pander(levene_test_table, style = "rmarkdown", fontsize = "tiny")
 levene_test_table
 ```
 Levene test shows complete variance homoegeneity for all task conditions between responders and non-responders.
 
-## Calculate t-tests 
+### 3. Calculate t-tests 
 ```{r}
 ttest_results_columns <- c(
   "group_mean_Response", "sd_Response",
@@ -295,13 +303,11 @@ ttest_results_columns <- c(
 )
 
 t_test_table <- t_test_mult_cols(df_basis = data_Pat_pre_clean, cols = imp_columns, df_results_columns = ttest_results_columns, grouping_variable = "Response")
-pander(t_test_table, style = "rmarkdown", split.table = Inf, fontsize = "tiny")
+#pander(t_test_table, style = "rmarkdown", split.table = Inf, fontsize = "tiny")
 t_test_table
 ```
-No significant was found for any of the tasks.
-Potential reason: low power. Even the largest power for TwoBack_BIS_Foil of 0.22 with a cohen's d of 0.2 would require a sample size of 144 to find a significant effect, as a priori power power analysis shows. However, the patient group is only about half as large as that (n=89), not to speak of the tasks with even smaller power (e.g., NumberLetter_BIS_Repeat with 0.01)
 
-## Prepare table for publication
+### 4. Prepare table for publication
 ```{r table preparation, echo=FALSE, warning = FALSE}
 
 t_test_table_pub <- cbind(performance_measures = rownames(t_test_table), t_test_table)
@@ -332,7 +338,7 @@ t_test_table_pub$performance_measures <- rename_map[t_test_table_pub$performance
 colnames(t_test_table_pub) <- c("Performance Measure", "Responder Mean (SD)", "Non-Responder Mean (SD)", "df", "t-Statistic", "p-Value", "adj. p-Value")
 ```
 
-## Create and save flextable
+### 5. Create and save flextable
 ```{r flextable settings, echo=FALSE, warning = FALSE}
 ft_t_test <- flextable(t_test_table_pub)
 
@@ -351,11 +357,15 @@ save_as_docx(
   ft_t_test,
   path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Submission/Tables/t-test_Responder_Nonresponder.docx", 
   pr_section = format_flextable_portrait)
+save_as_docx(
+  ft_t_test,
+  path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/R_vs_NR/t-test_Responder_Nonresponder.docx", 
+  pr_section = format_flextable_portrait)
 ```
 
 
-# Visualization of group differences
-## Prepare data
+# Plotting
+### 1. Prepare data
 ```{r}
 # Reshape data from wide to long format, including SSRT, for Response vs. Nonresponse
 Response_vs_NonResponse_long <- data_Pat_pre %>%
@@ -394,8 +404,8 @@ Response_vs_NonResponse_long <- Response_vs_NonResponse_long %>%
 Response_vs_NonResponse_long$Response <- factor(Response_vs_NonResponse_long$Response, levels = c(0, 1), labels = c("Nonresponders", "Responders"))
 ```
 
-## Plotting
-```{r}
+### 2. Violin Plot
+```{r, fig.width = 16, fig.height = 9, warning=FALSE}
 # Create violin plots with mean and rename conditions in the plot
 
 violin_plots_response_vs_nonresponse <- ggplot(Response_vs_NonResponse_long, aes(x = Condition, y = BIS_Score, fill = Response)) +
@@ -427,6 +437,8 @@ violin_plots_response_vs_nonresponse <- ggplot(Response_vs_NonResponse_long, aes
   )
 print(violin_plots_response_vs_nonresponse)
 
-ggsave(paste0("response_vs_nonresponse",param_suffix,".svg"),violin_plots_response_vs_nonresponse,
-       width = 10)
+ggsave("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Submission/Figures/violin_plots_response_nonresponse.png", 
+       plot = violin_plots_response_vs_nonresponse, width = 16, height = 9, dpi = 300)
+ggsave("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/R_vs_NR/violin_plots_response_nonresponse.png", 
+       plot = violin_plots_response_vs_nonresponse, width = 16, height = 9, dpi = 300)
 ```

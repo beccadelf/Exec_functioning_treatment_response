@@ -7,6 +7,9 @@ output:
     toc: true
     toc_float: true
     code_folding: hide
+    df_print: paged
+params:
+  input_data_path: "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/new/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
 ---
 <style type="text/css">
 .main-container { /* Adjust main blocks */
@@ -32,12 +35,22 @@ library(pander)
 library(effsize)
 library(pwr)
 library(stats)
+library(gtsummary)
+library(gt)
+library(car)
+library(flextable)
+library(officer)
+library(broom)
+library(knitr)
+
+# User-defined functions
+source("../Useful_functions.R")
 ```
 
 ## <u>Importing Data</u>
 
 ```{r}
-basic_path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/With_wrong_responses"
+basic_path = params$input_data_path
 data_HC <- read.csv(file.path(basic_path,"Data_HC.csv"))
 data_Pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
 data_Pat_post <- read.csv(file.path(basic_path,"Data_Patients_Post.csv"))

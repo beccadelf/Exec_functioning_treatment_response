@@ -39,25 +39,28 @@ library(gt)
 library(car)
 library(flextable)
 library(officer)
+library(broom)
+library(knitr)
 
 # User-defined functions
 source("../Useful_functions.R")
 ```
 
-# Settings flextable
-```{r, echo = FALSE}
+# Set-Up
+### 1. Settings flextable
+```{r}
 format_flextable_portrait <- flextable_settings(word_orientation = "portrait")
 format_flextable_landscape <- flextable_settings(word_orientation = "landscape")
 ```
 
-# Importing Data
+### 2. Importing Data
 ```{r}
 basic_path = params$input_data_path
 data_HC <- read.csv(file.path(basic_path,"Data_HC.csv"))
 data_Pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
 ```
 
-# Prepare dataset
+### 3. Prepare dataset
 ```{r}
 ## 1. Merge patients pre and controls
 Patients_vs_HC <- rbind(data_Pat_pre, data_HC)
@@ -152,16 +155,14 @@ ft_t_test <- align(ft_t_test, j = 1, align = "left", part = "all") # first colum
 ft_t_test <- align(ft_t_test, j = 2:ncol(t_test_table_pub), align = "center", part = "all") # rest
 
 # Export flextable
-# save_as_docx(
-#   ft_t_test,
-#   path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Submission/Tables/t-test_Patients_HCs.docx", 
-#   pr_section = format_flextable_portrait)
+save_as_docx(
+  ft_t_test,
+  path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Submission/Tables/t-test_Patients_HCs.docx",
+  pr_section = format_flextable_portrait)
 ```
 
-
 # Descriptive Statistics
-Characteristics Table
-Task-specific characteristics tables using tbl_summary
+### 1. Prepare task-specific data frame of characteristics
 ```{r}
 # 1. Subset data frame by non-NA for respective tasks
 task_list <- list(
@@ -188,9 +189,8 @@ task_list <- list(
       filter(!is.na(SSRT))
   )
 )
-```
 
-```{r}
+
 # 2. Function to generate characteristics table
 generate_characteristics_table <- function(data, task_name) {
   data %>%
@@ -241,10 +241,9 @@ characteristics_tables <- lapply(names(task_list), function(task_name) {
 
 # Name the tables for easy reference
 names(characteristics_tables) <- names(task_list)
-```
 
-Combined data frame of task-specific descriptive characteristics
-```{r}
+
+# 3. Combined data frame of task-specific descriptive characteristics
 # Calculate N for Healthy Controls and Patients for each task
 calculate_n <- function(data) {
   data %>%
@@ -309,6 +308,7 @@ characteristics_tasks <- cbind(
 )
 ```
 
+### 2. Flextable of characteristics by task
 ```{r}
 # Create Flextable
 # Rename columns to ensure uniqueness
@@ -355,34 +355,107 @@ ft <- bold(ft, part = "header")
 ft <- autofit(ft)
 
 # Write to Word
-save_as_docx(ft, path="Characteristics Table HC vs Pat.docx", pr_section = format_flextable_landscape)
+save_as_docx(
+  ft,
+  path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Submission/Tables/Characteristics_Patients_HCs.docx", 
+  pr_section = format_flextable_portrait)
+save_as_docx(
+  ft,
+  path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/HC_vs_Pat/Characteristics_Patients_HCs.docx", 
+  pr_section = format_flextable_portrait)
+ft
 ```
 
 
+# Inferential statistics
+### 1. Test for variance homogeneity
 ```{r}
-leveneTest(T1_BAT_STAI_T_score ~ as.factor(Gruppe), data = Patients_vs_HC)
-t_test_result <- t.test(T1_BAT_STAI_T_score ~ Gruppe, data = Patients_vs_HC, var.equal = FALSE)
-print(t_test_result)
+# Ensure "Gruppe" is treated as a factor
+Patients_vs_HC_imp$Gruppe <- as.factor(Patients_vs_HC_imp$Gruppe)
+
+# Perform Levene's test for homogeneity of variance
+levene_test_table <- levene_test_mult_cols(df_basis = Patients_vs_HC_imp, 
+                                           cols = imp_columns, 
+                                           grouping_variable = "Gruppe")
+#pander(levene_test_table, style = "rmarkdown", fontsize = "tiny")
+levene_test_table
 ```
 
-## Differences in trait anxiety - significant?
+### 2. Calculate Welch t-test
+```{r}
+ttest_results_columns <- c(
+  "group_mean_Patients", "sd_Patients",
+  "group_mean_HC", "sd_HC",
+  "df", "t_statistic", "p_value", "cohen_d", "power"
+)
+
+t_test_table <- t_test_mult_cols(df_basis = Patients_vs_HC_imp, cols = imp_columns, 
+                                 df_results_columns = ttest_results_columns, grouping_variable = "Gruppe")
+#pander(t_test_table, style = "rmarkdown", fontsize = "tiny")
+t_test_table
+```
+
+### 3. Prepare table for publication
+```{r}
+
+t_test_table_pub <- cbind(performance_measures = rownames(t_test_table), t_test_table)
+
+# Combine "Mean" and "SD" columns and reduce dataframe
+t_test_table_pub <- t_test_table_pub %>%
+  mutate(
+    `Patients Mean (SD)` = paste0(round(group_mean_Patients, 2), " (", round(sd_Patients, 2), ")"),
+    `HC Mean (SD)` = paste0(round(group_mean_HC, 2), " (", round(sd_HC, 2), ")")
+    ) %>%
+  select(performance_measures, `Patients Mean (SD)`, `HC Mean (SD)`, df, t_statistic, p_value, p_value_adjusted)
+
+# Rename performance measures using a named vector
+rename_map <- c(
+  'NumberLetter_BIS_Repeat' = "Number-Letter: Repeat",
+  'NumberLetter_BIS_Switch' = "Number-Letter: Switch",
+  'NumberLetter_BIS_Diff_Score' = "Number-Letter: Switch - Repeat",
+  'Stroop_BIS_Congruent' = "Stroop: Congruent",
+  'Stroop_BIS_Incongruent' = "Stroop: Incongruent",
+  'Stroop_BIS_Diff_Score' = "Stroop: Incongruent - Congruent",
+  'TwoBack_BIS_Foil' = "2-Back: Foil",
+  'TwoBack_BIS_Target' = "2-Back: Target",
+  'TwoBack_BIS_Total' = "2-Back: Total",
+  'SSRT' = "Stop-Signal RT")
+t_test_table_pub$performance_measures <- rename_map[t_test_table_pub$performance_measures]
+
+# Change colnames
+colnames(t_test_table_pub) <- c("Performance Measure", "Patients Mean (SD)", "HC Mean (SD)", "df", "t-Statistic", "p-Value", "adj. p-Value")
+```
+
+### 4. Create and save flextable
+```{r}
+ft_t_test <- flextable(t_test_table_pub)
+
+# Set table properties
+ft_t_test <- set_table_properties(ft_t_test, width = 1, layout = "autofit")
+
+# Header in bold
+ft_t_test <- bold(ft_t_test, bold = TRUE, part = "header")
+
+# Alignments
+ft_t_test <- align(ft_t_test, j = 1, align = "left", part = "all") # first column
+ft_t_test <- align(ft_t_test, j = 2:ncol(t_test_table_pub), align = "center", part = "all") # rest
+
+# Export flextable
+save_as_docx(
+  ft_t_test,
+  path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/HC_vs_Pat/t-test_Patients_HCs.docx", 
+  pr_section = format_flextable_portrait)
+```
+
+
+# Explorative Analysis: Trait Anxiety
+### 1. Test for variance homogeneity
 ```{r}
 car::leveneTest(T1_BAT_STAI_T_score ~ as.factor(Gruppe), data = Patients_vs_HC)
-t_test_result <- t.test(T1_BAT_STAI_T_score ~ Gruppe, data = Patients_vs_HC, var.equal = FALSE)
-print(t_test_result)
 ```
 
-## Explorative analysis: trait anxiety?
+### 2. Test for task-specific differences in trait anxiety
 ```{r}
-ggplot(Patients_vs_HC, aes(x = Gruppe, y = T1_BAT_STAI_T_score, color = Gruppe)) +
-  geom_boxplot(outlier.shape = NA, alpha = 0.6) +  # Boxplot to show group distribution
-  geom_jitter(width = 0.2, size = 2, alpha = 0.7) + # Add points for individual values
-  labs(
-    title = "T1 BAT STAI T Score by Group",
-    x = "Group (Gruppe)",
-    y = "T1 BAT STAI T Score"
-  )
-
 t_test_mult_cols <- function(df_basis, cols, split_col) {
   # Perform a t-test for multiple variables after splitting based on the median of `split_col`
   
@@ -446,9 +519,20 @@ t_test_mult_cols <- function(df_basis, cols, split_col) {
 t_test_mult_cols(df_basis = Patients_vs_HC[Patients_vs_HC$Gruppe == 0,], cols = imp_columns, split_col = "T1_BAT_STAI_T_score")
 ```
 
-## Plotting
+### 3. Plot trait anxiety difference
+```{r, warning = FALSE}
+ggplot(Patients_vs_HC, aes(x = Gruppe, y = T1_BAT_STAI_T_score, color = Gruppe)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6) +  # Boxplot to show group distribution
+  geom_jitter(width = 0.2, size = 2, alpha = 0.7) + # Add points for individual values
+  labs(
+    title = "T1 BAT STAI T Score by Group",
+    x = "Group (Gruppe)",
+    y = "T1 BAT STAI T Score"
+  )
+```
 
-### Prepare data
+# Plotting
+### 1. Prepare data
 ```{r}
 # Reshape data from wide to long format, including SSRT
 Patients_vs_HC_long <- Patients_vs_HC_imp %>%
@@ -486,8 +570,8 @@ Patients_vs_HC_long <- Patients_vs_HC_long %>%
 Patients_vs_HC_long$Gruppe <- factor(Patients_vs_HC_long$Gruppe, levels = c(0, 1), labels = c("Healthy Controls", "Patients"))
 ```
 
-### Violin Plot: Patients vs. Healthy Controls
-```{r, fig.width = 16, fig.height = 9}
+### 2. Violin Plot: Patients vs. Healthy Controls
+```{r, fig.width = 16, fig.height = 9, warning = FALSE}
 # Create violin plots with mean and rename conditions in the plot
 
 violin_plots_patients_hc <- ggplot(Patients_vs_HC_long, aes(x = Condition, y = BIS_Score, fill = Gruppe)) +
@@ -518,11 +602,14 @@ violin_plots_patients_hc <- ggplot(Patients_vs_HC_long, aes(x = Condition, y = B
     panel.spacing.x = unit(3, "lines")
   )
 print(violin_plots_patients_hc)
-ggsave("violin_plots_patients_hc.png", plot = violin_plots_patients_hc, width = 16, height = 9, dpi = 300)
+ggsave("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Submission/Figures/violin_plots_patients_hc.png", 
+       plot = violin_plots_patients_hc, width = 16, height = 9, dpi = 300)
+ggsave("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/HC_vs_Pat/violin_plots_patients_hc.png", 
+       plot = violin_plots_patients_hc, width = 16, height = 9, dpi = 300)
 ```
 
-### Boxplot: Patients vs. Healthy Controls
-```{r}
+### 3. Boxplot: Patients vs. Healthy Controls
+```{r, warning = FALSE}
 # Create boxplots
 boxplots_Patients_HC <- ggplot(Patients_vs_HC_long, aes(x = Condition, y = BIS_Score, color = Gruppe)) +
   geom_boxplot(outlier.shape = NA) + 
@@ -537,4 +624,6 @@ boxplots_Patients_HC <- ggplot(Patients_vs_HC_long, aes(x = Condition, y = BIS_S
        y = "BIS-Score",
        color = "Group")
 print(boxplots_Patients_HC)
+ggsave("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/HC_vs_Pat/violin_plots_patients_hc.png", 
+       plot = boxplots_Patients_HC, width = 16, height = 9, dpi = 300)
 ```

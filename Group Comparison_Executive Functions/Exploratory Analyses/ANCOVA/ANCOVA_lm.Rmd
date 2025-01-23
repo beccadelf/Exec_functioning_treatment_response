@@ -7,6 +7,9 @@ output:
     toc: true
     toc_float: true
     code_folding: hide
+    df_print: paged
+params:
+  input_data_path: "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/new/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
 ---
 <style type="text/css">
 .main-container { /* Adjust main blocks */
@@ -36,18 +39,20 @@ library(stats)
 library(lmtest)
 library(sandwich)
 library(nlme)
+library(flextable)
 
 source("../../../Useful_functions.R")
 ```
 
-# Import Task Performance Data
+# Set-Up
+### 1. Import Task Performance Data
 ```{r}
-task_performance_path = "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/new/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
-data_HC <- read.csv(file.path(task_performance_path, "Data_HC.csv"))
-data_Pat_pre <- read.csv(file.path(task_performance_path, "Data_Patients_Pre.csv"))
+basic_path = params$input_data_path
+data_HC <- read.csv(file.path(basic_path, "Data_HC.csv"))
+data_Pat_pre <- read.csv(file.path(basic_path, "Data_Patients_Pre.csv"))
 ```
 
-# Prepare dataset
+### 2. Prepare dataset
 ```{r}
 ## 1. Merge patients pre and controls
 Patients_vs_HC <- rbind(data_Pat_pre, data_HC)
@@ -58,8 +63,7 @@ performance_tasks <- performance_tasks[performance_tasks != "T1_BAT_BIS_11_score
 Patients_vs_HC_imp_conf <- Patients_vs_HC[,c("Subject","Alter", "Geschlecht","Gruppe","Abschluss", performance_tasks)]
 ```
 
-
-## Descriptive statistics for covariates
+### 3. Descriptive statistics for covariates
 ```{r}
 #Descriptive statistics
 #Data for `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1,])` patients and `r #n#row(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0,])` healthy controls were available.
@@ -71,9 +75,9 @@ table1 <-
   tbl_summary(include = c(Alter, Geschlecht, Abschluss), by = Gruppe)
 pander(as.data.frame(table1))
 ```
-
-## Dummy coding
 As can be seen from the descriptives table, the variable "Abschluss" has the level "Hauptschule" with only one subject and the variables "Anderes" ("Other") which is not meaningful for regression. Therefore, to use "Abschluss" (Education) in our analysis, we turned it into a dummy variable.
+
+### 4. Dummy coding
 ```{r}
 # Set level "Anderes" (= other degree) to NA as it is not meaningful
 Patients_vs_HC_imp_conf$Abschluss[Patients_vs_HC_imp_conf$Abschluss == "Anderes"] <- NA
@@ -85,7 +89,7 @@ Patients_vs_HC_imp_conf$Abschluss_Gymnasium <- dplyr::recode(Patients_vs_HC_imp_
 #Patients_vs_HC_imp_conf[,c("Abschluss_Gymnasium", "Abschluss")]
 ```
 
-## Final dataset
+### 5. Final dataset
 ```{r}
 Patients_vs_HC_imp_conf_final <- 
 Patients_vs_HC_imp_conf[!(is.na(Patients_vs_HC_imp_conf$Alter)|is.na(Patients_vs_HC_imp_conf$Abschluss_Gymnasium)|
@@ -94,8 +98,8 @@ Patients_vs_HC_imp_conf[!(is.na(Patients_vs_HC_imp_conf$Alter)|is.na(Patients_vs
 `r nrow(Patients_vs_HC_imp_conf) - nrow(Patients_vs_HC_imp_conf_final)` subjects were removed due to missing values in the covariates. The final sample consists of `r nrow(Patients_vs_HC_imp_conf_final)` subjects.
 
 
-
-# ANCOVA: Basic Function
+# ANCOVA
+## ANCOVA: Basic Function
 ```{r}
 run_ancova <- function(data, formula, heterosced = FALSE){
   # data = basis dataset
@@ -176,9 +180,9 @@ summarize_ancova_results <- function(results_list){
 }
 ```
 
-# 1. Round: Test uncorrected models for GLM assumptions
-## Run Uncorrected models
-```{r}
+## 1. Round: Test uncorrected models for GLM assumptions
+### Run Uncorrected models
+```{r, message=FALSE}
 covariates = c("Alter", "Geschlecht", "Abschluss_Gymnasium")
 covariate_main_effects <- paste(covariates, collapse = " + ")
 df_basis = Patients_vs_HC_imp_conf_final
@@ -192,9 +196,8 @@ for (i in seq_along(cols)){
 }
 ```
 
-
-## Visualizations
-```{r, fig.height=}
+### Visualizations
+```{r, fig.width = 10, message=FALSE}
 # Create a list of those models used for the ANCOVA
 get_models <- function(results_list){
   models_list <- setNames(
@@ -233,7 +236,14 @@ test_assumptions_of_MLR(models_list)
 ### Normality
 ```{r}
 # Shapiro-Wilk for normality
-apply(Patients_vs_HC_imp_conf_final[,performance_tasks],2, FUN = shapiro.test)
+shapiro_results <- apply(Patients_vs_HC_imp_conf_final[,performance_tasks], 2, FUN = shapiro.test)
+
+shapiro_table <- data.frame(
+  Statistic = sapply(shapiro_results, function(x) x$statistic),
+  P_Value = sapply(shapiro_results, function(x) x$p.value)
+)
+row.names(shapiro_table) <- gsub("\\.W$", "", row.names(shapiro_table))
+shapiro_table
 ```
 For each executive functioning measure, the normality assumption is violated
 
@@ -256,18 +266,16 @@ conduct_BPtest_multcols(models_list)
 ```
 For around half of the tests, the variance homogeneneity is violated.
 
-## Define tasks with severe violations
+### Define tasks with severe violations
 ```{r}
 tasks_GLMviolated <- c("NumberLetter_BIS_Repeat","NumberLetter_BIS_Switch","Stroop_BIS_Diff_Score",
                        "TwoBack_BIS_Target", "SSRT")
 ```
 
-# 2. Round: Test specific ANCOVA assumptions
-## Linearity splitted by groups (only for continuous covariates: here age)
-Regression of the dependent variable on the covariates is linear for each treatment condition.
-(The residuals plot has shown that this is valid in general, now we look at age extra)
-
-```{r, fig.height= 8, fig.width = 9 }
+## 2. Round: Test specific ANCOVA assumptions
+### Linearity splitted by groups (only for continuous covariates: here age)
+Regression of the dependent variable on the covariates is linear for each treatment condition. (The residuals plot has shown that this is valid in general, now we look at age extra)
+```{r, fig.height= 8, fig.width = 9, message=FALSE, warning=FALSE}
 # Loop through each task performance variable and plot Task Performance ~ Covariate per group (HC vs. Pat)
 plot_linearity_pergroup <- function(data, covariate, performance_tasks){
    plot_list <- list()
@@ -290,8 +298,8 @@ plot_linearity_pergroup <- function(data, covariate, performance_tasks){
 plot_linearity_pergroup(data = Patients_vs_HC_imp_conf_final, covariate = "Alter", performance_tasks = tasks_GLMviolated)
 ```
 
-## Non-interaction between covariates and Group
-```{r}
+### Non-interaction between covariates and Group
+```{r, message=FALSE}
 # Function to add interaction term
 data <- Patients_vs_HC_imp_conf_final
 test_interaction <- function(data, performance_task, covariates, cov_interest){
@@ -339,8 +347,8 @@ for (i in seq_along(tasks_GLMviolated)) {
 pander(interaction_results, style = "rmarkdown", split.table = Inf, fontsize = "tiny")
 ```
 
-### 3. Rerun models showing an interaction between covariates and group
-```{r, fig.width = 10}
+## 3. Rerun models showing an interaction between covariates and group
+```{r, fig.width = 10, message=FALSE}
 results_corrected_interaction <- list()
 for (task in tasks_GLMviolated) {
   task_row <- which(interaction_results$Task == task)
@@ -375,8 +383,8 @@ test_assumptions_of_MLR(list_models_corrected_interaction)
 ```
 The model-fit seems to be much better than before.
 
-### 4. Rerun models showing no interaction with correction for heteroscedasticity
-```{r}
+## 4. Rerun models showing no interaction with correction for heteroscedasticity
+```{r, message=FALSE}
 tasks_no_improvement <- tasks_GLMviolated[!(tasks_GLMviolated %in% names(list_models_corrected_interaction))]
 
 results_corrected_homogeneity <- list()
@@ -386,8 +394,9 @@ for (task in tasks_GLMviolated) {
   results_corrected_homogeneity[[task]] <- run_ancova(data = Patients_vs_HC_imp_conf_final,formula = formula_ancova, heterosced = TRUE)
 }
 ```
-# Summarize 
-## Collect results
+
+## Summarize 
+### Collect results
 ```{r}
 combined_results <- results_uncorrected
 
@@ -401,7 +410,8 @@ for (task in names(results_corrected_homogeneity)) {
 # Combine results to a table
 table_summary <- summarize_ancova_results(results_list = combined_results)
 ```
-## Correct results for multiple comparisons
+
+### Correct results for multiple comparisons
 ```{r}
 # Apply correction for multiple comparisons
 table_summary$p_values_adjusted <- p.adjust(table_summary$p_value, method = "BH")
@@ -412,7 +422,7 @@ table_summary$p_value <- round(table_summary$p_value,3)
 table_summary
 ```
 
-## Make nice table
+### Make nice table
 ```{r}
 # Change taks names and column names
 rename_map <- c(
@@ -426,7 +436,8 @@ rename_map <- c(
   'TwoBack_BIS_Target' = "2-Back: Target",
   'TwoBack_BIS_Total' = "2-Back: Total",
   'SSRT' = "Stop-Signal RT")
-table_summary$Name <- recode(table_summary$Name, !!!rename_map)
+table_summary <- table_summary %>%mutate(Name = dplyr::recode(Name, !!!rename_map))
+#table_summary$Name <- recode(table_summary$Name, !!!rename_map)
 
 colnames(table_summary) <- recode(colnames(table_summary),"Name" = "Performance Measure", 
                                   "error_reduction_due_to_predictor" = "Type III SSq explained by Group",
@@ -436,7 +447,6 @@ colnames(table_summary) <- recode(colnames(table_summary),"Name" = "Performance 
                                   "correction_for" = "Corrections",
                                   "p_values_adjusted" = "adj. p-Value")
 
-library(flextable)
 ft_t_test <- flextable::flextable(table_summary)
 
 format_flextable_portrait <- flextable_settings(word_orientation = "portrait")
@@ -454,6 +464,7 @@ ft_t_test <- align(ft_t_test, j = 2:ncol(table_summary), align = "center", part 
 # "Y:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Submission/Tables/ANCOVA.docx"
 save_as_docx(
   ft_t_test,
-  path = "ANCOVA.docx", 
+  path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/ANCOVA/ANCOVA.docx", 
   pr_section = format_flextable_portrait)
+ft_t_test
 ```
