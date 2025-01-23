@@ -9,7 +9,7 @@ output:
     code_folding: hide
     df_print: paged
 params:
-  input_data_path: "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/new/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
+  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/new/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
   
 ---
 <style type="text/css">
@@ -55,11 +55,18 @@ format_flextable_landscape <- flextable_settings(word_orientation = "landscape")
 ### 2. Import Data 
 ```{r}
 basic_path <- params$input_data_path
-param_suffix = basename(basic_path)
 data_Pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
 ```
 
-### 3. Prepare dataset
+### 3. Set results path to save tables and images
+```{r}
+results_path <- create_results_path(inputdata_path = basic_path, 
+                                      output_mainpath =
+                                        "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/R_vs_NR"
+                                          )
+```
+
+### 4. Prepare dataset
 Remove all patients that had no post-treatment score
 ```{r}
 data_Pat_pre_clean <- data_Pat_pre[!is.na(data_Pat_pre$Response),]
@@ -262,12 +269,8 @@ ft <- autofit(ft)
 # Write to Word
 save_as_docx(
   ft,
-  path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Submission/Tables/Characteristics_Response_Nonresponse.docx", 
-  pr_section = format_flextable_portrait)
-save_as_docx(
-  ft,
-  path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/R_vs_NR/Characteristics_Response_Nonresponse.docx", 
-  pr_section = format_flextable_portrait)
+  path = file.path(results_path, "Characteristics_Response_Nonresponse.docx"), 
+  pr_section = format_flextable_landscape)
 ft
 ```
 
@@ -355,11 +358,7 @@ ft_t_test <- align(ft_t_test, j = 2:ncol(t_test_table_pub), align = "center", pa
 # Export flextable
 save_as_docx(
   ft_t_test,
-  path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Submission/Tables/t-test_Responder_Nonresponder.docx", 
-  pr_section = format_flextable_portrait)
-save_as_docx(
-  ft_t_test,
-  path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/R_vs_NR/t-test_Responder_Nonresponder.docx", 
+  path = file.path(results_path, "t-test_Responder_Nonresponder.docx"), 
   pr_section = format_flextable_portrait)
 ```
 
@@ -437,8 +436,6 @@ violin_plots_response_vs_nonresponse <- ggplot(Response_vs_NonResponse_long, aes
   )
 print(violin_plots_response_vs_nonresponse)
 
-ggsave("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Submission/Figures/violin_plots_response_nonresponse.png", 
-       plot = violin_plots_response_vs_nonresponse, width = 16, height = 9, dpi = 300)
-ggsave("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/R_vs_NR/violin_plots_response_nonresponse.png", 
+ggsave(file.path(results_path,"violin_plots_response_nonresponse.png"), 
        plot = violin_plots_response_vs_nonresponse, width = 16, height = 9, dpi = 300)
 ```

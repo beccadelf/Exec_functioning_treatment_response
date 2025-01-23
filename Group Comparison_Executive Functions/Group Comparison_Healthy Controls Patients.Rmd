@@ -60,7 +60,15 @@ data_HC <- read.csv(file.path(basic_path,"Data_HC.csv"))
 data_Pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
 ```
 
-### 3. Prepare dataset
+### 3. Set results path to save tables and images
+```{r}
+results_path <- create_results_path(inputdata_path = basic_path, 
+                                      output_mainpath =
+                                    "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/HC_vs_Pat"
+                                          )
+```
+
+### 4. Prepare dataset
 ```{r}
 ## 1. Merge patients pre and controls
 Patients_vs_HC <- rbind(data_Pat_pre, data_HC)
@@ -75,91 +83,11 @@ Patients_vs_HC_imp <- Patients_vs_HC[,c("Subject","Gruppe",imp_columns)]
 Patients_vs_HC_imp_conf <- merge(Patients_vs_HC[,c("Subject","Alter","Geschlecht","Abschluss")], Patients_vs_HC_imp, by = "Subject")
 ```
 In total, data for `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1,])` patients and `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0,])` healthy controls were available. When outliers were removed, the number of subjects varied slightly: 
-Number-Letter Task: `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0 & !is.na(Patients_vs_HC_imp$NumberLetter_BIS_Repeat),])` healthy controls,  `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1 & !is.na(Patients_vs_HC_imp$NumberLetter_BIS_Repeat),])`
-Stroop Task: `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0 & !is.na(Patients_vs_HC_imp$Stroop_BIS_Congruent),])` healthy controls,  `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1 & !is.na(Patients_vs_HC_imp$Stroop_BIS_Congruent),])`
-2back-Task: `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0 & !is.na(Patients_vs_HC_imp$TwoBack_BIS_Total),])` healthy controls,  `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1 & !is.na(Patients_vs_HC_imp$TwoBack_BIS_Total),])`
-SSRT: `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0 & !is.na(Patients_vs_HC_imp$SSRT),])` healthy controls,  `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1 & !is.na(Patients_vs_HC_imp$SSRT),])`
+Number-Letter Task: `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0 & !is.na(Patients_vs_HC_imp$NumberLetter_BIS_Repeat),])` healthy controls,  `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1 & !is.na(Patients_vs_HC_imp$NumberLetter_BIS_Repeat),])` patients
+Stroop Task: `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0 & !is.na(Patients_vs_HC_imp$Stroop_BIS_Congruent),])` healthy controls,  `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1 & !is.na(Patients_vs_HC_imp$Stroop_BIS_Congruent),])` patients
+2back-Task: `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0 & !is.na(Patients_vs_HC_imp$TwoBack_BIS_Total),])` healthy controls,  `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1 & !is.na(Patients_vs_HC_imp$TwoBack_BIS_Total),])` patients
+SSRT: `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0 & !is.na(Patients_vs_HC_imp$SSRT),])` healthy controls,  `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1 & !is.na(Patients_vs_HC_imp$SSRT),])` patients.
 Find assumption test for normality in script "Testing Normality".
-
-# Inferential statistics
-## Check variance homogeneity
-```{r}
-# Ensure "Gruppe" is treated as a factor
-Patients_vs_HC_imp$Gruppe <- as.factor(Patients_vs_HC_imp$Gruppe)
-
-# Perform Levene's test for homogeneity of variance
-levene_test_table <- levene_test_mult_cols(df_basis = Patients_vs_HC_imp, 
-                                           cols = imp_columns, 
-                                           grouping_variable = "Gruppe")
-pander(levene_test_table, style = "rmarkdown", fontsize = "tiny")
-levene_test_table
-```
-
-## Calculate Welch t-test
-```{r}
-ttest_results_columns <- c(
-  "group_mean_Patients", "sd_Patients",
-  "group_mean_HC", "sd_HC",
-  "df", "t_statistic", "p_value", "cohen_d", "power"
-)
-
-t_test_table <- t_test_mult_cols(df_basis = Patients_vs_HC_imp, cols = imp_columns, 
-                                 df_results_columns = ttest_results_columns, grouping_variable = "Gruppe")
-pander(t_test_table, style = "rmarkdown", fontsize = "tiny")
-t_test_table
-```
-
-## Prepare table for publication
-```{r table preparation, echo=FALSE, warning = FALSE}
-
-t_test_table_pub <- cbind(performance_measures = rownames(t_test_table), t_test_table)
-
-# Combine "Mean" and "SD" columns and reduce dataframe
-t_test_table_pub <- t_test_table_pub %>%
-  mutate(
-    `Patients Mean (SD)` = paste0(round(group_mean_Patients, 2), " (", round(sd_Patients, 2), ")"),
-    `HC Mean (SD)` = paste0(round(group_mean_HC, 2), " (", round(sd_HC, 2), ")")
-    ) %>%
-  select(performance_measures, `Patients Mean (SD)`, `HC Mean (SD)`, df, t_statistic, p_value, p_value_adjusted)
-
-# Rename performance measures using a named vector
-rename_map <- c(
-  'NumberLetter_BIS_Repeat' = "Number-Letter: Repeat",
-  'NumberLetter_BIS_Switch' = "Number-Letter: Switch",
-  'NumberLetter_BIS_Diff_Score' = "Number-Letter: Switch - Repeat",
-  'Stroop_BIS_Congruent' = "Stroop: Congruent",
-  'Stroop_BIS_Incongruent' = "Stroop: Incongruent",
-  'Stroop_BIS_Diff_Score' = "Stroop: Incongruent - Congruent",
-  'TwoBack_BIS_Foil' = "2-Back: Foil",
-  'TwoBack_BIS_Target' = "2-Back: Target",
-  'TwoBack_BIS_Total' = "2-Back: Total",
-  'SSRT' = "Stop-Signal RT")
-t_test_table_pub$performance_measures <- rename_map[t_test_table_pub$performance_measures]
-
-# Change colnames
-colnames(t_test_table_pub) <- c("Performance Measure", "Patients Mean (SD)", "HC Mean (SD)", "df", "t-Statistic", "p-Value", "adj. p-Value")
-```
-
-## Create and save flextable
-```{r flextable settings, echo=FALSE, warning = FALSE}
-ft_t_test <- flextable(t_test_table_pub)
-
-# Set table properties
-ft_t_test <- set_table_properties(ft_t_test, width = 1, layout = "autofit")
-
-# Header in bold
-ft_t_test <- bold(ft_t_test, bold = TRUE, part = "header")
-
-# Alignments
-ft_t_test <- align(ft_t_test, j = 1, align = "left", part = "all") # first column
-ft_t_test <- align(ft_t_test, j = 2:ncol(t_test_table_pub), align = "center", part = "all") # rest
-
-# Export flextable
-save_as_docx(
-  ft_t_test,
-  path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Submission/Tables/t-test_Patients_HCs.docx",
-  pr_section = format_flextable_portrait)
-```
 
 # Descriptive Statistics
 ### 1. Prepare task-specific data frame of characteristics
@@ -357,11 +285,7 @@ ft <- autofit(ft)
 # Write to Word
 save_as_docx(
   ft,
-  path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Submission/Tables/Characteristics_Patients_HCs.docx", 
-  pr_section = format_flextable_portrait)
-save_as_docx(
-  ft,
-  path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/HC_vs_Pat/Characteristics_Patients_HCs.docx", 
+  path =file.path(results_path, "Characteristics_Patients_HCs.docx"), 
   pr_section = format_flextable_portrait)
 ft
 ```
@@ -443,7 +367,7 @@ ft_t_test <- align(ft_t_test, j = 2:ncol(t_test_table_pub), align = "center", pa
 # Export flextable
 save_as_docx(
   ft_t_test,
-  path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/HC_vs_Pat/t-test_Patients_HCs.docx", 
+  path = file.path(results_path, "t-test_Patients_HCs.docx"), 
   pr_section = format_flextable_portrait)
 ```
 
@@ -602,9 +526,7 @@ violin_plots_patients_hc <- ggplot(Patients_vs_HC_long, aes(x = Condition, y = B
     panel.spacing.x = unit(3, "lines")
   )
 print(violin_plots_patients_hc)
-ggsave("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Submission/Figures/violin_plots_patients_hc.png", 
-       plot = violin_plots_patients_hc, width = 16, height = 9, dpi = 300)
-ggsave("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/HC_vs_Pat/violin_plots_patients_hc.png", 
+ggsave(file.path(results_path, "violin_plots_patients_hc.png"), 
        plot = violin_plots_patients_hc, width = 16, height = 9, dpi = 300)
 ```
 
@@ -624,6 +546,6 @@ boxplots_Patients_HC <- ggplot(Patients_vs_HC_long, aes(x = Condition, y = BIS_S
        y = "BIS-Score",
        color = "Group")
 print(boxplots_Patients_HC)
-ggsave("Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/HC_vs_Pat/violin_plots_patients_hc.png", 
+ggsave(file.path(results_path, "boxplots_patients_hc.png"), 
        plot = boxplots_Patients_HC, width = 16, height = 9, dpi = 300)
 ```

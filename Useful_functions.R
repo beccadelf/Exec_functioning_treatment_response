@@ -4,9 +4,9 @@
 # File Management and Settings
 ####################################################
 
-# This function creates a new folder named after the folder-structure the data imported was part of
-
-create_results_folder <- function(inputdata_path, output_mainpath){
+# This function creates a folder to save the results which is named after the folder-structure of the import-data path
+# and returns the corresponding 
+create_results_path <- function(inputdata_path, output_mainpath){
   # Get the part of the file-path describing the dealing with outliers
   outliers_part = basename(inputdata_path)
   # Get the part of the file-path describing the processing of RT
