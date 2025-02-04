@@ -34,7 +34,7 @@ for (RT_trimming in RT_trimming_options) {
         output_filename <- generate_filename(RT_trimming, RT_remove_wrong)
       
         rmarkdown::render(
-          input <- file.path(base_path, "Taskdata_Preprocessing_CM.Rmd"),
+          input <- file.path(base_path, "Taskdata_Preprocessing_CM_TA.Rmd"),
           output_file = output_filename,
           params = params_list,
           envir = new.env()
@@ -66,7 +66,7 @@ for (outliers_removed in outliers_removed_options) {
       output_path = file.path(input_data_path, "BIS", outliers_text, output_filename)
       
       rmarkdown::render(
-        input <- file.path(base_path, "EF_scores_calculation_correct.Rmd"),
+        input <- file.path(base_path, "EF_scores_calculation_correct_TA.Rmd"),
         output_file = output_path,
         params = params_list,
         envir = new.env()
@@ -79,8 +79,8 @@ for (outliers_removed in outliers_removed_options) {
 inputdata_variants_paths <- c(
   file.path(base_path, "Daten_Gruppenvergleich/new/not_trimmed_not_removed/BIS/outliers-not-removed"),
   file.path(base_path, "Daten_Gruppenvergleich/new/not_trimmed_not_removed/BIS/outliers-removed"),
-  file.path(base_path, "Daten_Gruppenvergleich/new/RT_trimmed_RT_wrong_removed/BIS/outliers-not-removed"),
-  file.path(base_path, "Daten_Gruppenvergleich/new/RT_trimmed_RT_wrong_removed/BIS/outliers-removed")
+  file.path(base_path, "Daten_Gruppenvergleich/new/trimmed_wrong_removed/BIS/outliers-not-removed"),
+  file.path(base_path, "Daten_Gruppenvergleich/new/trimmed_wrong_removed/BIS/outliers-removed")
 )
 
 # Group comparison script (HC vs. patients)
