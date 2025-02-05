@@ -61,7 +61,7 @@ flextable_settings <- function(
 # Statistical Analyses
 ####################################################
 
-# Function to calculate an independent-sample t-test for multiple comparisons 
+# Function to calculate an independent-sample Welch t-test for multiple comparisons 
 # and store the results in a dataframe
 
 t_test_mult_cols <- function(df_basis, cols, df_results_columns, grouping_variable) {
@@ -81,6 +81,7 @@ t_test_mult_cols <- function(df_basis, cols, df_results_columns, grouping_variab
     group1 <- na.omit(df_basis[df_basis[[grouping_variable]] == 1, col])
     
     # Perform t-test
+    # We use the Welch-test as default, following Delacre et al., 2017 https://pure.tue.nl/ws/portalfiles/portal/80459772/82_534_3_PB.pdf
     results <- t.test(group0, group1, paired = FALSE, var.equal = FALSE)
     #Alternativ using formula method:
     #results <- t.test(df_basis[[col]] ~ df_basis[["Gruppe"]], paired = FALSE, var.equal = FALSE)
@@ -88,15 +89,10 @@ t_test_mult_cols <- function(df_basis, cols, df_results_columns, grouping_variab
     # Store raw p-values for BH correction
     p_values_raw[i] <- results$p.value
     
-    # Calculate Cohen's d using the cohen.d function (effect size)
-    cohen_d_result <- cohen.d(group0, group1, hedges.correction = FALSE)
-    cohen_d <- cohen_d_result$estimate
-    
-    # Calculate power using pwr.t.test
-    n0 <- length(group0)
-    n1 <- length(group1)
-    power_result <- pwr.t.test(d = cohen_d, n = min(n0, n1), sig.level = 0.05, type = "two.sample", alternative = "greater")
-    power <- power_result$power
+    # Calculate Hedges g based on non-pooled standard-deviations as recommended in https://orbilu.uni.lu/bitstream/10993/57901/1/ES.pdf
+    # using the package "effectsize"
+    effsize_result <- effectsize::hedges_g(group0, group1,pooled_SD = FALSE)
+    effsize <-effsize_result$Hedges_g
     
     # Dynamically assign results to the dataframe
     df_results[col, ] <- c(
@@ -107,8 +103,7 @@ t_test_mult_cols <- function(df_basis, cols, df_results_columns, grouping_variab
       round(results$parameter["df"], 2),  # df
       round(results$statistic, 2),        # t_statistic
       round(results$p.value, 2),          # p_value
-      round(cohen_d, 2),                  # cohen_d
-      round(power, 2)                     # power
+      round(effsize, 2),                  # cohen_d
     )
   }
   
