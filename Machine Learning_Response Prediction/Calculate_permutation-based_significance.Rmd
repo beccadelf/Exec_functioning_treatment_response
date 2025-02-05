@@ -1,0 +1,100 @@
+---
+title: "Plot_ML-Analysis_Results"
+author: "Rebecca Delfendahl"
+date: "2024-11-15"
+output: html_document
+---
+# Setup
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Packages
+```{r}
+windowsFonts(Arial=windowsFont("Arial"))
+library(readr)
+library(dplyr)
+library(ggplot2)
+```
+
+
+# Load and combine results
+```{r}
+# Get all folders in the results folder (each containing the results of another model)
+basic_path = "Y:\\Psythera"
+path_results_folder = file.path(basic_path, "Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Results\\RT_trimmed_RT_wrong_removed_outliers-removed")
+results_folders <- list.files(path = path_results_folder, full.names = FALSE)
+
+# Filter for new results
+results_folders_classification <- results_folders[grepl("new5", results_folders)& grepl("classifier", results_folders) & !grepl("permuted", results_folders)]
+results_folders_regressors <- results_folders[grepl("new5", results_folders)& grepl("regressor", results_folders) & !grepl("permuted", results_folders)]
+```
+
+# Permutation
+
+## Function: Calculate p-value
+```{r}
+calc_p_value <- function(true_score, permuted_scores, logic = "large_better"){
+  if (logic == "large_better"){
+    random_better_than_true <- sum(permuted_scores > true_score)
+  } else if (logic == "small_better"){
+     random_better_than_true <- sum(permuted_scores < true_score)
+  }
+  
+  #Take the following formula from scikit: https://scikit-learn.org/1.5/modules/generated/sklearn.model_selection.permutation_test_score.html#sklearn.model_selection.permutation_test_score
+  p_value <- (random_better_than_true + 1)/(length(permuted_scores) +1 )
+  return(p_value)
+}
+```
+
+## Function: Collect and calculate p-values
+```{r}
+collect_p_values <- function(folders_unpermuted, evaluation_metric, logic = "large_better"){
+  p_values = list()
+  for (folder_name in folders_unpermuted) {
+    
+    # Initialize p_value to NA by default
+    p_values[[folder_name]] <- NA
+    
+    # Get true balanced accuracies of unpermuted model
+    evaluation_metrics <- read.delim(file.path(path_results_folder, folder_name, "performance_across_iters.txt"))[[evaluation_metric]]
+    
+    if (length(evaluation_metrics) != 100){
+      print(paste("CAVE: There is an error in",folder_name))
+    }
+    
+    # Get equivalent permuted model folder name
+    folder_name_permuted <- paste0(folder_name, "_permuted")
+    
+    # Try to load ev-metrics per iteration
+    tryCatch({
+      evaluation_metrics_permuted <- read.delim(file.path(path_results_folder, folder_name_permuted, "performance_across_iters.txt"))[[evaluation_metric]]
+      
+      p_values_one_folder = c()
+      for (ev_metric_one_iter in evaluation_metrics){
+        p_value_one_iter = calc_p_value(ev_metric_one_iter, evaluation_metrics_permuted, logic = logic)
+        p_values_one_folder = c(p_values_one_folder, p_value_one_iter)
+      }
+      # Sum all p-values up
+      p_values[[folder_name]] = mean(p_values_one_folder)
+      }, error = function(e) {
+      # Handle error and print message if permuted model is not available
+      message("No permuted model available for folder: ", folder_name, " | Error: ", e$message)
+      # Set p_value to NA (this is already initialized)
+      p_values[[folder_name]] <- NA
+      })
+  }
+  df = data.frame("models" = names(p_values), "p_values" = unlist(p_values))
+  return(df)
+}
+```
+
+# Classifiers models
+```{r}
+collect_p_values(folders_unpermuted = results_folders_classification, evaluation_metric = "balanced_accuracy")
+
+```
+# Regression models
+```{r}
+collect_p_values(folders_unpermuted = results_folders_regressors, evaluation_metric = "MSE", logic = "small_better")
+```

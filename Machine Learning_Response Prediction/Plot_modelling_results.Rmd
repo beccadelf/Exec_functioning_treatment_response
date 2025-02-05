@@ -40,7 +40,7 @@ path_results_folder = file.path(basic_path, "Projekte_Meinke\\Old_projects\\Labr
 results_folders <- list.files(path = path_results_folder, full.names = FALSE)
 
 # Filter for new results
-results_folders <- results_folders[grepl("new4", results_folders)]
+results_folders <- results_folders[grepl("new5", results_folders)& !grepl("permuted", results_folders)]
 
 # For each folder, save the performance_across_iters-file in dictionary
 results_dict = list()
@@ -69,12 +69,15 @@ create_classification_plot <- function(results_df){
                              "Random Forest\n(OS: Simple)",
                       ifelse(grepl("random_forest_classifier_no_oversampling", results_df$FolderName),
                              "Random Forest\n(OS: no)",
-                      ifelse(grepl("svm_classifier_C1_yes_smote", results_df$FolderName),
+                      ifelse(grepl("svm_classifier_yes_smote", results_df$FolderName),
                              "Rbf-SVM\n(OS: SMOTE)",
-                      ifelse(grepl("svm_classifier_C1_yes_simple", results_df$FolderName), 
+                      ifelse(grepl("svm_classifier_yes_simple", results_df$FolderName), 
                              "Rbf-SVM\n(OS: Simple)",
-                      ifelse(grepl("svm_classifier_C1_no_oversampling", results_df$FolderName), 
+                      ifelse(grepl("svm_classifier_no_oversampling", results_df$FolderName), 
                              "Rbf-SVM\n(OS: no)", NA))))))
+  # Ensure correct ordering
+  results_df$Model <- factor(results_df$Model, levels = c("Random Forest\n(OS: SMOTE)","Random Forest\n(OS: Simple)","Random Forest\n(OS: no)","Rbf-SVM\n(OS: SMOTE)",
+                                                             "Rbf-SVM\n(OS: Simple)","Rbf-SVM\n(OS: no)"))
   
   # Define feature sets and specify colors
   results_df$FeatureSet <- ifelse(grepl("clinical_features", results_df$FolderName),
@@ -97,11 +100,16 @@ create_classification_plot <- function(results_df){
       size = 3
     ) +
     labs(y = "Balanced Accuracy",  x = "", fill = "Feature Set") + 
+   
     scale_y_continuous(breaks = c(0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8)) +
     scale_fill_manual(values = colors) + 
     theme(axis.text.x = element_text(angle = 45, hjust = 1),
           legend.position = "none") +
-    facet_wrap(~Model, nrow = 1)
+    geom_rect(data = subset(results_df, Model == "Random Forest\n(OS: SMOTE)"), 
+                          fill = NA, colour = "black", size = 1.5, xmin = -Inf,xmax = Inf,
+            ymin = -Inf,ymax = Inf) +
+    facet_wrap(~Model, nrow = 1) 
+ 
 
   return(plot)
 }

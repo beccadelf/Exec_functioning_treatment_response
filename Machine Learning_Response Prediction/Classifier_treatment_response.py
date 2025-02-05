@@ -25,7 +25,7 @@ os.chdir(script_wd)
 from lib.Preprocessing_Classes import FeatureSelector
 from lib.Pipeline import load_data, impute_data, z_scale_data, select_features_classification
 from lib.Models import fit_random_forest_classifier, fit_svm_classifier
-from lib.ModelPerformance import calc_eval_metrics_classification, get_performance_metrics_across_iters, summarize_performance_metrics_across_iters
+from lib.ModelPerformance import calc_eval_metrics_classification, get_performance_metrics_across_iters, summarize_performance_metrics_across_iters, create_permuted_labels
 from lib.FeatureStats import summarize_features
 
 #%% 
@@ -39,7 +39,9 @@ def set_options_and_paths():
     """
 
     def generate_and_create_results_path(args):
-        model_name = f"{args.NAME_RESULTS_FOLDER}_new4"
+        model_name = f"{args.ANALYSIS}_{args.CLASSIFIER}_{args.OVERSAMPLING}" + "_oversampling_new5" 
+        if args.NULL_MODEL == "yes":
+            model_name = model_name + "_permuted"
         path_results_base = args.PATH_INPUT_DATA.replace( "Feature_Label_Dataframes","Results")
         PATH_RESULTS = os.path.join(path_results_base, model_name)
         os.makedirs(PATH_RESULTS, exist_ok=True)
@@ -59,8 +61,6 @@ def set_options_and_paths():
                         help='Path to input data')
     parser.add_argument('--PATH_RESULTS_BASE', type=str,
                         help='Path to save results')
-    parser.add_argument('--NAME_RESULTS_FOLDER', type=str,
-                        help='Name result folder')
     parser.add_argument('--ANALYSIS', type=str,
                         help='Features to include, set all_features or clinical_features_only')
     parser.add_argument('--CLASSIFIER', type=str,
@@ -69,6 +69,8 @@ def set_options_and_paths():
                         help='Should training and testset be oversampled to represent distribution in sample?')
     parser.add_argument('--NUMBER_REPETITIONS', type=int, default=100,
                         help='Number of repetitions of the cross-validation')
+    parser.add_argument('--NULL_MODEL', type=str, default = "no",
+                        help='Should balanced accuracy distribution for a null model be calculated? Choose yes or no')
 
 
     args = parser.parse_args()
@@ -84,9 +86,9 @@ def set_options_and_paths():
             '--ANALYSIS', "all_features",
             '--CLASSIFIER', 'random_forest_classifier',
             '--OVERSAMPLING', 'yes_smote',
-            '--NUMBER_REPETITIONS', "100"
+            '--NUMBER_REPETITIONS', "100",
+            '--NULL_MODEL', "yes"
         ])
-        args.NAME_RESULTS_FOLDER = f"{args.ANALYSIS}_{args.CLASSIFIER}_{args.OVERSAMPLING}" + "_oversampling"
         PATHS = generate_and_create_results_path(args)
         
     return args, PATHS
@@ -102,6 +104,10 @@ def procedure_per_iter(num_iter, args):
     X_import_path = os.path.join(args.PATH_INPUT_DATA, args.ANALYSIS + ".csv")
     y_import_path = os.path.join(args.PATH_INPUT_DATA, "labels.csv")
     X, y, feature_names = load_data(X_import_path, y_import_path)
+    
+    # Shuffle labels if NULL_Model is "yes"
+    if args.NULL_MODEL == "yes":
+        y = create_permuted_labels(y)
     
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2,
                                                         stratify=y,
@@ -132,28 +138,16 @@ def procedure_per_iter(num_iter, args):
     # X-scale data
     X_train_imp_clean_scaled, X_test_imp_clean_scaled = z_scale_data(X_train_imp_clean, X_test_imp_clean)
     
-    # Select features
+    # Select features with elastic net
     X_train_imp_clean_scaled_sel, X_test_imp_clean_scaled_sel, features_selected = select_features_classification(X_train_imp_clean_scaled, X_test_imp_clean_scaled, y_train_final, feature_names_clean)
     
     # Fit classifier
     if args.CLASSIFIER == "random_forest_classifier":
         clf, feature_weights = fit_random_forest_classifier(
             X_train_imp_clean_scaled_sel, y_train_final)
-    # elif args.CLASSIFIER == "random_forest_classifier_0.8":
-    #     clf, feature_weights = fit_random_forest_classifier(
-    #         X_train_imp_clean_scaled_sel, y_train_final, max_features = 0.8)
-    # elif args.CLASSIFIER == "random_forest_classifier_0.9":
-    #     clf, feature_weights = fit_random_forest_classifier(
-    #         X_train_imp_clean_scaled_sel, y_train_final, max_features = 0.9)
-    elif args.CLASSIFIER == "svm_classifier_C1":
+    elif args.CLASSIFIER == "svm_classifier":
         clf, feature_weights = fit_svm_classifier(
             X_train_imp_clean_scaled_sel, y_train_final, C=1)
-    # elif args.CLASSIFIER == "svm_classifier_C0.01":
-    #     clf, feature_weights = fit_svm_classifier(
-    #         X_train_imp_clean_scaled_sel, y_train_final, C=1)
-    # elif args.CLASSIFIER == "svm_classifier_C1":
-    #     clf, feature_weights = fit_svm_classifier(
-    #         X_train_imp_clean_scaled_sel, y_train_final, kernel = "rbf")
     
     # Calculate model performance metrics
     y_pred_test = clf.predict(X_test_imp_clean_scaled_sel)
@@ -200,8 +194,8 @@ if __name__ == '__main__':
     performance_metrics_summarized = summarize_performance_metrics_across_iters(outcomes, key_metrics = "ev_metrics_test")
     features_summarized = summarize_features(outcomes=outcomes, key_feat_names="sel_features_names", key_feat_weights="sel_features_imp")
     ## Training metrics
-    train_performance_summarized = summarize_performance_metrics_across_iters(outcomes, key_metrics = "ev_metrics_train")   
-    
+    train_performance_summarized = summarize_performance_metrics_across_iters(outcomes, key_metrics = "ev_metrics_train")
+
     # Save summaries as csv
     performance_metrics_across_iters.to_csv(os.path.join(
         PATHS["RESULT"], "performance_across_iters.txt"), sep="\t", na_rep="NA")
@@ -211,6 +205,7 @@ if __name__ == '__main__':
         PATHS["RESULT"], "features_summary.txt"), sep="\t", na_rep="NA")
     train_performance_summarized.to_csv(os.path.join(
         PATHS["RESULT"], "training_performance_summary.txt"), sep="\t")
+  
     
     elapsed_time = time.time() - start_time
     print('\nThe time for running was {}.'.format(elapsed_time))

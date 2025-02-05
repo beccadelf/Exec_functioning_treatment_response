@@ -9,7 +9,7 @@ output:
     code_folding: hide
     df_print: paged
 params:
-  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/new/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
+  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
   
 ---
 <style type="text/css">
@@ -274,6 +274,60 @@ save_as_docx(
 ft
 ```
 
+## 3. Get information about removed trials during the calculation of the mean RT
+```{r}
+library(dplyr)
+
+# Select columns
+columns_n_trimmed <- grep("_n_trimmed_removed_RT$", names(data_Pat_pre_clean), value = TRUE)
+columns_n_wrong <- grep("_n_wrong_removed_RT$", names(data_Pat_pre_clean), value = TRUE)
+
+# Create a data frame dynamically
+df <- data.frame(
+  Condition = gsub("_n_trimmed_removed_RT", "", columns_n_trimmed),  # Remove suffix for clean names
+  n_trimmed_removed = sapply(data_Pat_pre_clean[ columns_n_trimmed], mean, na.rm = TRUE),
+  n_trimmed_removed_sd = sapply(data_Pat_pre_clean[ columns_n_trimmed], sd, na.rm = TRUE),
+  n_wrong_removed = sapply(data_Pat_pre_clean[columns_n_wrong], mean, na.rm = TRUE),
+  n_wrong_removed_sd = sapply(data_Pat_pre_clean[columns_n_wrong], sd, na.rm = TRUE)
+)
+
+# Rename variables
+df$Condition <- dplyr::recode(df$Condition, Repeat = "Number-Letter: Repeat",
+                          Switch = "Number-Letter: Switch", Congruent = "Stroop: Congruent",
+                          Incongruent = "Stroop: Incongruent", Foil = "2-Back: Foil", 
+                          Target = "2-Back: Target")
+colnames(df) <- c("Condition", "Number of trials removed due to trimming (Mean)",
+                  "Number of trials removed due to trimming (SD)",
+                  "Number of wrong trials removed (Mean)",
+                  "Number of wrong trials removed (SD)")
+
+# Turn to flextable
+ft_removedRT <- flextable(df)
+
+# Round to 2
+ft_removedRT <- colformat_double(ft_removedRT, digits = 2)
+
+# Set table properties
+ft_removedRT <- set_table_properties(ft_removedRT, width = 1, layout = "autofit")
+
+# Header in bold
+ft_removedRT <- bold(ft_removedRT, bold = TRUE, part = "header")
+
+# Alignments
+ft_removedRT<- align(ft_removedRT, j = 1, align = "left", part = "all") # first column
+ft_removedRT <- align(ft_removedRT, j = 2:ncol(df), align = "center", part = "all") # rest
+
+# Export flextable
+save_as_docx(
+  ft_removedRT,
+  path = file.path(results_path, "removed_trials_Responder_Nonresponder.docx"), 
+  pr_section = format_flextable_portrait)
+
+# Info for interpreting the results: 
+# Number-letter: switch 64, Repeat: 63
+# Stroop: Congruent: 80 trials, Incongruent: 80 trials
+# Spatial 2-back: Foil: 48 trials, Target: 112 trials
+```
 
 # Inferential statistics
 ### 1. Preparation
@@ -290,19 +344,20 @@ imp_columns <- c("NumberLetter_BIS_Repeat", "NumberLetter_BIS_Switch",
 ```
 
 ### 2. Test for variance homogeneity
+This test is actually not necessary as we follow the recommendation 
 ```{r}
 levene_test_table <- levene_test_mult_cols(df_basis = data_Pat_pre_clean, cols = imp_columns, grouping_variable = "Response")
 #pander(levene_test_table, style = "rmarkdown", fontsize = "tiny")
 levene_test_table
 ```
-Levene test shows complete variance homoegeneity for all task conditions between responders and non-responders.
+Levene tests show variance homogeneity for all task conditions between responders and non-responders.
 
-### 3. Calculate t-tests 
+### 3. Calculate Welch t-tests 
 ```{r}
 ttest_results_columns <- c(
   "group_mean_Response", "sd_Response",
   "group_mean_NonReponse", "sd_NonResponse",
-  "df", "t_statistic", "p_value", "cohen_d", "power"
+  "df", "t_statistic", "p_value", "hedges_g"
 )
 
 t_test_table <- t_test_mult_cols(df_basis = data_Pat_pre_clean, cols = imp_columns, df_results_columns = ttest_results_columns, grouping_variable = "Response")
