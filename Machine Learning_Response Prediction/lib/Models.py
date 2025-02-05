@@ -61,20 +61,21 @@ def fit_svm_classifier(X, y, C = 0.1, kernel = "rbf"):
     return clf, feature_weights
 
 
-def fit_random_forest_regressor(X, y, max_features):
+def fit_random_forest_regressor(X, y, max_features = None):
     """
     Function to train a Random Forest regressor and get the feature importances.
     
     Arguments:
         X: array or DataFrame (n_samples, n_features), feature set for training.
         y: array (n_samples,), target values for training.
-        max_features: Set it to n_features//3
+        max_features is set to None as recommended it scikit-learn and due to the relatively small number of features.
+        It can also bet set to n_features//3 in the main script (as recommended in Probst)
     
     Returns:
         - clf: Fitted RandomForestRegressor model.
         - feature_weights: array (n_features,), importance scores for each feature.
     """
-    # Default settings of scikit, modified based on recommendations in Probst et al. (2019)
+    # Default settings of scikit, modified based on recommendations in Probst et al. (2019, e.g., min_samples_split = 5)
     clf = RandomForestRegressor(n_estimators=100, criterion='squared_error',
                                 max_depth=None, min_samples_split=5, min_samples_leaf = 1,
                                 max_features= max_features, bootstrap=True,

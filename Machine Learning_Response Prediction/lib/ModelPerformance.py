@@ -10,6 +10,8 @@ Created on Fri Nov  1 17:02:24 2024
 import numpy as np
 import pandas as pd
 import sklearn.metrics as metrics
+from sklearn.utils import shuffle
+import copy
 
 #%% Define functions
 
@@ -90,7 +92,25 @@ def get_performance_metrics_across_iters(outcomes, key_metrics):
     
     return performance_metrics_across_iters_df
 
-# 2. Function to summarize model performance
+# 2. Permutation test
+# def create_permuted_labels(y_train, y_test):
+#         y_train_permuted = copy.deepcopy(y_train)
+#         y_train_permuted = shuffle(
+#             y_train_permuted, random_state=0)
+#         y_test_permuted = copy.deepcopy(y_test)
+#         y_test_permuted = shuffle(
+#             y_test_permuted, random_state=0)
+        
+#         return y_train_permuted, y_test_permuted
+
+def create_permuted_labels(y):
+        y_permuted = copy.deepcopy(y)
+        y_permuted = shuffle(
+            y_permuted, random_state=0)
+        
+        return y_permuted
+
+# 3. Function to summarize model performance
 
 def summarize_performance_metrics_across_iters(outcomes, key_metrics):
     """

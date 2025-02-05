@@ -18,10 +18,11 @@ script_wd = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_wd)
 
 # Define the parameters
-regressors = ["random_forest_regressor", "ridge_regressor"]
-classifiers = ["random_forest_classifier", "svm_classifier_C1"]
+regressors = ["random_forest_regressor","ridge_regressor"]
+classifiers = ["random_forest_classifier","svm_classifier"]
 analysis = ["all_features", "clinical_features_only"]
 oversampling = ["yes_simple","yes_smote", "no"]
+permutation = ["no","yes"]
 
 path_input_data = "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Feature_Label_Dataframes\\RT_trimmed_RT_wrong_removed_outliers-removed"
 path_results_base = "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\RT_trimmed_RT_wrong_removed_outliers-removed\\Results"
@@ -29,28 +30,28 @@ path_results_base = "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Re
 # Generate argument_sets
 # Regression
 argument_sets_regression = []
-all_combinations_regression = product(analysis, regressors)
+all_combinations_regression = product(analysis, regressors, permutation)
 for combo in all_combinations_regression:
     argument_sets_regression.append({
         'PATH_INPUT_DATA': path_input_data,
         'PATH_RESULTS_BASE': path_results_base,
-        'NAME_RESULTS_FOLDER': "_".join(combo),
         'ANALYSIS': combo[0],
         'REGRESSOR': combo[1],
-        'NUMBER_REPETITIONS': 100
+        'NUMBER_REPETITIONS': "100",
+        'NULL_MODEL': combo[2]
     })
 # Classification
 argument_sets_classification = []
-all_combinations_classification = product(analysis, classifiers, oversampling)
+all_combinations_classification = product(analysis, classifiers, oversampling, permutation)
 for combo in all_combinations_classification:
     argument_sets_classification.append({
         'PATH_INPUT_DATA': path_input_data,
         'PATH_RESULTS_BASE': path_results_base,
-        'NAME_RESULTS_FOLDER': "_".join(combo) + "_oversampling",
         'ANALYSIS': combo[0],
         'CLASSIFIER': combo[1],
         'OVERSAMPLING': combo[2], 
-        'NUMBER_REPETITIONS': 100
+        'NUMBER_REPETITIONS': 100,
+        'NULL_MODEL': combo[3]
     })
 
 
@@ -91,4 +92,4 @@ def run_script(script_path, argument_sets):
 
 # Run the scripts with generated argument sets
 run_script(script_paths["regression"], argument_sets_regression)
-#run_script(script_paths["classification"], argument_sets_classification)
+run_script(script_paths["classification"], argument_sets_classification)

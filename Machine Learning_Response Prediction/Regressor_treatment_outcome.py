@@ -24,7 +24,7 @@ os.chdir(script_wd)
 from lib.Preprocessing_Classes import FeatureSelector
 from lib.Pipeline import load_data, impute_data, z_scale_data, select_features_regression
 from lib.Models import fit_random_forest_regressor, fit_ridge_regressor
-from lib.ModelPerformance import calc_eval_metrics_regression, get_performance_metrics_across_iters, summarize_performance_metrics_across_iters
+from lib.ModelPerformance import calc_eval_metrics_regression, get_performance_metrics_across_iters, summarize_performance_metrics_across_iters, create_permuted_labels
 from lib.FeatureStats import summarize_features
 
 #%% 
@@ -38,7 +38,9 @@ def set_options_and_paths():
     """
 
     def generate_and_create_results_path(args):
-        model_name = f"{args.NAME_RESULTS_FOLDER}_new4"
+        model_name = f"{args.ANALYSIS}_{args.REGRESSOR}" + "_new5"
+        if args.NULL_MODEL == "yes":
+            model_name = model_name + "_permuted"
         path_results_base = args.PATH_INPUT_DATA.replace( "Feature_Label_Dataframes","Results")
         PATH_RESULTS = os.path.join(path_results_base, model_name)
         os.makedirs(PATH_RESULTS, exist_ok=True)
@@ -58,14 +60,14 @@ def set_options_and_paths():
                         help='Path to input data')
     parser.add_argument('--PATH_RESULTS_BASE', type=str,
                         help='Path to save results')
-    parser.add_argument('--NAME_RESULTS_FOLDER', type=str,
-                        help='Name result folder')
     parser.add_argument('--ANALYSIS', type=str,
                         help='Features to include, set all_features or clinical_features_only')
     parser.add_argument('--REGRESSOR', type=str,
                         help='Regressor to use, set random_forest or ridge_regression')
     parser.add_argument('--NUMBER_REPETITIONS', type=int, default=100,
                         help='Number of repetitions of the cross-validation')
+    parser.add_argument('--NULL_MODEL', type=str, default = "no",
+                        help='Should evaluation metric distribution for a null model be calculated? Choose yes or no')
 
     args = parser.parse_args()
     
@@ -78,10 +80,9 @@ def set_options_and_paths():
             '--PATH_INPUT_DATA', "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Feature_Label_Dataframes\\RT_trimmed_RT_wrong_removed_outliers-removed",
             '--PATH_RESULTS_BASE', "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Results",
             '--ANALYSIS', "clinical_features_only", 
-            '--REGRESSOR', 'ridge_regressor',
-            '--NUMBER_REPETITIONS', "10"
-        ])
-        args.NAME_RESULTS_FOLDER = f"{args.ANALYSIS}_{args.REGRESSOR}"
+            '--REGRESSOR', 'random_forest_regressor',
+            '--NUMBER_REPETITIONS', "3",
+            '--NULL_MODEL', "yes"])
         PATHS = generate_and_create_results_path(args)
         
     return args, PATHS
@@ -98,12 +99,13 @@ def procedure_per_iter(num_iter, args):
     y_import_path = os.path.join(args.PATH_INPUT_DATA, "outcomes.csv")
     X, y, feature_names = load_data(X_import_path, y_import_path)
     
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2,
-                                                        random_state = num_iter) # TODO: stratify = y rausnehmen?
-    # By changing the random_state with each iteration, we always get a different split
+    # Shuffle labels if NULL_Model is "yes". CAVE: A null-model based on permuted data is calculated even though this is not established for regression.
+    if args.NULL_MODEL == "yes":
+        y = create_permuted_labels(y)
     
-    # TODO: instead of oversampling, XXX outcome distribution to check whether 
-    # certain ranges are underrepresented
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2,
+                                                        random_state = num_iter)
+    # By changing the random_state with each iteration, we always get a different split
     
     X_train_imp, X_test_imp = impute_data(X_train, X_test)
     
@@ -117,16 +119,13 @@ def procedure_per_iter(num_iter, args):
     
     X_train_imp_clean_scaled, X_test_imp_clean_scaled = z_scale_data(X_train_imp_clean, X_test_imp_clean)
     
+    # Apply feature selection
     X_train_imp_clean_scaled_sel, X_test_imp_clean_scaled_sel, features_selected = select_features_regression(X_train_imp_clean_scaled, X_test_imp_clean_scaled, y_train, feature_names_clean)
-    #X_train_imp_clean_scaled_sel = X_train_imp_clean_scaled
-    #X_test_imp_clean_scaled_sel =  X_test_imp_clean_scaled
-    #features_selected = feature_names_clean 
     
     # Fit Regressor
     if args.REGRESSOR == "random_forest_regressor":
-        max_features = X_train_imp_clean_scaled_sel.shape[1]//3
         clf, feature_weights = fit_random_forest_regressor(
-            X_train_imp_clean_scaled_sel, y_train, max_features)
+            X_train_imp_clean_scaled_sel, y_train)
     elif args.REGRESSOR == "ridge_regressor":
         clf, feature_weights = fit_ridge_regressor(
             X_train_imp_clean_scaled_sel, y_train)
@@ -163,7 +162,7 @@ if __name__ == '__main__':
     # Run procedure per iterations
     outcomes = []
     runs_list = []
-    for i in range (args.NUMBER_REPETITIONS):
+    for i in range(args.NUMBER_REPETITIONS):
         runs_list.append(i)
     procedure_per_iter_spec = partial(procedure_per_iter,
                                       args=args)
