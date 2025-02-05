@@ -47,7 +47,7 @@ for (RT_trimming in RT_trimming_options) {
 # BIS-Script
 outliers_removed_options <- c("yes", "no")
 input_data_path_options <- c(
-  file.path(base_path, "Daten_Gruppenvergleich/new/RT_trimmed_RT_wrong_removed"),
+  file.path(base_path, "Daten_Gruppenvergleich/new/trimmed_wrong_removed"),
   file.path(base_path, "Daten_Gruppenvergleich/new/not_trimmed_not_removed")
 )
 
