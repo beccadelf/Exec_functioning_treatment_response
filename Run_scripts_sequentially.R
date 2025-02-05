@@ -34,12 +34,12 @@ for (RT_trimming in RT_trimming_options) {
         output_filename <- generate_filename(RT_trimming, RT_remove_wrong)
       
         rmarkdown::render(
-          input <- file.path(base_path, "Taskdata_Preprocessing_CM_TA.Rmd"),
+          input = file.path(base_path, "Taskdata_Preprocessing_CM_TA.Rmd"),
           output_file = output_filename,
           params = params_list,
           envir = new.env()
         )
-        cat("Generated file:", output_filename, "/n")
+        cat("Generated file:", output_filename, "\n")
     }
   }
 }
@@ -66,12 +66,12 @@ for (outliers_removed in outliers_removed_options) {
       output_path = file.path(input_data_path, "BIS", outliers_text, output_filename)
       
       rmarkdown::render(
-        input <- file.path(base_path, "EF_scores_calculation_correct_TA.Rmd"),
+        input = file.path(base_path, "EF_scores_calculation_correct_TA.Rmd"),
         output_file = output_path,
         params = params_list,
         envir = new.env()
       )
-      cat("Generated file:", output_filename, "/n")
+      cat("Generated file:", output_filename, "\n")
 }
 }
 
@@ -107,7 +107,7 @@ for (input_data_path in inputdata_variants_paths) {
       params = params_list,
       envir = new.env()
     )
-    cat("Generated file:", output_filename, "/n")
+    cat("Generated file:", output_filename, "\n")
   }
 
 # Machine learning preprocessing
@@ -125,5 +125,5 @@ for (input_data_path in inputdata_variants_paths) {
     params = params_list,
     envir = new.env()
   )
-  cat("Generated file:", output_filename, "/n")
+  cat("Generated file:", output_filename, "\n")
 }
