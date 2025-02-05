@@ -1,6 +1,13 @@
 # Run all scripts needed for the analysis sequentially
 
+# 0. Packages and Paths
 library(rmarkdown)
+library(rstudioapi)
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+
+# Define the base path
+base_path <- "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation"
+parent_path <- dirname(base_path)
 
 # 1. Taskdata_preprocessing-Skript
 # Define the parameters you want to iterate over
@@ -27,20 +34,22 @@ for (RT_trimming in RT_trimming_options) {
         output_filename <- generate_filename(RT_trimming, RT_remove_wrong)
       
         rmarkdown::render(
-          input = "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\0_Datapreparation\\Taskdata_Preprocessing_CM.Rmd",
+          input <- file.path(base_path, "Taskdata_Preprocessing_CM_TA.Rmd"),
           output_file = output_filename,
           params = params_list,
           envir = new.env()
         )
-        cat("Generated file:", output_filename, "\\n")
+        cat("Generated file:", output_filename, "/n")
     }
   }
 }
 
 # BIS-Script
-outliers_removed_options <- c("yes","no")
-input_data_path_options <- c("Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/new/RT_trimmed_RT_wrong_removed",
-                             "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/new/not_trimmed_not_removed")
+outliers_removed_options <- c("yes", "no")
+input_data_path_options <- c(
+  file.path(base_path, "Daten_Gruppenvergleich/new/RT_trimmed_RT_wrong_removed"),
+  file.path(base_path, "Daten_Gruppenvergleich/new/not_trimmed_not_removed")
+)
 
 # Create a function to generate the filename based on parameters
 generate_filename_out <- function(outliers_removed) {
@@ -57,21 +66,22 @@ for (outliers_removed in outliers_removed_options) {
       output_path = file.path(input_data_path, "BIS", outliers_text, output_filename)
       
       rmarkdown::render(
-        input = "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\0_Datapreparation\\EF_scores_calculation_correct.Rmd",
+        input <- file.path(base_path, "EF_scores_calculation_correct_TA.Rmd"),
         output_file = output_path,
         params = params_list,
         envir = new.env()
       )
-      cat("Generated file:", output_filename, "\\n")
+      cat("Generated file:", output_filename, "/n")
 }
 }
 
 # General further processing
-inputdata_variants_paths = c("Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\0_Datapreparation\\Daten_Gruppenvergleich\\new\\not_trimmed_not_removed\\BIS\\outliers-not-removed",
-                                 "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\0_Datapreparation\\Daten_Gruppenvergleich\\new\\not_trimmed_not_removed\\BIS\\outliers-removed",
-                                 "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\0_Datapreparation\\Daten_Gruppenvergleich\\new\\RT_trimmed_RT_wrong_removed\\BIS\\outliers-not-removed",
-                                 "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\0_Datapreparation\\Daten_Gruppenvergleich\\new\\RT_trimmed_RT_wrong_removed\\BIS\\outliers-removed"
-                                 )
+inputdata_variants_paths <- c(
+  file.path(base_path, "Daten_Gruppenvergleich/new/not_trimmed_not_removed/BIS/outliers-not-removed"),
+  file.path(base_path, "Daten_Gruppenvergleich/new/not_trimmed_not_removed/BIS/outliers-removed"),
+  file.path(base_path, "Daten_Gruppenvergleich/new/trimmed_wrong_removed/BIS/outliers-not-removed"),
+  file.path(base_path, "Daten_Gruppenvergleich/new/trimmed_wrong_removed/BIS/outliers-removed")
+)
 
 # Group comparison script (HC vs. patients)
 generate_filename <- function(input_data_path,prefix) {
@@ -88,16 +98,16 @@ for (input_data_path in inputdata_variants_paths) {
     params_list <- list(input_data_path = input_data_path)
     
     output_filename <- generate_filename(input_data_path, prefix = "HC_vs_patients_")
-    output_data_path <- "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\1_Group_comparison"
+    output_data_path <- file.path(parent_path, "1_Group_comparison")
     output_path = file.path(output_data_path, output_filename)
     
     rmarkdown::render(
-      input = "C:\\Users\\meinkcha.PSYCHOLOGIE\\Documents\\GitHub\\Exec_functioning_treatment_response\\Group Comparison_Executive Functions\\Group Comparison_Healthy Controls Patients.Rmd",
+      input = "Group Comparison_Healthy Controls Patients.Rmd",
       output_file = output_path,
       params = params_list,
       envir = new.env()
     )
-    cat("Generated file:", output_filename, "\\n")
+    cat("Generated file:", output_filename, "/n")
   }
 
 # Machine learning preprocessing
@@ -105,16 +115,15 @@ for (input_data_path in inputdata_variants_paths) {
   params_list <- list(input_data_path = input_data_path)
   
   output_filename <- generate_filename(input_data_path, prefix = "Machine_learning_preparation")
-  output_data_path <- "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning"
+  output_data_path <- file.path(parent_path, "2_Machine_learning")
   #TODO change maybe outputpath
   output_path = output_data_path
   
   rmarkdown::render(
-    input = "C:\\Users\\meinkcha.PSYCHOLOGIE\\Documents\\GitHub\\Exec_functioning_treatment_response\\Machine Learning_Response Prediction\\ML_preprocessing.Rmd",
+    input = "Machine Learning_Response Prediction/ML_preprocessing.Rmd",
     output_file = output_path,
     params = params_list,
     envir = new.env()
   )
-  cat("Generated file:", output_filename, "\\n")
+  cat("Generated file:", output_filename, "/n")
 }
-
