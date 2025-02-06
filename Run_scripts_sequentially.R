@@ -34,7 +34,7 @@ for (RT_trimming in RT_trimming_options) {
         output_filename <- generate_filename(RT_trimming, RT_remove_wrong)
       
         rmarkdown::render(
-          input = file.path(base_path, "Taskdata_Preprocessing_CM_TA.Rmd"),
+          input = file.path(base_path, "Calc_meanRT_meanacc.Rmd"),
           output_file = output_filename,
           params = params_list,
           envir = new.env()
@@ -47,8 +47,8 @@ for (RT_trimming in RT_trimming_options) {
 # BIS-Script
 outliers_removed_options <- c("yes", "no")
 input_data_path_options <- c(
-  file.path(base_path, "Daten_Gruppenvergleich/new/trimmed_wrong_removed"),
-  file.path(base_path, "Daten_Gruppenvergleich/new/not_trimmed_not_removed")
+  file.path(base_path, "not_trimmed_not_removed"),
+  file.path(base_path, "RT_trimmed_RT_wrong_removed")
 )
 
 # Create a function to generate the filename based on parameters
@@ -66,7 +66,7 @@ for (outliers_removed in outliers_removed_options) {
       output_path = file.path(input_data_path, "BIS", outliers_text, output_filename)
       
       rmarkdown::render(
-        input = file.path(base_path, "EF_scores_calculation_correct_TA.Rmd"),
+        input = file.path(base_path, "Add_groupinfo_calc_BIS.Rmd"),
         output_file = output_path,
         params = params_list,
         envir = new.env()
@@ -77,10 +77,10 @@ for (outliers_removed in outliers_removed_options) {
 
 # General further processing
 inputdata_variants_paths <- c(
-  file.path(base_path, "Daten_Gruppenvergleich/new/not_trimmed_not_removed/BIS/outliers-not-removed"),
-  file.path(base_path, "Daten_Gruppenvergleich/new/not_trimmed_not_removed/BIS/outliers-removed"),
-  file.path(base_path, "Daten_Gruppenvergleich/new/trimmed_wrong_removed/BIS/outliers-not-removed"),
-  file.path(base_path, "Daten_Gruppenvergleich/new/trimmed_wrong_removed/BIS/outliers-removed")
+  file.path(base_path, "not_trimmed_not_removed/BIS/outliers-not-removed"),
+  file.path(base_path, "not_trimmed_not_removed/BIS/outliers-removed"),
+  file.path(base_path, "RT_trimmed_RT_wrong_removed/BIS/outliers-not-removed"),
+  file.path(base_path, "RT_trimmed_RT_wrong_removed/BIS/outliers-removed")
 )
 
 # Group comparison script (HC vs. patients)
@@ -102,7 +102,7 @@ for (input_data_path in inputdata_variants_paths) {
     output_path = file.path(output_data_path, output_filename)
     
     rmarkdown::render(
-      input = "Group Comparison_Healthy Controls Patients.Rmd",
+      input = "Group Comparison_Executive Functions\\Group Comparison_Healthy Controls Patients.Rmd",
       output_file = output_path,
       params = params_list,
       envir = new.env()
