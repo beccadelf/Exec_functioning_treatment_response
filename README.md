@@ -6,6 +6,8 @@ This repository contains all scripts and resources for the analyses described in
 
 The repository is structured into two main sections, each aligned with the study's analytical objectives: **Group Comparison** and **Machine Learning**.
 
+- **HTML**: To inspect the ".html" files, download them or clone them using the GitHub-App. Then, manually open them (via double-click) and it will be readable in Browser.
+
 ---
 
 ## Folder Structure
