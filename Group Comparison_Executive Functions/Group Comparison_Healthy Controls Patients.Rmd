@@ -63,8 +63,7 @@ data_Pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
 ### 3. Set results path to save tables and images
 ```{r}
 results_path <- create_results_path(inputdata_path = basic_path, 
-                                      output_mainpath =
-                                    "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/HC_vs_Pat"
+                                      output_mainpath = "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/HC_vs_Pat"
                                           )
 ```
 
@@ -360,12 +359,6 @@ levene_test_table
 
 ### 2. Calculate Welch t-test
 ```{r}
-ttest_results_columns <- c(
-  "group_mean_Patients", "sd_Patients",
-  "group_mean_HC", "sd_HC",
-  "df", "t_statistic", "p_value", "cohen_d", "power"
-)
-
 t_test_table <- t_test_mult_cols(df_basis = Patients_vs_HC_imp, cols = imp_columns, 
                                  df_results_columns = ttest_results_columns, grouping_variable = "Gruppe")
 #pander(t_test_table, style = "rmarkdown", fontsize = "tiny")
@@ -380,10 +373,11 @@ t_test_table_pub <- cbind(performance_measures = rownames(t_test_table), t_test_
 # Combine "Mean" and "SD" columns and reduce dataframe
 t_test_table_pub <- t_test_table_pub %>%
   mutate(
-    `Patients Mean (SD)` = paste0(round(group_mean_Patients, 2), " (", round(sd_Patients, 2), ")"),
-    `HC Mean (SD)` = paste0(round(group_mean_HC, 2), " (", round(sd_HC, 2), ")")
+    `Patients Mean (SD)` = paste0(round(group_1_mean, 2), " (", round(group_1_sd, 2), ")"),
+    `HC Mean (SD)` = paste0(round(group_0_mean, 2), " (", round(group_0_mean, 2), ")")
     ) %>%
-  select(performance_measures, `Patients Mean (SD)`, `HC Mean (SD)`, df, t_statistic, p_value, p_value_adjusted)
+  select(performance_measures, `Patients Mean (SD)`, `HC Mean (SD)`, 
+         df, t_statistic, effect_size, p_value, p_value_adjusted)
 
 # Rename performance measures using a named vector
 rename_map <- c(
@@ -400,7 +394,7 @@ rename_map <- c(
 t_test_table_pub$performance_measures <- rename_map[t_test_table_pub$performance_measures]
 
 # Change colnames
-colnames(t_test_table_pub) <- c("Performance Measure", "Patients Mean (SD)", "HC Mean (SD)", "df", "t-Statistic", "p-Value", "adj. p-Value")
+colnames(t_test_table_pub) <- c("Performance Measure", "Patients Mean (SD)", "HC Mean (SD)", "df", "t-Statistic", "Hedges` g", "p-Value", "adj. p-Value")
 ```
 
 ### 4. Create and save flextable

@@ -354,12 +354,6 @@ Levene tests show variance homogeneity for all task conditions between responder
 
 ### 3. Calculate Welch t-tests 
 ```{r}
-ttest_results_columns <- c(
-  "group_mean_Response", "sd_Response",
-  "group_mean_NonReponse", "sd_NonResponse",
-  "df", "t_statistic", "p_value", "hedges_g"
-)
-
 t_test_table <- t_test_mult_cols(df_basis = data_Pat_pre_clean, cols = imp_columns, df_results_columns = ttest_results_columns, grouping_variable = "Response")
 #pander(t_test_table, style = "rmarkdown", split.table = Inf, fontsize = "tiny")
 t_test_table
@@ -373,10 +367,10 @@ t_test_table_pub <- cbind(performance_measures = rownames(t_test_table), t_test_
 # Combine "Mean" and "SD" columns and reduce dataframe
 t_test_table_pub <- t_test_table_pub %>%
   mutate(
-    `Responder Mean (SD)` = paste0(round(group_mean_Response, 2), " (", round(sd_Response, 2), ")"),
-    `Nonresponder Mean (SD)` = paste0(round(group_mean_NonReponse, 2), " (", round(sd_NonResponse, 2), ")")
+    `Responder Mean (SD)` = paste0(round(group_1_mean, 2), " (", round(group_1_sd, 2), ")"),
+    `Nonresponder Mean (SD)` = paste0(round(group_0_mean, 2), " (", round(group_0_sd, 2), ")")
     ) %>%
-  select(performance_measures, `Responder Mean (SD)`, `Nonresponder Mean (SD)`, df, t_statistic, p_value, p_value_adjusted)
+  select(performance_measures, `Responder Mean (SD)`, `Nonresponder Mean (SD)`, df, t_statistic, effect_size, p_value, p_value_adjusted)
 
 # Rename performance measures using a named vector
 rename_map <- c(
@@ -393,7 +387,7 @@ rename_map <- c(
 t_test_table_pub$performance_measures <- rename_map[t_test_table_pub$performance_measures]
 
 # Change colnames
-colnames(t_test_table_pub) <- c("Performance Measure", "Responder Mean (SD)", "Non-Responder Mean (SD)", "df", "t-Statistic", "p-Value", "adj. p-Value")
+colnames(t_test_table_pub) <- c("Performance Measure", "Responder Mean (SD)", "Non-Responder Mean (SD)", "df", "t-Statistic", "Hedges' g","p-Value", "adj. p-Value")
 ```
 
 ### 5. Create and save flextable

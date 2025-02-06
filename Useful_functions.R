@@ -65,11 +65,11 @@ flextable_settings <- function(
 # and store the results in a dataframe
 
 t_test_mult_cols <- function(df_basis, cols, df_results_columns, grouping_variable) {
-  # Initialize an empty results dataframe
-  df_results <- data.frame(matrix(NA, nrow = length(cols), ncol = length(df_results_columns)))
-  colnames(df_results) <- df_results_columns
-  rownames(df_results) <- cols
+  # This function assumes that the grouping variable is 0-1 coded.
   
+  # Initialize an empty list to store results
+  results_list <- vector("list", length(cols))
+  names(results_list) <- cols  # Assign column names dynamically
   #Create empty vector to store raw p-values
   p_values_raw <- numeric(length(cols)) 
   
@@ -95,17 +95,18 @@ t_test_mult_cols <- function(df_basis, cols, df_results_columns, grouping_variab
     effsize <-effsize_result$Hedges_g
     
     # Dynamically assign results to the dataframe
-    df_results[col, ] <- c(
-      round(mean(group1), 2),  # e.g., group_mean_Patients
-      round(sd(group1), 2),    # e.g., sd_Patients
-      round(mean(group0), 2),  # e.g., group_mean_HC
-      round(sd(group0), 2),    # e.g., sd_HC
-      round(results$parameter["df"], 2),  # df
-      round(results$statistic, 2),        # t_statistic
-      round(results$p.value, 2),          # p_value
-      round(effsize, 2),                  # cohen_d
+    results_list[[col]] <- c(
+      group_1_mean = round(mean(group1), 2),
+      group_1_sd = round(sd(group1), 2),
+      group_0_mean = round(mean(group0), 2),
+      group_0_sd = round(sd(group0), 2),
+      df = round(results$parameter[["df"]], 2),
+      t_statistic = round(results$statistic[["t"]], 2),
+      p_value = round(results$p.value, 2),
+      effect_size = round(effsize, 2)
     )
   }
+  df_results <- data.frame(do.call(rbind, results_list))
   
   # Adjust p-values using Benjamini-Hochberg method for multiple testing of related tasks
   p_values_adjusted <- p.adjust(p_values_raw, method = "BH")
