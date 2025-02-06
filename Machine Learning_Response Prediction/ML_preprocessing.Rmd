@@ -9,7 +9,7 @@ output:
     code_folding: hide
     df_print: paged
 params:
-  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/new/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
+  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
 ---
 <style type="text/css">
 .main-container { /* Adjust main blocks */
@@ -34,10 +34,11 @@ library(caret)
 source("../Useful_functions.R")
 ```
 
-## 0. Load relevant data
+## 0. Load relevant data and define paths
 
 ```{r}
 basic_path <- params$input_data_path
+output_path <- create_results_path(inputdata_path = params$input_data_path,output_mainpath = "Y:PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/2_Machine_learning/Feature_Label_Dataframes")
 
 task_data <- read.csv(file.path(basic_path,"Performance_scoresTask_Performance_Scores.csv")) # contains overall accuracy
 data_pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
@@ -76,7 +77,7 @@ outcome_df <- round(data.frame(FAS_perc_change = ((features_df$T3_BAT_FAS_score 
 ```
 
 ## 4. Dummy-Vars and renaming of features
-The only variable that needed one-hot encoding was "Abschluss" (education). As we had no missings in this variable, we were allowed to perform one-hot encoding outside the loop. Otherwise, we would need to perform it inside the loop, just after imputation. 
+The only variable that needed one-hot encoding was "Abschluss" (education). As we had no missings in this variable, we were allowed to perform one-hot encoding outside the loop. Otherwise, we would have need to perform it inside the loop, just after imputation. 
 As "Abschluss" (education) had two levels with a very low number of subjects (level 1/Basic education/Hauptschule: 1 subject, level 4/Other/Anderes: 4 subjects), we decided to turn it only into one dummy-coded variable, coding the presence of level 3/High education/Gymnasium 
 ```{r Prepare for ML}
 # 0 Check missings in "Abschluss"
@@ -140,9 +141,6 @@ all_features_final <- features_df_enc[, !names(features_df_enc) %in% c("NumbLet_
 ## 7. Save all 5 dataframes
 
 ```{r Save dataframes, warning=FALSE}
-output_mainpath <- "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/2_Machine_learning/Feature_Label_Dataframes"
-output_path <- create_results_folder(inputdata_path = params$input_data_path,output_mainpath = output_mainpath)
-
 write.csv(all_features_final, file.path(output_path, "all_features.csv"), row.names = FALSE)
 write.csv(features_df_enc, file.path(output_path, "all_features_accuracy.csv"), row.names = FALSE)
 write.csv(clin_features_df_enc, file.path(output_path, "clinical_features_only.csv"), row.names = FALSE)
