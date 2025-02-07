@@ -130,7 +130,13 @@ generate_characteristics_table <- function(data, task_name) {
                                          "Intermediate secondary education",
                                          "Higher secondary education", 
                                          "Other"))) %>%
-    tbl_summary(by = Gruppe,  # Compare by Gruppe (HC vs. Pat)
+    tbl_summary(by = Gruppe,  # Compare by Gruppe (HC vs. Pat),
+                digits = list(T1_BAT_BDI_II_score = c(1, 1),
+                              T1_BAT_BIS_11_score = c(1, 1),
+                              T1_BAT_CFC_14_score = c(1, 1),
+                              T1_BAT_FAS_score = c(1, 1),
+                              T1_BAT_SRHI_score = c(1, 1),
+                              T1_BAT_STAI_T_score= c(1, 1)),
                 label = list(
                   Alter ~ "Age",
                   Geschlecht ~ "Sex",
@@ -156,7 +162,7 @@ generate_characteristics_table <- function(data, task_name) {
     # Remove the row for "Male" in sex
     modify_table_body(
       ~ .x %>% filter(!(variable == "Geschlecht" & label == "Male"))
-    )
+    ) 
 }
 
 # Loop through the tasks and create tables

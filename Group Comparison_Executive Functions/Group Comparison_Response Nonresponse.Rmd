@@ -118,6 +118,12 @@ generate_characteristics_table <- function(data, task_name) {
                                          "Higher secondary education", 
                                          "Other"))) %>%
     tbl_summary(by = Response,  # Compare by Response
+                digits = list(T1_BAT_BDI_II_score = c(1, 1),
+                              T1_BAT_BIS_11_score = c(1, 1),
+                              T1_BAT_CFC_14_score = c(1, 1),
+                              T1_BAT_FAS_score = c(1, 1),
+                              T1_BAT_SRHI_score = c(1, 1),
+                              T1_BAT_STAI_T_score= c(1, 1)),
                 label = list(
                   Alter ~ "Age",
                   Geschlecht ~ "Sex",

@@ -9,7 +9,7 @@ output:
     code_folding: hide
     df_print: paged
 params:
-  input_data_path: "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Daten_Gruppenvergleich/new/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
+  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
 ---
 <style type="text/css">
 .main-container { /* Adjust main blocks */
@@ -45,6 +45,13 @@ source("../../../Useful_functions.R")
 ```
 
 # Set-Up
+### 0. Set results path to save tables and images
+```{r}
+results_path <- create_results_path(inputdata_path = basic_path, 
+                                      output_mainpath = "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/HC_vs_Pat"
+                                          )
+```
+
 ### 1. Import Task Performance Data
 ```{r}
 basic_path = params$input_data_path
@@ -196,8 +203,8 @@ for (i in seq_along(cols)){
 }
 ```
 
-### Visualizations
-```{r, fig.width = 10, message=FALSE}
+### Assessing assumptions visually
+```{r, fig.width = 15, message=FALSE}
 # Create a list of those models used for the ANCOVA
 get_models <- function(results_list){
   models_list <- setNames(
@@ -232,8 +239,8 @@ models_list <- get_models(results_uncorrected)
 test_assumptions_of_MLR(models_list)
 ```
 
-## Statistics
-### Normality
+### Assessing assumptions statistically
+#### Normality
 ```{r}
 # Shapiro-Wilk for normality
 shapiro_results <- apply(Patients_vs_HC_imp_conf_final[,performance_tasks], 2, FUN = shapiro.test)
@@ -245,9 +252,9 @@ shapiro_table <- data.frame(
 row.names(shapiro_table) <- gsub("\\.W$", "", row.names(shapiro_table))
 shapiro_table
 ```
-For each executive functioning measure, the normality assumption is violated
+For all executive functioning measures, the normality assumption is statistically violated.
 
-### Homogeneity of variance
+#### Homogeneity of variance
 Breusch-Pagan Test in Koenker-version (more robust if normality is violated)
 ```{r}
 conduct_BPtest_multcols<- function(models_list){
@@ -267,14 +274,21 @@ conduct_BPtest_multcols(models_list)
 For around half of the tests, the variance homogeneneity is violated.
 
 ### Define tasks with severe violations
+These tasks were defined based on the visual and statistical check of assumptions. We focused on the visual assessment,
+as the Breusch-Pagan test is known to be biased in non-normally distributed data as used here.
 ```{r}
-tasks_GLMviolated <- c("NumberLetter_BIS_Repeat","NumberLetter_BIS_Switch","Stroop_BIS_Diff_Score",
-                       "TwoBack_BIS_Target", "SSRT")
+tasks_GLMviolated <- c("NumberLetter_BIS_Repeat", # visual and statistical violation of homogeneity 
+                       "NumberLetter_BIS_Switch", # visual violation of homogeneity
+                       "Stroop_BIS_Diff_Score", # visual violation of homogeneity
+                       "TwoBack_BIS_Target", # visual and statistical violation of homogeneity
+                       "SSRT" #visual violation of homogeneity
+                       )
 ```
 
 ## 2. Round: Test specific ANCOVA assumptions
+Specific ANCOVA assumption are tested for those executive functioning measures whose models violated the GLM assumptions.
 ### Linearity splitted by groups (only for continuous covariates: here age)
-Regression of the dependent variable on the covariates is linear for each treatment condition. (The residuals plot has shown that this is valid in general, now we look at age extra)
+Assumption: The regression of the executive functioning measure on age should follow a linear pattern in both groups (patients and healthy controls).
 ```{r, fig.height= 8, fig.width = 9, message=FALSE, warning=FALSE}
 # Loop through each task performance variable and plot Task Performance ~ Covariate per group (HC vs. Pat)
 plot_linearity_pergroup <- function(data, covariate, performance_tasks){
@@ -297,8 +311,10 @@ plot_linearity_pergroup <- function(data, covariate, performance_tasks){
 
 plot_linearity_pergroup(data = Patients_vs_HC_imp_conf_final, covariate = "Alter", performance_tasks = tasks_GLMviolated)
 ```
+The assumption is met for all measures examined.
 
 ### Non-interaction between covariates and Group
+Assumption: Adding a group-covariate interaction does not improve the model fit.
 ```{r, message=FALSE}
 # Function to add interaction term
 data <- Patients_vs_HC_imp_conf_final
@@ -345,16 +361,22 @@ for (i in seq_along(tasks_GLMviolated)) {
 
 # Output the table to review the results
 pander(interaction_results, style = "rmarkdown", split.table = Inf, fontsize = "tiny")
-```
 
-## 3. Rerun models showing an interaction between covariates and group
+# Define models 
+tasks_GLMviolated_add_interaction <- interaction_results[interaction_results$Interaction_Group_Sex_p_value
+< 0.05 | interaction_results$Interaction_Group_Education_p_value < 0.05 | interaction_results$Interaction_Group_Age_p_value < 0.05, "Task"]
+tasks_GLMviolated_add_nointeraction <- setdiff(tasks_GLMviolated, tasks_GLMviolated_add_interaction)
+
+```
+For some executive functioning measures, adding a group-covariate interaction improves the model fit.
+Models including such an interaction term are rerun in the next code section.
+
+## 3. Rerun models with interaction terms
 ```{r, fig.width = 10, message=FALSE}
 results_corrected_interaction <- list()
-for (task in tasks_GLMviolated) {
+for (task in tasks_GLMviolated_add_interaction) {
   task_row <- which(interaction_results$Task == task)
 
-  # Check if any of the p-values in the row are below 0.05
-  if (any(interaction_results[task_row, 2:4] < 0.05)) {
     # Get the column names for the interaction p-values
     colnames_interaction <- colnames(interaction_results)[2:4]  # Interaction p-values columns
     
@@ -375,27 +397,33 @@ for (task in tasks_GLMviolated) {
     
     # Run ANCOVA (or another statistical model function)
     results_corrected_interaction[[task]] <- run_ancova(data = Patients_vs_HC_imp_conf_final, formula = formula_interaction_switch)
-  }
+
 }
 
 list_models_corrected_interaction <- get_models(results_corrected_interaction)
 test_assumptions_of_MLR(list_models_corrected_interaction)
 ```
-The model-fit seems to be much better than before.
+The visualizations shows that homoscedasticity is not violated anymore in Number_Letter_BIS_Switch but remains violated in TwoBack_BIS_Target.
 
-## 4. Rerun models showing no interaction with correction for heteroscedasticity
+
+## 4. Rerun models with correction for heteroscedasticity
+### Define models to rerun with correction for heteroscedasticity
+Based on visual inspection, the model for TwoBack_BIS_Target should also be corrected for heteroscedasticity.
+```{r}
+tasks_GLMviolated_correct_homogeneity <- c(tasks_GLMviolated_add_nointeraction, "TwoBack_BIS_Target")
+```
+
+### Rerun models with correction
 ```{r, message=FALSE}
-tasks_no_improvement <- tasks_GLMviolated[!(tasks_GLMviolated %in% names(list_models_corrected_interaction))]
 
 results_corrected_homogeneity <- list()
-for (task in tasks_GLMviolated) {
-  # 1. ANCOVA (uncorrected) for every executive functioning measure
+for (task in tasks_GLMviolated_correct_homogeneity) {
   formula_ancova <- paste(task, "~ Gruppe +", covariate_main_effects)
   results_corrected_homogeneity[[task]] <- run_ancova(data = Patients_vs_HC_imp_conf_final,formula = formula_ancova, heterosced = TRUE)
 }
 ```
 
-## Summarize 
+## 5. Summarize 
 ### Collect results
 ```{r}
 combined_results <- results_uncorrected
@@ -439,7 +467,7 @@ rename_map <- c(
 table_summary <- table_summary %>%mutate(Name = dplyr::recode(Name, !!!rename_map))
 #table_summary$Name <- recode(table_summary$Name, !!!rename_map)
 
-colnames(table_summary) <- recode(colnames(table_summary),"Name" = "Performance Measure", 
+colnames(table_summary) <- dplyr::recode(colnames(table_summary),"Name" = "Performance Measure", 
                                   "error_reduction_due_to_predictor" = "Type III SSq explained by Group",
                                   "F_value" = "F-Value",
                                   "p_value" = "p-Value",
@@ -453,6 +481,8 @@ format_flextable_portrait <- flextable_settings(word_orientation = "portrait")
 
 # Set table properties
 ft_t_test <- set_table_properties(ft_t_test, width = 1, layout = "autofit")
+# Round
+ft_t_test  <- colformat_double(ft_t_test , digits = 2)
 
 # Header in bold
 ft_t_test <- bold(ft_t_test, bold = TRUE, part = "header")
@@ -461,10 +491,10 @@ ft_t_test <- bold(ft_t_test, bold = TRUE, part = "header")
 ft_t_test <- align(ft_t_test, j = 1, align = "left", part = "all") # first column
 ft_t_test <- align(ft_t_test, j = 2:ncol(table_summary), align = "center", part = "all") # rest
 
-# "Y:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Submission/Tables/ANCOVA.docx"
+
 save_as_docx(
   ft_t_test,
-  path = "Z:/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/ANCOVA/ANCOVA.docx", 
+  path = file.path(results_path,"ANCOVA.docx"), 
   pr_section = format_flextable_portrait)
 ft_t_test
 ```
