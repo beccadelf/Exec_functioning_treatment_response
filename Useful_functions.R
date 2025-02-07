@@ -16,7 +16,7 @@ create_results_path <- function(inputdata_path, output_mainpath){
   # Create a new path
   new_folder = paste(RTprocessing_part, outliers_part, sep = "_")
   output_path = file.path(output_mainpath, new_folder)
-  dir.create(output_path)
+  dir.create(output_path, recursive = TRUE)
   
   return(output_path)
 }

@@ -18,17 +18,12 @@ RT_remove_wrong_options <- c(TRUE,FALSE)
 generate_filename <- function(RT_trimming, RT_remove_wrong) {
   trimming_text <- ifelse(RT_trimming == TRUE, "trimmed", "not_trimmed")
   remove_wrong_text <- ifelse(RT_remove_wrong == TRUE, "wrong_removed", "not_removed")
-  #trimmed_suffix <- ifelse(RT_trimming == "TRUE", "RT_trimmed", "not_trimmed")
-  #wrong_suffix <- ifelse(RT_remove_wrong == "TRUE", "RT_wrong_removed", "not_removed")
-  #path = file.path(basic_results_path,paste(trimmed_suffix,wrong_suffix,sep = "_"),"raw_data")
   paste0("Calculate_mean_RT_and_accuracy_", trimming_text,"_", remove_wrong_text, ".html")
 }
 
 # Loop over the parameter sets and render the RMarkdown file for each set
 for (RT_trimming in RT_trimming_options) {
   for (RT_remove_wrong in RT_remove_wrong_options){
-    if ((RT_trimming == TRUE && RT_remove_wrong == TRUE) || 
-        (RT_trimming == FALSE && RT_remove_wrong == FALSE)) {
         params_list <- list(RT_trimming = RT_trimming, RT_remove_wrong =  RT_remove_wrong )
         
         output_filename <- generate_filename(RT_trimming, RT_remove_wrong)
@@ -42,12 +37,13 @@ for (RT_trimming in RT_trimming_options) {
         cat("Generated file:", output_filename, "\n")
     }
   }
-}
 
 # BIS-Script
 outliers_removed_options <- c("yes", "no")
 input_data_path_options <- c(
   file.path(base_path, "not_trimmed_not_removed"),
+  file.path(base_path, "RT_trimmed_not_removed"),
+  file.path(base_path, "not_trimmed_RT_wrong_removed"),
   file.path(base_path, "RT_trimmed_RT_wrong_removed")
 )
 
@@ -63,11 +59,10 @@ for (outliers_removed in outliers_removed_options) {
       
       output_filename <- generate_filename_out(outliers_removed)
       outliers_text <- ifelse(outliers_removed == "yes", "outliers-removed", "outliers-not-removed")
-      output_path = file.path(input_data_path, "BIS", outliers_text, output_filename)
       
       rmarkdown::render(
         input = file.path(base_path, "Add_groupinfo_calc_BIS.Rmd"),
-        output_file = output_path,
+        output_file = output_filename,
         params = params_list,
         envir = new.env()
       )
@@ -115,13 +110,10 @@ for (input_data_path in inputdata_variants_paths) {
   params_list <- list(input_data_path = input_data_path)
   
   output_filename <- generate_filename(input_data_path, prefix = "Machine_learning_preparation")
-  output_data_path <- file.path(parent_path, "2_Machine_learning")
-  #TODO change maybe outputpath
-  output_path = output_data_path
   
   rmarkdown::render(
     input = "Machine Learning_Response Prediction/ML_preprocessing.Rmd",
-    output_file = output_path,
+    output_file = output_filename,
     params = params_list,
     envir = new.env()
   )
