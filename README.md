@@ -4,7 +4,7 @@ This repository contains all scripts and resources for the analyses described in
 1. To assess whether individuals with spider phobia exhibit deficits in executive functions compared to healthy controls.
 2. To investigate if baseline executive functions can predict response to exposure therapy for spider phobia.
 
-The repository is structured into two main sections, each aligned with the study's analytical objectives: **Group Comparison** and **Machine Learning**.
+The repository is structured into two main sections, each aligned with the study's analytical objectives: **Group Comparison** and **Machine Learning**. It is designed to document our exact calculations and analyses, allowing other researchers to retrace our work. For a concise summary of the analysis steps and their results, please refer to the accompanying HTML file for each script.
 
 - **HTML**: To inspect the ".html" files, download them or clone them using the GitHub-App. Then, manually open them (via double-click) and it will be readable in Browser.
 
