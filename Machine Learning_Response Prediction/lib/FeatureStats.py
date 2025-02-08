@@ -9,6 +9,7 @@ Created on Fri Nov  1 17:11:07 2024
 
 import numpy as np
 import pandas as pd
+from collections import Counter
 
 #%% Define functions
 
@@ -36,6 +37,9 @@ def summarize_features(outcomes, key_feat_names, key_feat_weights):
         feat_names_all.append(feat_names)
     feat_names_all = np.concatenate(feat_names_all)
     unique_feat_names = np.unique(feat_names_all)
+    
+    # Count selection frequency based on feat_names_all
+    feat_counts = Counter(feat_names_all)
 
     # Create empty df with feature names as index
     feat_all_data = []
@@ -54,8 +58,7 @@ def summarize_features(outcomes, key_feat_names, key_feat_weights):
 
     # Calculate mean feature weights and selection frequencies across iterations
     mean = feat_all_df.mean(axis=1)
-    count_na = feat_all_df.isna().sum(axis=1)
-    sel_freq = feat_all_df.shape[1] - count_na
+    sel_freq = pd.Series(feat_counts, index=unique_feat_names)
 
     # Save mean feature weights and selection frequenies in DataFrame
     feat_sum_df = pd.DataFrame({
