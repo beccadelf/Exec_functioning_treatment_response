@@ -82,9 +82,10 @@ Patients_vs_HC_imp <- Patients_vs_HC[,c("Subject","Gruppe",imp_columns)]
 Patients_vs_HC_imp_conf <- merge(Patients_vs_HC[,c("Subject","Alter","Geschlecht","Abschluss")], Patients_vs_HC_imp, by = "Subject")
 ```
 In total, data for `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1,])` patients and `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0,])` healthy controls were available. When outliers were removed, the number of subjects varied slightly: 
-Number-Letter Task: `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0 & !is.na(Patients_vs_HC_imp$NumberLetter_BIS_Repeat),])` healthy controls,  `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1 & !is.na(Patients_vs_HC_imp$NumberLetter_BIS_Repeat),])` patients
-Stroop Task: `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0 & !is.na(Patients_vs_HC_imp$Stroop_BIS_Congruent),])` healthy controls,  `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1 & !is.na(Patients_vs_HC_imp$Stroop_BIS_Congruent),])` patients
-2back-Task: `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0 & !is.na(Patients_vs_HC_imp$TwoBack_BIS_Total),])` healthy controls,  `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1 & !is.na(Patients_vs_HC_imp$TwoBack_BIS_Total),])` patients
+Number-Letter Task: `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0 & !is.na(Patients_vs_HC_imp$NumberLetter_BIS_Repeat),])` healthy controls,  `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1 & !is.na(Patients_vs_HC_imp$NumberLetter_BIS_Repeat),])` patients;  
+Stroop Task: `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0 & !is.na(Patients_vs_HC_imp$Stroop_BIS_Congruent),])` healthy controls,  `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1 & !is.na(Patients_vs_HC_imp$Stroop_BIS_Congruent),])` patients;  
+2back-Task: `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0 & !is.na(Patients_vs_HC_imp$TwoBack_BIS_Total),])` healthy controls,  `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1 & !is.na(Patients_vs_HC_imp$TwoBack_BIS_Total),])` patients;  
+
 SSRT: `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0 & !is.na(Patients_vs_HC_imp$SSRT),])` healthy controls,  `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1 & !is.na(Patients_vs_HC_imp$SSRT),])` patients.
 
 # Descriptive Statistics
@@ -422,90 +423,6 @@ save_as_docx(
   ft_t_test,
   path = file.path(results_path, "t-test_Patients_HCs.docx"), 
   pr_section = format_flextable_portrait)
-```
-
-
-# Explorative Analysis: Trait Anxiety
-### 1. Test for variance homogeneity
-```{r}
-car::leveneTest(T1_BAT_STAI_T_score ~ as.factor(Gruppe), data = Patients_vs_HC)
-```
-
-### 2. Test for task-specific differences in trait anxiety
-```{r}
-t_test_mult_cols <- function(df_basis, cols, split_col) {
-  # Perform a t-test for multiple variables after splitting based on the median of `split_col`
-  
-  # Perform median split on the specified column (split_col)
-  median_value <- median(df_basis[[split_col]], na.rm = TRUE)
-  df_basis$Anxiety_Group <- ifelse(df_basis[[split_col]] > median_value, "High", "Low")
-  
-  # Create a dataframe to store results
-  df <- data.frame(
-    t_statistic = numeric(length(cols)), 
-    p_value = numeric(length(cols)),
-    group_mean_High = numeric(length(cols)), 
-    sd_High = numeric(length(cols)),
-    group_mean_Low = numeric(length(cols)), 
-    sd_Low = numeric(length(cols)),
-    cohen_d = numeric(length(cols)), 
-    power = numeric(length(cols))
-  )
-  rownames(df) <- cols
-  p_values_raw <- numeric(length(cols))  # Store raw p-values
-  
-  for (i in seq_along(cols)) {
-    col <- cols[i]  # Current column
-    
-    # Split the data into high and low anxiety groups
-    group_high <- na.omit(df_basis[df_basis$Anxiety_Group == "High", col])
-    group_low <- na.omit(df_basis[df_basis$Anxiety_Group == "Low", col])
-    
-    # Perform t-test
-    results <- t.test(group_high, group_low, paired = FALSE, var.equal = FALSE)
-    p_values_raw[i] <- results$p.value  # Store raw p-value
-    
-    # Calculate Cohen's d
-    cohen_d_result <- cohen.d(group_high, group_low, hedges.correction = FALSE)
-    cohen_d <- cohen_d_result$estimate
-    
-    # Calculate power
-    n_high <- length(group_high)
-    n_low <- length(group_low)
-    power_result <- pwr.t.test(d = cohen_d, n = min(n_high, n_low), sig.level = 0.05, type = "two.sample", alternative = "greater")
-    power <- power_result$power
-    
-    # Store the results
-    df[col, "t_statistic"] <- round(results$statistic, 2)
-    df[col, "p_value"] <- round(results$p.value, 2)
-    df[col, "group_mean_High"] <- round(mean(group_high), 2)
-    df[col, "sd_High"] <- round(sd(group_high), 2)
-    df[col, "group_mean_Low"] <- round(mean(group_low), 2)
-    df[col, "sd_Low"] <- round(sd(group_low), 2)
-    df[col, "cohen_d"] <- round(cohen_d, 2)
-    df[col, "power"] <- round(power, 2)
-  }
-  
-  # Adjust p-values using the Benjamini-Hochberg method
-  p_values_adjusted <- p.adjust(p_values_raw, method = "BH")
-  df$p_value_adjusted <- round(p_values_adjusted, 2)
-  
-  return(df)
-}
-
-t_test_mult_cols(df_basis = Patients_vs_HC[Patients_vs_HC$Gruppe == 0,], cols = imp_columns, split_col = "T1_BAT_STAI_T_score")
-```
-
-### 3. Plot trait anxiety difference
-```{r, warning = FALSE}
-ggplot(Patients_vs_HC, aes(x = Gruppe, y = T1_BAT_STAI_T_score, color = Gruppe)) +
-  geom_boxplot(outlier.shape = NA, alpha = 0.6) +  # Boxplot to show group distribution
-  geom_jitter(width = 0.2, size = 2, alpha = 0.7) + # Add points for individual values
-  labs(
-    title = "T1 BAT STAI T Score by Group",
-    x = "Group (Gruppe)",
-    y = "T1 BAT STAI T Score"
-  )
 ```
 
 # Plotting
