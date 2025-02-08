@@ -132,10 +132,14 @@ for (feature in non_bin_cols) {
 clin_features <- c("is_woman", "Age", "FAS", "BDI_II", "STAI_T", "BIS_11", "Kirby_k", "CFC_14", "SRHI", "Abschluss_Gymnasium")
 clin_features_df_enc <- features_df_enc[clin_features]
 
-# Set 2: All features but without Overall Accuracy
-all_features_final <- features_df_enc[, !names(features_df_enc) %in% c("NumbLet_Average_PC", "Stroop_Average_PC", "TwoBack_Average_PC")]
+# Set 2: All features (including executive functioning) but without Overall Accuracy etc.
+cols_n_trimmed <- colnames(features_df_enc)[grep("n_trimmed_removed", colnames(features_df_enc))]
+cols_n_wrong <- colnames(features_df_enc)[grep("n_wrong_removed", colnames(features_df_enc))]
+cols_accuracy <- colnames(features_df_enc)[grep("Average_PC", colnames(features_df_enc))]
+addit_performance_features <- c(cols_n_trimmed, cols_n_wrong, cols_accuracy)
+all_features_final <- features_df_enc[, !names(features_df_enc) %in% addit_performance_features]
 
-# Set 3: features_df_enc, includes Overall Accuracy
+# Set 3: features_df_enc, includes Overall Accuracy etc.
 ```
 
 ## 7. Save all 5 dataframes
