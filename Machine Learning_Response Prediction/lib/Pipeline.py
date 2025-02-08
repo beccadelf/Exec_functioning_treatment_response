@@ -123,7 +123,7 @@ def select_features_classification(X_train, X_test, y_train, feature_names):
         selection. Features are selected if their importance meets or exceeds the mean coefficient 
         magnitude across features, as determined by the model.
     """
-    clf_elastic = LogisticRegression(penalty = "elasticnet", solver="saga", C = 0.1,
+    clf_elastic = LogisticRegression(penalty = "elasticnet", solver="saga", C = 1,
                                      l1_ratio= 0.5,
                              max_iter=1000, tol=0.0001, 
                              random_state=0)
@@ -161,7 +161,7 @@ def select_features_regression(X_train, X_test, y_train, feature_names):
         selection. Features are selected if their importance meets or exceeds the mean coefficient 
         magnitude across features, as determined by the model.
     """
-    clf_elastic = ElasticNet(alpha=0.1, l1_ratio=0.5, fit_intercept=True,
+    clf_elastic = ElasticNet(alpha=1.0, l1_ratio=0.5, fit_intercept=True,
                              max_iter=1000, tol=0.0001, 
                              random_state=0, selection='cyclic')
     sfm = SelectFromModel(clf_elastic, threshold="mean")
