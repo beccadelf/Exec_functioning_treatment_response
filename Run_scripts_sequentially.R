@@ -17,7 +17,7 @@ RT_remove_wrong_options <- c(TRUE,FALSE)
 
 # Create a function to generate the filename based on options chosen for 
 # the preprocessing of the reaction time
-generate_htmlfilename_meanRTacc-script <- function(RT_trimming, RT_remove_wrong) {
+generate_htmlfilename_meanRTacc<- function(RT_trimming, RT_remove_wrong) {
   trimming_text <- ifelse(RT_trimming == TRUE, "trimmed", "not_trimmed")
   remove_wrong_text <- ifelse(RT_remove_wrong == TRUE, "wrong_removed", "not_removed")
   paste0("Calculate_mean_RT_and_accuracy_", trimming_text,"_", remove_wrong_text, ".html")
@@ -28,7 +28,7 @@ for (RT_trimming in RT_trimming_options) {
   for (RT_remove_wrong in RT_remove_wrong_options){
         params_list <- list(RT_trimming = RT_trimming, RT_remove_wrong =  RT_remove_wrong )
         
-        output_filename <- generate_htmlfilename_meanRTacc-script(RT_trimming, RT_remove_wrong)
+        output_filename <- generate_htmlfilename_meanRTacc(RT_trimming, RT_remove_wrong)
       
         rmarkdown::render(
           input = file.path(base_path, "Calc_meanRT_meanacc.Rmd"),
@@ -50,7 +50,7 @@ input_data_path_options <- c(
 )
 
 # Create a function to generate the filename based on parameters
-generate_htmlfilename_BIS-script <- function(outliers_removed) {
+generate_htmlfilename_BIS <- function(outliers_removed) {
   # Get the name of the input data folder as it tells us how the mean RT was calculated
   last_folder <- basename(input_data_path) 
   outliers_text <- ifelse(outliers_removed == "yes", "outliers-removed", "outliers-not-removed")
@@ -61,7 +61,7 @@ for (outliers_removed in outliers_removed_options) {
   for (input_data_path in input_data_path_options){
       params_list <- list(outliers_removed = outliers_removed, input_data_path = input_data_path)
       
-      output_filename <- generate_htmlfilename_BIS-script(outliers_removed)
+      output_filename <- generate_htmlfilename_BIS(outliers_removed)
       outliers_text <- ifelse(outliers_removed == "yes", "outliers-removed", "outliers-not-removed")
       
       rmarkdown::render(
