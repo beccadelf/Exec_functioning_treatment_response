@@ -3,7 +3,7 @@
 This script implements a machine learning regressor (XXX) to predict the reduction 
 in the "Fear of Spyders Questionnaire" in percent.
 
-@author: Rebecca Delfendahl
+@author: Rebecca Delfendahl, Charlotte Meinke
 """
 
 #%% Import libraries and functions
@@ -38,12 +38,12 @@ def set_options_and_paths():
     """
 
     def generate_and_create_results_path(args):
-        model_name = f"{args.ANALYSIS}_{args.REGRESSOR}" + "_new5"
+        model_name = f"{args.ANALYSIS}_{args.REGRESSOR}" + "_final"
         if args.NULL_MODEL == "yes":
             model_name = model_name + "_permuted"
         path_results_base = args.PATH_INPUT_DATA.replace( "Feature_Label_Dataframes","Results")
         PATH_RESULTS = os.path.join(path_results_base, model_name)
-        os.makedirs(PATH_RESULTS, exist_ok=True)
+        os.makedirs(PATH_RESULTS) # as exist_ok is not True, the scripts stops if the path already exists
         PATH_RESULTS_PLOTS = os.path.join(PATH_RESULTS, "plots")
         os.makedirs(PATH_RESULTS_PLOTS, exist_ok=True)
         PATHS = {

@@ -2,7 +2,7 @@
 """
 Created on Fri Nov  1 17:02:24 2024
 
-@author: Acer
+@author: Charlotte Meinke, Rebecca Delfendahl
 """
 
 #%% Import functions

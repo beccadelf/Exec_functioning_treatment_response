@@ -112,7 +112,25 @@ for (input_data_path in inputdata_variants_paths) {
       envir = new.env()
     )
     cat("Generated file:", output_filename, "\n")
-  }
+}
+
+# Group comparison script (Response vs. Nonresponse)
+for (input_data_path in inputdata_variants_paths) {
+  params_list <- list(input_data_path = input_data_path)
+  
+  output_filename <- generate_htmlfilename_analyses(input_data_path, prefix = "Response_vs_Nonresponse")
+  output_path <- file.path(create_results_path(inputdata_path = input_data_path,
+                                               output_mainpath = file.path(parent_path,"1_Group_comparison/R_vs_NR")),
+                           output_filename)
+  
+  rmarkdown::render(
+    input = "Group Comparison_Executive Functions\\Group Comparison_Response Nonresponse.Rmd",
+    output_file = output_path,
+    params = params_list,
+    envir = new.env()
+  )
+  cat("Generated file:", output_filename, "\n")
+}
 
 # Machine learning preprocessing
 for (input_data_path in inputdata_variants_paths) {

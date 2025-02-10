@@ -1,8 +1,13 @@
 ---
 title: "Plot_ML-Analysis_Results"
-author: "Rebecca Delfendahl"
+author: "Charlotte Meinke, Rebecca Delfendahl"
 date: "2024-11-15"
-output: html_document
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+    df_print: paged
 ---
 # Setup
 ```{r setup, include=FALSE}
@@ -40,7 +45,7 @@ path_results_folder = file.path(basic_path, "Projekte_Meinke\\Old_projects\\Labr
 results_folders <- list.files(path = path_results_folder, full.names = FALSE)
 
 # Filter for new results
-results_folders <- results_folders[grepl("new5", results_folders)& !grepl("permuted", results_folders)]
+results_folders <- results_folders[grepl("final", results_folders)& !grepl("permuted", results_folders)]
 
 # For each folder, save the performance_across_iters-file in dictionary
 results_dict = list()
@@ -59,8 +64,8 @@ classification_results <- combined_results[grepl("classifier", combined_results$
 regression_results <- combined_results[grepl("regressor", combined_results$FolderName), ]
 ```
 
-# Function to XXX
-```{r}
+# Create a plot for the classification results
+```{r, fig.width = 16, fig.height = 9}
 create_classification_plot <- function(results_df){
   # Create new model variable
   results_df$Model <- ifelse(grepl("random_forest_classifier_yes_smote_oversampling", results_df$FolderName),
@@ -115,10 +120,11 @@ create_classification_plot <- function(results_df){
 }
 
 classification_plot <- create_classification_plot(results_df = classification_results)
+classification_plot 
 ```
 
-# Function to XXX
-```{r}
+# Create a plot for the regression results
+```{r,fig.width = 16, fig.height = 9}
 create_regression_plot <- function(results_df){
   # Create new model variable
   results_df$Model <- ifelse(grepl("random_forest_regressor", results_df$FolderName), "Random Forest",
@@ -154,6 +160,7 @@ create_regression_plot <- function(results_df){
 }
 
 regression_plot <- create_regression_plot(results_df = regression_results)
+regression_plot
 ```
 
 # Save plots
@@ -161,4 +168,6 @@ regression_plot <- create_regression_plot(results_df = regression_results)
 plots_path = file.path(basic_path, "Projekte_Meinke/Old_projects/Labrotation_Rebecca/2_Machine_learning/Plots/")
 ggsave(file.path(plots_path,"Classification_results_plot.png"), plot = classification_plot, width = 16, height = 9, dpi = 300)
 ggsave(file.path(plots_path, "Regression_results_plot.png"), plot = regression_plot, width = 16, height = 9, dpi = 300)
+ggsave(file.path(plots_path,"Classification_results_plot.svg"), plot = classification_plot, width = 16, height = 9)
+ggsave(file.path(plots_path, "Regression_results_plot.svg"), plot = regression_plot, width = 16, height = 9)
 ```

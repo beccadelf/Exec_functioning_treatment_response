@@ -1,6 +1,6 @@
 ---
 title: "Preprocessing_for_ML"
-author: "Rebecca Delfendahl"
+author: "Rebecca Delfendahl, Charlotte Meinke"
 date: "2024-08-06"
 output:
   html_document:

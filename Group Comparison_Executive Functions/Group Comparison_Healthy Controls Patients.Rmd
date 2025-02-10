@@ -498,6 +498,8 @@ violin_plots_patients_hc <- ggplot(Patients_vs_HC_long, aes(x = Condition, y = B
 print(violin_plots_patients_hc)
 ggsave(file.path(results_path, "violin_plots_patients_hc.png"), 
        plot = violin_plots_patients_hc, width = 16, height = 9, dpi = 300)
+ggsave(file.path(results_path, "violin_plots_patients_hc.svg"), 
+       plot = violin_plots_patients_hc, width = 16, height = 9, dpi = 300)
 ```
 
 ### 3. Boxplot: Patients vs. Healthy Controls

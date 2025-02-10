@@ -1,8 +1,12 @@
 ---
-title: "Plot_ML-Analysis_Results"
-author: "Rebecca Delfendahl"
-date: "2024-11-15"
-output: html_document
+title: "Calculate_permutation-based_significance"
+authors: "Charlotte Meinke"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+    df_print: paged
 ---
 # Setup
 ```{r setup, include=FALSE}
@@ -26,8 +30,8 @@ path_results_folder = file.path(basic_path, "Projekte_Meinke\\Old_projects\\Labr
 results_folders <- list.files(path = path_results_folder, full.names = FALSE)
 
 # Filter for new results
-results_folders_classification <- results_folders[grepl("new5", results_folders)& grepl("classifier", results_folders) & !grepl("permuted", results_folders)]
-results_folders_regressors <- results_folders[grepl("new5", results_folders)& grepl("regressor", results_folders) & !grepl("permuted", results_folders)]
+results_folders_classification <- results_folders[grepl("final", results_folders)& grepl("classifier", results_folders) & !grepl("permuted", results_folders)]
+results_folders_regressors <- results_folders[grepl("final", results_folders)& grepl("regressor", results_folders) & !grepl("permuted", results_folders)]
 ```
 
 # Permutation
@@ -51,12 +55,14 @@ calc_p_value <- function(true_score, permuted_scores, logic = "large_better"){
 ```{r}
 collect_p_values <- function(folders_unpermuted, evaluation_metric, logic = "large_better"){
   p_values = list()
+  evaluation_metric_means = list()
   for (folder_name in folders_unpermuted) {
     
     # Initialize p_value to NA by default
     p_values[[folder_name]] <- NA
+     evaluation_metric_means[[folder_name]] <- NA
     
-    # Get true balanced accuracies of unpermuted model
+    # Get evaluation metrics of unpermuted model
     evaluation_metrics <- read.delim(file.path(path_results_folder, folder_name, "performance_across_iters.txt"))[[evaluation_metric]]
     
     if (length(evaluation_metrics) != 100){
@@ -66,7 +72,7 @@ collect_p_values <- function(folders_unpermuted, evaluation_metric, logic = "lar
     # Get equivalent permuted model folder name
     folder_name_permuted <- paste0(folder_name, "_permuted")
     
-    # Try to load ev-metrics per iteration
+    # Try to load the evaluation metric per iteration
     tryCatch({
       evaluation_metrics_permuted <- read.delim(file.path(path_results_folder, folder_name_permuted, "performance_across_iters.txt"))[[evaluation_metric]]
       
@@ -77,24 +83,40 @@ collect_p_values <- function(folders_unpermuted, evaluation_metric, logic = "lar
       }
       # Sum all p-values up
       p_values[[folder_name]] = mean(p_values_one_folder)
+      
       }, error = function(e) {
       # Handle error and print message if permuted model is not available
       message("No permuted model available for folder: ", folder_name, " | Error: ", e$message)
       # Set p_value to NA (this is already initialized)
       p_values[[folder_name]] <- NA
       })
+    # Collect true mean of evaluation metric
+    evaluation_metric_means[[folder_name]] <- paste0(round(mean(evaluation_metrics),2), "(",round(sd(evaluation_metrics),2),")")
   }
-  df = data.frame("models" = names(p_values), "p_values" = unlist(p_values))
+  df = data.frame("models" = names(p_values), "p_values" = unlist(p_values), evaluation_metrics_means = unlist(evaluation_metric_means))
+  rownames(df) <- NULL
   return(df)
 }
 ```
 
 # Classifiers models
 ```{r}
-collect_p_values(folders_unpermuted = results_folders_classification, evaluation_metric = "balanced_accuracy")
+df <- collect_p_values(folders_unpermuted = results_folders_classification, evaluation_metric = "balanced_accuracy")
 
+# Improve readibility of table
+df$models <- gsub("random_forest_classifier","rf",df$models)
+df$models <- gsub("svm_classifier","svm",df$models)
+df$models <- gsub("_features","",df$models)
+
+df
 ```
 # Regression models
 ```{r}
-collect_p_values(folders_unpermuted = results_folders_regressors, evaluation_metric = "MSE", logic = "small_better")
+df <- collect_p_values(folders_unpermuted = results_folders_regressors, evaluation_metric = "MSE", logic = "small_better")
+
+df$models <- gsub("random_forest_regressopr","rf",df$models)
+df$models <- gsub("ridge_regressor","ridge",df$models)
+df$models <- gsub("_features","",df$models)
+
+df
 ```
