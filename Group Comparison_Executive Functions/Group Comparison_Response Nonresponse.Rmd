@@ -422,7 +422,7 @@ save_as_docx(
 ### 1. Prepare data
 ```{r}
 # Reshape data from wide to long format, including SSRT, for Response vs. Nonresponse
-Response_vs_NonResponse_long <- data_Pat_pre %>%
+Response_vs_NonResponse_long <- data_Pat_pre_clean %>%
   pivot_longer(cols = all_of(imp_columns), # imp_columns now includes SSRT
                names_to = "Condition",
                values_to = "BIS_Score") %>%
@@ -473,7 +473,6 @@ violin_plots_response_vs_nonresponse <- ggplot(Response_vs_NonResponse_long, aes
   scale_x_discrete(labels = function(x) {
     x[x == "Diff_Score"] <- "Difference \nScore"
     x[x == "Diff_Score Stroop"] <- "Difference \nScore"
-    x[x == "Total"] <- "Difference \nScore"
     return(x)
   }) +
   scale_fill_manual(values = c("Nonresponders" = "#D3D3D3", #colors 
@@ -492,5 +491,7 @@ violin_plots_response_vs_nonresponse <- ggplot(Response_vs_NonResponse_long, aes
 print(violin_plots_response_vs_nonresponse)
 
 ggsave(file.path(results_path,"violin_plots_response_nonresponse.png"), 
+       plot = violin_plots_response_vs_nonresponse, width = 16, height = 9, dpi = 300)
+ggsave(file.path(results_path, "violin_plots_response_nonresponse.svg"), 
        plot = violin_plots_response_vs_nonresponse, width = 16, height = 9, dpi = 300)
 ```
