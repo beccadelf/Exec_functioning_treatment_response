@@ -479,7 +479,6 @@ violin_plots_patients_hc <- ggplot(Patients_vs_HC_long, aes(x = Condition, y = B
   scale_x_discrete(labels = function(x) {
     x[x == "Diff_Score"] <- "Difference \nScore"
     x[x == "Diff_Score Stroop"] <- "Difference \nScore"
-    x[x == "Total"] <- "Difference \nScore"
     return(x)
   }) +
   scale_fill_manual(values = c("Healthy Controls" = "#D3D3D3", #colors 
