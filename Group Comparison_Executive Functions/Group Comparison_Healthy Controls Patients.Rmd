@@ -154,7 +154,7 @@ generate_characteristics_table <- function(data, task_name) {
         all_continuous() ~ "{mean} ({sd})",
         all_categorical() ~ "{n} ({p}%)"
       ),
-      missing = "no"
+      missing = "ifany"
     ) %>%
     modify_header(label ~ "**Characteristic**") %>%
     modify_spanning_header(
