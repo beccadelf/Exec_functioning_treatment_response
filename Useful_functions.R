@@ -63,7 +63,7 @@ flextable_settings <- function(
 # Function to calculate an independent-sample Welch t-test for multiple comparisons 
 # and store the results in a dataframe
 
-t_test_mult_cols <- function(df_basis, cols, df_results_columns, grouping_variable) {
+t_test_mult_cols <- function(df_basis, cols, grouping_variable) {
   # This function assumes that the grouping variable is 0-1 coded.
   
   # Initialize an empty list to store results
@@ -110,6 +110,49 @@ t_test_mult_cols <- function(df_basis, cols, df_results_columns, grouping_variab
   # Adjust p-values using Benjamini-Hochberg method for multiple testing of related tasks
   p_values_adjusted <- p.adjust(p_values_raw, method = "BH")
   df_results$p_value_adjusted <- round(p_values_adjusted, 2)
+  
+  return(df_results)
+}
+
+
+# Function to calculate a Chi-square test for multiple comparisons and store the results in a dataframe
+
+chi_sq_test_mult_cols <- function(df_basis, cols, grouping_variable){
+  # This function assumes that the grouping variable is 0-1 coded and cols are categorical
+  
+  results_list <- vector("list", length(cols))
+  names(results_list) <- cols
+  p_values_raw <- numeric(length(cols))
+  
+  for (i in seq_along(cols)){
+    col <- cols[i]
+    
+    # Build contingency table
+    table_data <- table(df_basis[[col]], df_basis[[grouping_variable]])
+    
+    # Perform Chi-square test (fallback to Fisher's test if needed)
+    test_result <- if (any(chisq.test(table_data)$expected < 5)){
+      fisher.test(table_data, simulate.p.value = TRUE)
+    } else {
+      chisq.test(table_data)
+    }
+    
+    # Store raw p-values
+    p_values_raw[i] <- test_result$p.value
+    
+    # Store results (chi-square stat, df, and p-value)
+    results_list[[col]] <- c(
+      chi_square_statistic = round(test_result$statistic, 2), # TODO: problem: Fisher-test does not yield a statistic
+      df = if (!is.null(test_result$parameter)) test_result$parameter else NA,
+      p_value = round(test_result$p.value, 4)
+    )
+  }
+  
+  df_results <- data.frame(do.call(rbind, results_list))
+  
+  # Adjust p-values
+  p_values_adjusted <- p.adjust(p_values_raw, method = "BH")
+  df_results$p_value_adjusted <- round(p_values_adjusted, 4)
   
   return(df_results)
 }
