@@ -20,6 +20,43 @@ create_results_path <- function(inputdata_path, output_mainpath){
   return(output_path)
 }
 
+# Function that uses a centralized label map to rename variables
+
+variable_labels <- c(
+  Subject = "Subject",
+  Gruppe = "Group",
+  Response = "Response",
+  Alter = "Age",
+  Geschlecht = "Sex (Female)",
+  Abschluss = "Education",
+  NumberLetter_BIS_Repeat = "Number-Letter: Repeat",
+  NumberLetter_BIS_Switch = "Number-Letter: Switch",
+  NumberLetter_BIS_Diff_Score = "Number-Letter: Switch-Repeat",
+  Stroop_BIS_Congruent = "Stroop: Congruent",
+  Stroop_BIS_Incongruent = "Stroop: Incongruent",
+  Stroop_BIS_Diff_Score = "Stroop: Incongruent-Congruent",
+  TwoBack_BIS_Foil = "2-Back: Foil",
+  TwoBack_BIS_Target = "2-Back: Target",
+  TwoBack_BIS_Total = "2-Back: Total",
+  SSRT = "Stop-Signal RT",
+  T1_BAT_FAS_score = "FSQ Score",
+  T1_BAT_BDI_II_score = "BDI-II Score",
+  T1_BAT_STAI_T_score = "STAI-T Score",
+  T1_BAT_BIS_11_score = "BIS-11 Score",
+  T1_BAT_Kirby_k_score = "Kirby k",
+  T1_BAT_CFC_14_score = "CFC-14 Score",
+  T1_BAT_SRHI_score = "SRHI Score"
+)
+
+# TODO: to be adapted for different use cases
+rename_vars <- function(df, label_map) {
+  names(df) <- ifelse(names(df) %in% names(label_map),
+                      label_map[names(df)],
+                      names(df))  # Keep original name if not in map
+  return(df)
+}
+
+
 # Function to configure flextable settings and Word document formatting
 
 flextable_settings <- function(
