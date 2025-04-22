@@ -93,6 +93,30 @@ flextable_settings <- function(
   return(format_table)
 }
 
+
+# Function to create and save a flextable, using formatting according to APA
+create_save_flextable <- function(
+    table_pub, results_path, file_name) {
+  ft <- flextable(table_pub)
+  
+  # Set table properties
+  ft <- set_table_properties(ft, width = 1, layout = "autofit")
+  
+  # Header in bold
+  ft <- bold(ft, bold = TRUE, part = "header")
+  
+  # Alignments
+  ft <- align(ft, j = 1, align = "left", part = "all") # first column
+  ft <- align(ft, j = 2:ncol(table_pub), align = "center", part = "all") # rest
+  
+  # Export flextable
+  save_as_docx(
+    ft,
+    path = file.path(results_path, file_name), 
+    pr_section = format_flextable_portrait)
+}
+
+
 ####################################################
 # Statistical Analyses
 ####################################################
@@ -136,8 +160,8 @@ t_test_mult_cols <- function(df_basis, cols, grouping_variable) {
       group_1_sd = round(sd(group1), 2),
       group_0_mean = round(mean(group0), 2),
       group_0_sd = round(sd(group0), 2),
-      df = round(results$parameter[["df"]], 2),
       t_statistic = round(results$statistic[["t"]], 2),
+      df = round(results$parameter[["df"]], 2),
       p_value = round(results$p.value, 2),
       effect_size = round(effsize, 2)
     )
@@ -167,25 +191,39 @@ chi_sq_test_mult_cols <- function(df_basis, cols, grouping_variable){
     # Build contingency table
     table_data <- table(df_basis[[col]], df_basis[[grouping_variable]])
     
-    # Perform Chi-square test (fallback to Fisher's test if needed)
-    test_result <- if (any(chisq.test(table_data)$expected < 5)){
-      fisher.test(table_data, simulate.p.value = TRUE)
-    } else {
-      chisq.test(table_data)
-    }
+    # Default to Chi-square test, fallback to Fisher's test if needed
+    test_result <- tryCatch({
+      test <- chisq.test(table_data)
+      test$method <- "Chi-square"
+      test
+    }, warning = function(w) {
+      # Check for small expected counts and fallback to Fisher's with simulation
+      test <- fisher.test(table_data, simulate.p.value = TRUE)
+      test$method <- "Fisher (simulated)"
+      test
+    }, error = function(e) {
+      # In case of unexpected structure or data issues
+      return(list(
+        statistic = NA,
+        parameter = NA,
+        p.value = NA,
+        method = "Test failed"
+      ))
+    })
     
     # Store raw p-values
     p_values_raw[i] <- test_result$p.value
     
     # Store results (chi-square stat, df, and p-value)
     results_list[[col]] <- c(
-      chi_square_statistic = round(test_result$statistic, 2), # TODO: problem: Fisher-test does not yield a statistic
+      test_type = test_result$method,
+      chi_square_statistic = if (!is.null(test_result$statistic)) round(test_result$statistic, 2) else NA,
       df = if (!is.null(test_result$parameter)) test_result$parameter else NA,
       p_value = round(test_result$p.value, 4)
     )
   }
   
-  df_results <- data.frame(do.call(rbind, results_list))
+  df_results <- data.frame(do.call(rbind, results_list), stringsAsFactors = FALSE)
   
   # Adjust p-values
   p_values_adjusted <- p.adjust(p_values_raw, method = "BH")

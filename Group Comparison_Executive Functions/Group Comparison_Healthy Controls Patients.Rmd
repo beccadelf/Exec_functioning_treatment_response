@@ -149,33 +149,18 @@ rename_map <- c(
   'TwoBack_BIS_Target' = "2-Back: Target",
   'TwoBack_BIS_Total' = "2-Back: Total",
   'SSRT' = "Stop-Signal RT")
-t_test_table_pub$dependent_variables <- rename_map[t_test_table_pub$dependent_variables]
+t_test_table_pub$`Performance Measure` <- rename_map[t_test_table_pub$`Performance Measure`]
 ```
 
 ### 4. Create and save flextable
 ```{r}
-ft_t_test <- flextable(t_test_table_pub)
-
-# Set table properties
-ft_t_test <- set_table_properties(ft_t_test, width = 1, layout = "autofit")
-
-# Header in bold
-ft_t_test <- bold(ft_t_test, bold = TRUE, part = "header")
-
-# Alignments
-ft_t_test <- align(ft_t_test, j = 1, align = "left", part = "all") # first column
-ft_t_test <- align(ft_t_test, j = 2:ncol(t_test_table_pub), align = "center", part = "all") # rest
-
-# Export flextable
-save_as_docx(
-  ft_t_test,
-  path = file.path(results_path, "t-test_Patients_HCs.docx"), 
-  pr_section = format_flextable_portrait)
+create_save_flextable(table_pub = t_test_table_pub, results_path = results_path, file_name = "t-test_Patients_HCs.docx")
 ```
+
 
 ## Descriptive group differences
 
-### 0. Identify categorical vs. dimensional variables
+### 0. Define categorical vs. dimensional variables
 ```{r}
 categorical_vars <- c("Abschluss", "Geschlecht")
 dimensional_vars <- c("Alter", "T1_BAT_FAS_score", "T1_BAT_BDI_II_score", "T1_BAT_STAI_T_score", "T1_BAT_BIS_11_score", "T1_BAT_Kirby_k_score", "T1_BAT_CFC_14_score", "T1_BAT_SRHI_score")
@@ -191,6 +176,18 @@ t_test_descr_pub <- prepare_ttest_table(ttest_table = t_test_descr, dv_name = "D
 ### 2. Chi-square test for categorical variables
 ```{r}
 chi_sq_test_descr <- chi_sq_test_mult_cols(df_basis = Patients_vs_HC, cols = categorical_vars, grouping_variable = "Gruppe")
+
+# Convert rownames (dependent variables) to separate column
+chi_sq_test_descr_pub <- cbind(dependent_variables = rownames(chi_sq_test_descr), chi_sq_test_descr)
+
+# Change colnames
+colnames(chi_sq_test_descr_pub) <- c("Categorical variables", "Test Type", "Chi-Square-Statistic", "df", "p-Value", "adj. p-Value")
+```
+
+### 3. Create and save flextable
+```{r}
+create_save_flextable(table_pub = t_test_descr_pub, results_path = results_path, file_name = "descr_t-test_dimvars_Patients_HCs.docx")
+create_save_flextable(table_pub = chi_sq_test_descr_pub, results_path = results_path, file_name = "descr_t-test_catvars_Patients_HCs.docx")
 ```
 
 
