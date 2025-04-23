@@ -116,18 +116,19 @@ t_test_table
 
 ### 3. Prepare table for publication
 ```{r}
+# TODO: use flexible function instead
 prepare_ttest_table <- function(ttest_table, dv_name){
   # Convert rownames (dependent variables) to separate column
   t_test_table_pub <- cbind(dependent_variables = rownames(ttest_table), ttest_table)
   
   # Combine "Mean" and "SD" columns and reduce dataframe
   t_test_table_pub <- t_test_table_pub %>%
-  mutate(
-    `Patients Mean (SD)` = paste0(round(group_1_mean, 2), " (", round(group_1_sd, 2), ")"),
-    `HC Mean (SD)` = paste0(round(group_0_mean, 2), " (", round(group_0_mean, 2), ")")
-    ) %>%
-  select(dependent_variables, `Patients Mean (SD)`, `HC Mean (SD)`, 
-         df, t_statistic, effect_size, p_value, p_value_adjusted)
+    mutate(
+      `Patients Mean (SD)` = paste0(round(group_1_mean, 2), " (", round(group_1_sd, 2), ")"),
+      `HC Mean (SD)` = paste0(round(group_0_mean, 2), " (", round(group_0_mean, 2), ")")
+      ) %>%
+    select(dependent_variables, `Patients Mean (SD)`, `HC Mean (SD)`, 
+           df, t_statistic, effect_size, p_value, p_value_adjusted)
   
   # Change colnames
   colnames(t_test_table_pub) <- c(dv_name, "Patients Mean (SD)", "HC Mean (SD)", "df", "t-Statistic", "Hedges` g", "p-Value", "adj. p-Value")
@@ -155,39 +156,6 @@ t_test_table_pub$`Performance Measure` <- rename_map[t_test_table_pub$`Performan
 ### 4. Create and save flextable
 ```{r}
 create_save_flextable(table_pub = t_test_table_pub, results_path = results_path, file_name = "t-test_Patients_HCs.docx")
-```
-
-
-## Descriptive group differences
-
-### 0. Define categorical vs. dimensional variables
-```{r}
-categorical_vars <- c("Abschluss", "Geschlecht")
-dimensional_vars <- c("Alter", "T1_BAT_FAS_score", "T1_BAT_BDI_II_score", "T1_BAT_STAI_T_score", "T1_BAT_BIS_11_score", "T1_BAT_Kirby_k_score", "T1_BAT_CFC_14_score", "T1_BAT_SRHI_score")
-```
-
-### 1. Welch t-test for dimensional variables
-```{r}
-t_test_descr <- t_test_mult_cols(df_basis = Patients_vs_HC, cols = dimensional_vars, grouping_variable = "Gruppe")
-
-t_test_descr_pub <- prepare_ttest_table(ttest_table = t_test_descr, dv_name = "Dimensional Variables")
-```
-
-### 2. Chi-square test for categorical variables
-```{r}
-chi_sq_test_descr <- chi_sq_test_mult_cols(df_basis = Patients_vs_HC, cols = categorical_vars, grouping_variable = "Gruppe")
-
-# Convert rownames (dependent variables) to separate column
-chi_sq_test_descr_pub <- cbind(dependent_variables = rownames(chi_sq_test_descr), chi_sq_test_descr)
-
-# Change colnames
-colnames(chi_sq_test_descr_pub) <- c("Categorical variables", "Test Type", "Chi-Square-Statistic", "df", "p-Value", "adj. p-Value")
-```
-
-### 3. Create and save flextable
-```{r}
-create_save_flextable(table_pub = t_test_descr_pub, results_path = results_path, file_name = "descr_t-test_dimvars_Patients_HCs.docx")
-create_save_flextable(table_pub = chi_sq_test_descr_pub, results_path = results_path, file_name = "descr_t-test_catvars_Patients_HCs.docx")
 ```
 
 

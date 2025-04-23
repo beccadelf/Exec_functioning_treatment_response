@@ -64,6 +64,72 @@ results_path <- create_results_path(inputdata_path = basic_path,
 Patients_vs_HC <- rbind(data_Pat_pre, data_HC)
 ```
 
+
+## Descriptive group differences
+
+### 0. Define categorical vs. dimensional variables
+```{r}
+categorical_vars <- c("Geschlecht") # TODO: Add "Abschluss" once binarized
+dimensional_vars <- c("Alter", "T1_BAT_FAS_score", "T1_BAT_BDI_II_score", "T1_BAT_STAI_T_score", "T1_BAT_BIS_11_score", "T1_BAT_Kirby_k_score", "T1_BAT_CFC_14_score", "T1_BAT_SRHI_score")
+```
+
+### 1. Welch t-test for dimensional variables
+```{r}
+t_test_descr <- t_test_mult_cols(df_basis = Patients_vs_HC, cols = dimensional_vars, grouping_variable = "Gruppe")
+```
+
+### 2. Chi-square test for categorical variables
+```{r}
+chi_sq_test_descr <- chi_sq_test_mult_cols(df_basis = Patients_vs_HC, cols = categorical_vars, grouping_variable = "Gruppe")
+```
+
+### 3. Converge tables format and merge
+```{r}
+prepare_ttest_table <- function(ttest_table, var_type = c("dimensional", "categorical")) {
+  type <- match.arg(type)
+  
+  # Convert rownames (dependent variables) to separate column
+  t_test_table_pub <- cbind(dependent_variables = rownames(ttest_table), ttest_table)
+  
+  # Combine group-wise descriptives and reduce dataframe
+  if (type == "dimensional") {
+    # Format mean (SD)
+    t_test_table_pub <- t_test_table_pub %>%
+      mutate(
+        `Healthy Controls` = paste0(round(group_0_mean, 2), " (", round(group_0_sd, 2), ")"),
+        `Patients` = paste0(round(group_1_mean, 2), " (", round(group_1_sd, 2), ")"),
+        `Comparison` = paste0("t(", df, ") = ", statistic, ", p = ", p_value_adjusted)
+      ) %>%
+      select(dependent_variables, `Healthy Controls`, `Patients`, `Comparison`)
+  
+  } else if (type == "categorical") {
+    # Format count (percentage)
+    t_test_table_pub <- t_test_table_pub %>%
+      mutate(
+        `Healthy Controls` = paste0(n_1_group0, " (", pct_1_group0, "%)"),
+        `Patients` = paste0(n_1_group1, " (", pct_1_group1, "%)"),
+        `Comparison` = paste0("χ²(", df, ") = ", chi_square_statistic, ", p = ", p_value_adjusted)
+      ) %>%
+      select(dependent_variables, `Healthy Controls`, `Patients`, `Comparison`)
+  }
+  
+  # Rename columns
+  colnames(t_test_table_pub) <- c("Variable", "Healthy Controls", "Patients", "Comparative statistic")
+  
+  return(t_test_table_pub)
+}
+
+t_test_descr_pub <- prepare_ttest_table(ttest_table = t_test_descr, var_type = "dimensional")
+chi_sq_test_descr_pub <- prepare_ttest_table(ttest_table = chi_sq_test_descr, var_type = "categorical")
+```
+
+### 3. Create and save flextable
+```{r}
+create_save_flextable(table_pub = t_test_descr_pub, results_path = results_path, file_name = "descr_t-test_dimvars_Patients_HCs.docx")
+create_save_flextable(table_pub = chi_sq_test_descr_pub, results_path = results_path, file_name = "descr_t-test_catvars_Patients_HCs.docx")
+```
+
+
 # Descriptive Statistics
 ### 1. Prepare task-specific data frame of characteristics
 ```{r}

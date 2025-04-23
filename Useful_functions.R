@@ -160,7 +160,7 @@ t_test_mult_cols <- function(df_basis, cols, grouping_variable) {
       group_1_sd = round(sd(group1), 2),
       group_0_mean = round(mean(group0), 2),
       group_0_sd = round(sd(group0), 2),
-      t_statistic = round(results$statistic[["t"]], 2),
+      statistic = round(results$statistic[["t"]], 2),
       df = round(results$parameter[["df"]], 2),
       p_value = round(results$p.value, 2),
       effect_size = round(effsize, 2)
@@ -188,37 +188,34 @@ chi_sq_test_mult_cols <- function(df_basis, cols, grouping_variable){
   for (i in seq_along(cols)){
     col <- cols[i]
     
-    # Build contingency table
+    # Build contingency table (removes NAs automatically)
     table_data <- table(df_basis[[col]], df_basis[[grouping_variable]])
     
-    # Default to Chi-square test, fallback to Fisher's test if needed
-    test_result <- tryCatch({
-      test <- chisq.test(table_data)
-      test$method <- "Chi-square"
-      test
-    }, warning = function(w) {
-      # Check for small expected counts and fallback to Fisher's with simulation
-      test <- fisher.test(table_data, simulate.p.value = TRUE)
-      test$method <- "Fisher (simulated)"
-      test
-    }, error = function(e) {
-      # In case of unexpected structure or data issues
-      return(list(
-        statistic = NA,
-        parameter = NA,
-        p.value = NA,
-        method = "Test failed"
-      ))
-    })
+    # Perform Chi-square test
+    test_result <- chisq.test(table_data)
+    
+    # Get counts and percentages of category 1 in each group
+    ## Group 0
+    total_group0 <- sum(df_basis[[grouping_variable]] == 0)
+    n_1_group0 <- sum(df_basis[[col]][df_basis[[grouping_variable]] == 0])
+    pct_1_group0 <- round(100 * n_1_group0 / total_group0, 0)
+    
+    ## Group 1
+    total_group1 <- sum(df_basis[[grouping_variable]] == 1)
+    n_1_group1 <- sum(df_basis[[col]][df_basis[[grouping_variable]] == 1])
+    pct_1_group1 <- round(100 * n_1_group1 / total_group1, 0)
     
     # Store raw p-values
     p_values_raw[i] <- test_result$p.value
     
-    # Store results (chi-square stat, df, and p-value)
+    # Store results in a list
     results_list[[col]] <- c(
-      test_type = test_result$method,
-      chi_square_statistic = if (!is.null(test_result$statistic)) round(test_result$statistic, 2) else NA,
-      df = if (!is.null(test_result$parameter)) test_result$parameter else NA,
+      n_1_group0 = n_1_group0,
+      pct_1_group0 = pct_1_group0,
+      n_1_group1 = n_1_group1,
+      pct_1_group1 = pct_1_group1,
+      statistic = round(test_result$statistic, 2),
+      df = test_result$parameter,
       p_value = round(test_result$p.value, 4)
     )
   }
