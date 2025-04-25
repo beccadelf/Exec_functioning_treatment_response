@@ -214,8 +214,8 @@ chi_sq_test_mult_cols <- function(df_basis, cols, grouping_variable){
       pct_1_group0 = pct_1_group0,
       n_1_group1 = n_1_group1,
       pct_1_group1 = pct_1_group1,
-      statistic = round(test_result$statistic, 2),
-      df = test_result$parameter,
+      statistic = round(unname(test_result$statistic), 2),
+      df = unname(test_result$parameter),
       p_value = round(test_result$p.value, 4)
     )
   }
