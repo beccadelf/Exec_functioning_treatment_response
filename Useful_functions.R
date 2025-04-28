@@ -49,10 +49,17 @@ variable_labels <- c(
 )
 
 # TODO: to be adapted for different use cases
-rename_vars <- function(df, label_map) {
-  names(df) <- ifelse(names(df) %in% names(label_map),
-                      label_map[names(df)],
-                      names(df))  # Keep original name if not in map
+reorder_and_rename_rows <- function(df, col_name, label_map) {
+  # Step 1: Create the desired order, keeping only names that exist in the data
+  desired_order <- names(label_map)
+  desired_order <- desired_order[desired_order %in% df[[col_name]]]
+  
+  # Step 2: Reorder the dataframe
+  df <- df[match(desired_order, df[[col_name]]), ]
+  
+  # Step 3: Rename the entries
+  df[[col_name]] <- label_map[df[[col_name]]]
+  
   return(df)
 }
 
@@ -140,14 +147,15 @@ t_test_mult_cols <- function(df_basis, cols, grouping_variable) {
     group0 <- na.omit(df_basis[df_basis[[grouping_variable]] == 0, col])
     group1 <- na.omit(df_basis[df_basis[[grouping_variable]] == 1, col])
     
+    # Count missing values
+    missings_group0 <- sum(is.na(df_basis[df_basis[[grouping_variable]] == 0, col]))
+    missings_group1 <- sum(is.na(df_basis[df_basis[[grouping_variable]] == 1, col]))
+    
     # Perform t-test
     # We use the Welch-test as default, following Delacre et al., 2017 https://pure.tue.nl/ws/portalfiles/portal/80459772/82_534_3_PB.pdf
     results <- t.test(group0, group1, paired = FALSE, var.equal = FALSE)
     #Alternativ using formula method:
     #results <- t.test(df_basis[[col]] ~ df_basis[["Gruppe"]], paired = FALSE, var.equal = FALSE)
-    
-    # Store raw p-values for BH correction
-    p_values_raw[i] <- results$p.value
     
     # Calculate Hedges g based on non-pooled standard-deviations as recommended in https://orbilu.uni.lu/bitstream/10993/57901/1/ES.pdf
     # using the package "effectsize"
@@ -163,8 +171,13 @@ t_test_mult_cols <- function(df_basis, cols, grouping_variable) {
       statistic = round(results$statistic[["t"]], 2),
       df = round(results$parameter[["df"]], 2),
       p_value = round(results$p.value, 2),
-      effect_size = round(effsize, 2)
+      effect_size = round(effsize, 2),
+      missings_group1 = missings_group1,
+      missings_group0 = missings_group0
     )
+    
+    # Store raw p-values for BH correction
+    p_values_raw[i] <- results$p.value
   }
   df_results <- data.frame(do.call(rbind, results_list))
   
@@ -247,4 +260,45 @@ levene_test_mult_cols <- function(df_basis, cols, grouping_variable) {
   }
   
   return(df)
+}
+
+
+####################################################
+# Results tables (for publication)
+####################################################
+
+# Function to concatenate (t-)test results for dimensional and categorical variables in a standardized way 
+
+prepare_ttest_table <- function(ttest_table, var_type = c("dimensional", "categorical")) {
+  type <- match.arg(var_type)
+  
+  # Convert rownames (dependent variables) to separate column
+  t_test_table_pub <- cbind(dependent_variables = rownames(ttest_table), ttest_table)
+  
+  # Combine group-wise descriptives and reduce dataframe
+  if (type == "dimensional") {
+    # Format mean (SD)
+    t_test_table_pub <- t_test_table_pub %>%
+      mutate(
+        `Healthy Controls` = paste0(round(group_0_mean, 2), " (", round(group_0_sd, 2), ")"),
+        `Patients` = paste0(round(group_1_mean, 2), " (", round(group_1_sd, 2), ")"),
+        `Comparison` = paste0("t(", df, ") = ", statistic, ", p = ", format(p_value_adjusted, nsmall = 2))
+      ) %>%
+      select(dependent_variables, `Healthy Controls`, `Patients`, `Comparison`)
+    
+  } else if (type == "categorical") {
+    # Format count (percentage)
+    t_test_table_pub <- t_test_table_pub %>%
+      mutate(
+        `Healthy Controls` = paste0(n_1_group0, " (", pct_1_group0, "%)"),
+        `Patients` = paste0(n_1_group1, " (", pct_1_group1, "%)"),
+        `Comparison` = paste0("χ²(", df, ") = ", statistic, ", p = ", format(p_value_adjusted, nsmall = 2))
+      ) %>%
+      select(dependent_variables, `Healthy Controls`, `Patients`, `Comparison`)
+  }
+  
+  # Rename columns
+  colnames(t_test_table_pub) <- c("Variable", "Healthy Controls", "Patients", "Statistic")
+  
+  return(t_test_table_pub)
 }

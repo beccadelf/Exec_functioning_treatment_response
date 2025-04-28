@@ -116,8 +116,7 @@ t_test_table
 
 ### 3. Prepare table for publication
 ```{r}
-# TODO: use flexible function instead
-prepare_ttest_table <- function(ttest_table, dv_name){
+prepare_ttest_table_extended <- function(ttest_table, dv_name){
   # Convert rownames (dependent variables) to separate column
   t_test_table_pub <- cbind(dependent_variables = rownames(ttest_table), ttest_table)
   
@@ -125,10 +124,10 @@ prepare_ttest_table <- function(ttest_table, dv_name){
   t_test_table_pub <- t_test_table_pub %>%
     mutate(
       `Patients Mean (SD)` = paste0(round(group_1_mean, 2), " (", round(group_1_sd, 2), ")"),
-      `HC Mean (SD)` = paste0(round(group_0_mean, 2), " (", round(group_0_mean, 2), ")")
+      `HC Mean (SD)` = paste0(round(group_0_mean, 2), " (", round(group_0_sd, 2), ")")
       ) %>%
     select(dependent_variables, `Patients Mean (SD)`, `HC Mean (SD)`, 
-           df, t_statistic, effect_size, p_value, p_value_adjusted)
+           df, statistic, effect_size, p_value, p_value_adjusted)
   
   # Change colnames
   colnames(t_test_table_pub) <- c(dv_name, "Patients Mean (SD)", "HC Mean (SD)", "df", "t-Statistic", "Hedges` g", "p-Value", "adj. p-Value")
@@ -136,21 +135,10 @@ prepare_ttest_table <- function(ttest_table, dv_name){
   return(t_test_table_pub)
 }
 
-t_test_table_pub <- prepare_ttest_table(ttest_table = t_test_table, dv_name = "Performance Measure")
+t_test_table_pub <- prepare_ttest_table_extended(ttest_table = t_test_table, dv_name = "Performance Measure")
 
 # Rename performance measures using a named vector
-rename_map <- c(
-  'NumberLetter_BIS_Repeat' = "Number-Letter: Repeat",
-  'NumberLetter_BIS_Switch' = "Number-Letter: Switch",
-  'NumberLetter_BIS_Diff_Score' = "Number-Letter: Switch - Repeat",
-  'Stroop_BIS_Congruent' = "Stroop: Congruent",
-  'Stroop_BIS_Incongruent' = "Stroop: Incongruent",
-  'Stroop_BIS_Diff_Score' = "Stroop: Incongruent - Congruent",
-  'TwoBack_BIS_Foil' = "2-Back: Foil",
-  'TwoBack_BIS_Target' = "2-Back: Target",
-  'TwoBack_BIS_Total' = "2-Back: Total",
-  'SSRT' = "Stop-Signal RT")
-t_test_table_pub$`Performance Measure` <- rename_map[t_test_table_pub$`Performance Measure`]
+t_test_table_pub <- reorder_and_rename_rows(df = t_test_table_pub, col_name = "Performance Measure", label_map = variable_labels)
 ```
 
 ### 4. Create and save flextable
@@ -175,7 +163,7 @@ Patients_vs_HC_long <- Patients_vs_HC_long %>%
     grepl("NumberLetter", Condition) ~ "Number-Letter Task",
     grepl("Stroop", Condition) ~ "Stroop Task",
     grepl("TwoBack", Condition) ~ "2-Back Task",
-    Condition == "SSRT" ~ "Stop Signal Task"
+    Condition == "SSRT" ~ "Stop-Signal Task"
   ))
 
 # Remove prefixes from Condition labels, keeping Task intact
@@ -197,6 +185,10 @@ Patients_vs_HC_long <- Patients_vs_HC_long %>%
 
 # Convert "Gruppe" to factor
 Patients_vs_HC_long$Gruppe <- factor(Patients_vs_HC_long$Gruppe, levels = c(0, 1), labels = c("Healthy Controls", "Patients"))
+
+# Turn "Task" to factor
+Patients_vs_HC_long$Task <- factor(Patients_vs_HC_long$Task, 
+                                   levels = c("2-Back Task", "Number-Letter Task", "Stroop Task", "Stop-Signal Task"))
 ```
 
 ### 2. Violin Plot: Patients vs. Healthy Controls
