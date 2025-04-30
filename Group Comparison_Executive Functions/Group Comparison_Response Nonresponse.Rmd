@@ -110,7 +110,7 @@ generate_characteristics_table <- function(data, task_name) {
     select(Response, Alter, Geschlecht, Abschluss, 
            T1_BAT_BDI_II_score, T1_BAT_BIS_11_score, T1_BAT_CFC_14_score, 
            T1_BAT_FAS_score, T1_BAT_Kirby_k_score, T1_BAT_SRHI_score, T1_BAT_STAI_T_score) %>%
-    mutate(Response = factor(Response, levels = c(1, 0), labels = c("Response", "Non-Response")),
+    mutate(Response = factor(Response, levels = c(0, 1), labels = c("Non-Response", "Response")),
            Geschlecht = factor(Geschlecht, levels = c(0, 1), labels = c("Male", "Female")),
            Abschluss = factor(Abschluss, levels = c(1, 2, 3, 4), 
                               labels = c("Basic secondary education", 

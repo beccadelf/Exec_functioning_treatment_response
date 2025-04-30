@@ -93,6 +93,21 @@ descr_comps_pub <- rbind(t_test_descr_pub, chi_sq_test_descr_pub)
 # Reorder and rename the variables
 descr_comps_pub <- reorder_and_rename_rows(df = descr_comps_pub, col_name = "Variable", label_map = variable_labels)
 
+# Print missings
+for (i in seq_len(nrow(descr_comps_pub))) {
+  miss_hc <- descr_comps_pub$Missings_HC[i]
+  miss_pat <- descr_comps_pub$Missings_Patients[i]
+  
+  if (miss_hc > 0 || miss_pat > 0) {
+    var_name <- descr_comps_pub$Variable[i]
+    cat(sprintf("Missing values **%s**: Healthy Controls = %s, Patients = %s \n",
+                var_name, miss_hc, miss_pat))
+  }
+}
+
+# Remove columns Missings_HC, Missings_Patients
+descr_comps_pub <- descr_comps_pub[, !(names(descr_comps_pub) %in% c("Missings_HC", "Missings_Patients"))]
+
 # Add number of subjects per group
 n_HC <- sum(Patients_vs_HC$Gruppe == 0)
 n_Patients <- sum(Patients_vs_HC$Gruppe == 1)
@@ -107,6 +122,57 @@ create_save_flextable(table_pub = descr_comps_pub, results_path = results_path, 
 
 
 # Descriptive Statistics
+
+### 0. Function to generate characteristics table
+```{r}
+generate_characteristics_table <- function(data, task_name, grouping_variable, group_labels) {
+  data %>%
+    select(grouping_variable, Alter, Geschlecht, Abschluss, 
+           T1_BAT_BDI_II_score, T1_BAT_BIS_11_score, T1_BAT_CFC_14_score, 
+           T1_BAT_FAS_score, T1_BAT_Kirby_k_score, T1_BAT_SRHI_score, T1_BAT_STAI_T_score) %>%
+    mutate(grouping_variable = factor(Gruppe, levels = c(0, 1), labels = group_labels),
+           Geschlecht = factor(Geschlecht, levels = c(0, 1), labels = c("Male", "Female")),
+           Abschluss = factor(Abschluss, levels = c(1, 2, 3, 4), 
+                              labels = c("Basic secondary education", 
+                                         "Intermediate secondary education",
+                                         "Higher secondary education", 
+                                         "Other"))) %>%
+    tbl_summary(by = grouping_variable,  # Compare by Gruppe (HC vs. Pat),
+                digits = list(T1_BAT_BDI_II_score = c(1, 1),
+                              T1_BAT_BIS_11_score = c(1, 1),
+                              T1_BAT_CFC_14_score = c(1, 1),
+                              T1_BAT_FAS_score = c(1, 1),
+                              T1_BAT_SRHI_score = c(1, 1),
+                              T1_BAT_STAI_T_score= c(1, 1)),
+                label = list(
+                  Alter ~ "Age",
+                  Geschlecht ~ "Sex (Female)",
+                  Abschluss ~ "Education",
+                  T1_BAT_FAS_score ~ "FSQ Score",
+                  T1_BAT_BDI_II_score ~ "BDI-II Score",
+                  T1_BAT_STAI_T_score ~ "STAI-T Score"
+                  T1_BAT_BIS_11_score ~ "BIS-11 Score",
+                  T1_BAT_Kirby_k_score ~ "Kirby k Score",
+                  T1_BAT_CFC_14_score ~ "CFC-14 Score",
+                  T1_BAT_SRHI_score ~ "SRHI Score"
+                ),
+      statistic = list(
+        all_continuous() ~ "{mean} ({sd})",
+        all_categorical() ~ "{n} ({p}%)"
+      ),
+      missing = "ifany" # or "no" to not display
+    ) %>%
+    modify_header(label ~ "**Characteristic**") %>%
+    modify_spanning_header(
+      starts_with("T1_BAT_") ~ "**Baseline Assessment**"
+    ) %>%
+    # Remove the row for "Male" in sex
+    modify_table_body(
+      ~ .x %>% filter(!(variable == "Geschlecht" & label == "Male"))
+    ) 
+}
+```
+
 ### 1. Prepare task-specific data frame of characteristics
 ```{r}
 # 1. Subset data frame by non-NA for respective tasks
@@ -135,59 +201,10 @@ task_list <- list(
   )
 )
 
-
-# 2. Function to generate characteristics table
-generate_characteristics_table <- function(data, task_name) {
-  data %>%
-    select(Gruppe, Alter, Geschlecht, Abschluss, 
-           T1_BAT_BDI_II_score, T1_BAT_BIS_11_score, T1_BAT_CFC_14_score, 
-           T1_BAT_FAS_score, T1_BAT_Kirby_k_score, T1_BAT_SRHI_score, T1_BAT_STAI_T_score) %>%
-    mutate(Gruppe = factor(Gruppe, levels = c(0, 1), labels = c("Healthy Controls", "Patients")),
-           Geschlecht = factor(Geschlecht, levels = c(0, 1), labels = c("Male", "Female")),
-           Abschluss = factor(Abschluss, levels = c(1, 2, 3, 4), 
-                              labels = c("Basic secondary education", 
-                                         "Intermediate secondary education",
-                                         "Higher secondary education", 
-                                         "Other"))) %>%
-    tbl_summary(by = Gruppe,  # Compare by Gruppe (HC vs. Pat),
-                digits = list(T1_BAT_BDI_II_score = c(1, 1),
-                              T1_BAT_BIS_11_score = c(1, 1),
-                              T1_BAT_CFC_14_score = c(1, 1),
-                              T1_BAT_FAS_score = c(1, 1),
-                              T1_BAT_SRHI_score = c(1, 1),
-                              T1_BAT_STAI_T_score= c(1, 1)),
-                label = list(
-                  Alter ~ "Age",
-                  Geschlecht ~ "Sex (Female)",
-                  Abschluss ~ "Education",
-                  T1_BAT_FAS_score ~ "FSQ Score",
-                  T1_BAT_BDI_II_score ~ "BDI-II Score",
-                  T1_BAT_STAI_T_score ~ "STAI-T Score"
-                  T1_BAT_BIS_11_score ~ "BIS-11 Score",
-                  T1_BAT_Kirby_k_score ~ "Kirby k Score",
-                  T1_BAT_CFC_14_score ~ "CFC-14 Score",
-                  T1_BAT_SRHI_score ~ "SRHI Score"
-                ),
-      statistic = list(
-        all_continuous() ~ "{mean} ({sd})",
-        all_categorical() ~ "{n} ({p}%)"
-      ),
-      missing = "ifany"
-    ) %>%
-    modify_header(label ~ "**Characteristic**") %>%
-    modify_spanning_header(
-      starts_with("T1_BAT_") ~ "**Baseline Assessment**"
-    ) %>%
-    # Remove the row for "Male" in sex
-    modify_table_body(
-      ~ .x %>% filter(!(variable == "Geschlecht" & label == "Male"))
-    ) 
-}
-
 # Loop through the tasks and create tables
 characteristics_tables <- lapply(names(task_list), function(task_name) {
   data <- task_list[[task_name]]$subset_data
-  generate_characteristics_table(data, task_name)
+  generate_characteristics_table(data, task_name, grouping_variable = Gruppe, group_labels = c("Healthy Controls", "Patients"))
 })
 
 # Name the tables for easy reference

@@ -123,8 +123,8 @@ prepare_ttest_table_extended <- function(ttest_table, dv_name){
   # Combine "Mean" and "SD" columns and reduce dataframe
   t_test_table_pub <- t_test_table_pub %>%
     mutate(
-      `Patients Mean (SD)` = paste0(round(group_1_mean, 2), " (", round(group_1_sd, 2), ")"),
-      `HC Mean (SD)` = paste0(round(group_0_mean, 2), " (", round(group_0_sd, 2), ")")
+      `Patients Mean (SD)` = paste0(group_1_mean, " (", group_1_sd, ")"),
+      `HC Mean (SD)` = paste0(group_0_mean, " (", group_0_sd, ")")
       ) %>%
     select(dependent_variables, `Patients Mean (SD)`, `HC Mean (SD)`, 
            df, statistic, effect_size, p_value, p_value_adjusted)

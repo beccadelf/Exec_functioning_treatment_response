@@ -64,22 +64,184 @@ reorder_and_rename_rows <- function(df, col_name, label_map) {
 }
 
 
+####################################################
+# Statistical Analyses
+####################################################
+
+# Function to calculate an independent-sample Welch t-test for multiple comparisons 
+# and store the results in a dataframe
+
+t_test_mult_cols <- function(df_basis, cols, grouping_variable) {
+  # This function assumes that the grouping variable is 0-1 coded.
+  
+  # Initialize an empty list to store results
+  results_list <- vector("list", length(cols))
+  names(results_list) <- cols  # Assign column names dynamically
+  #Create empty vector to store raw p-values
+  p_values_raw <- numeric(length(cols)) 
+  
+  for (i in seq_along(cols)) {
+    col <- cols[i] #seq_along for sequencing column indices
+    
+    # Extract data for each group
+    group0 <- na.omit(df_basis[df_basis[[grouping_variable]] == 0, col])
+    group1 <- na.omit(df_basis[df_basis[[grouping_variable]] == 1, col])
+    
+    # Count missing values
+    missings_group0 <- sum(is.na(df_basis[df_basis[[grouping_variable]] == 0, col]))
+    missings_group1 <- sum(is.na(df_basis[df_basis[[grouping_variable]] == 1, col]))
+    
+    # Perform t-test
+    # We use the Welch-test as default, following Delacre et al., 2017 https://pure.tue.nl/ws/portalfiles/portal/80459772/82_534_3_PB.pdf
+    results <- t.test(group0, group1, paired = FALSE, var.equal = FALSE)
+    #Alternativ using formula method:
+    #results <- t.test(df_basis[[col]] ~ df_basis[["Gruppe"]], paired = FALSE, var.equal = FALSE)
+    
+    # Calculate Hedges g based on non-pooled standard-deviations as recommended in https://orbilu.uni.lu/bitstream/10993/57901/1/ES.pdf
+    # using the package "effectsize"
+    effsize_result <- effectsize::hedges_g(group0, group1,pooled_SD = FALSE)
+    effsize <-effsize_result$Hedges_g
+    
+    # Set rounding precision based on variable name
+    if (col == "T1_BAT_Kirby_k_score") {
+      decimal_places <- 3
+    } else if (col %in% imp_columns) { # for use in "Group Comparison_Healthy Controls Patients.Rmd"
+      decimal_places <- 2
+    } else {
+      decimal_places <- 1
+    }
+    
+    # Dynamically assign results to the dataframe
+    results_list[[col]] <- c(
+      group_0_mean = formatC(mean(group0), format = "f", digits = decimal_places),
+      group_0_sd = formatC(sd(group0), format = "f", digits = decimal_places),
+      group_1_mean = formatC(mean(group1), format = "f", digits = decimal_places),
+      group_1_sd = formatC(sd(group1), format = "f", digits = decimal_places),
+      statistic = round(results$statistic[["t"]], 2),
+      df = round(results$parameter[["df"]], 0),
+      p_value = round(results$p.value, 2),
+      effect_size = round(effsize, 2),
+      missings_group0 = missings_group0,
+      missings_group1 = missings_group1
+    )
+    
+    # Store raw p-values for BH correction
+    p_values_raw[i] <- results$p.value
+  }
+  df_results <- data.frame(do.call(rbind, results_list))
+  
+  # Adjust p-values using Benjamini-Hochberg method for multiple testing of related tasks
+  p_values_adjusted <- p.adjust(p_values_raw, method = "BH")
+  df_results$p_value_adjusted <- round(p_values_adjusted, 2)
+  
+  return(df_results)
+}
+
+
+# Function to calculate a Chi-square test for multiple comparisons and store the results in a dataframe
+
+chi_sq_test_mult_cols <- function(df_basis, cols, grouping_variable){
+  # This function assumes that the grouping variable is 0-1 coded and cols are categorical
+  
+  results_list <- vector("list", length(cols))
+  names(results_list) <- cols
+  p_values_raw <- numeric(length(cols))
+  
+  for (i in seq_along(cols)){
+    col <- cols[i]
+    
+    # Build contingency table (removes NAs automatically)
+    table_data <- table(df_basis[[col]], df_basis[[grouping_variable]])
+    
+    # Perform Chi-square test
+    test_result <- chisq.test(table_data)
+    
+    # Group-wise data
+    group0_data <- df_basis[df_basis[[grouping_variable]] == 0, col]
+    group1_data <- df_basis[df_basis[[grouping_variable]] == 1, col]
+    
+    # Count missings
+    missings_group0 <- sum(is.na(group0_data))
+    missings_group1 <- sum(is.na(group1_data))
+    
+    # Get counts and percentages of category 1 in each group
+    ## Group 0
+    total_group0 <- sum(!is.na(group0_data))
+    n_1_group0 <- sum(group0_data, na.rm = TRUE)
+    pct_1_group0 <- round(100 * n_1_group0 / total_group0, 0)
+    
+    ## Group 1
+    total_group1 <- sum(!is.na(group1_data))
+    n_1_group1 <- sum(group1_data, na.rm = TRUE)
+    pct_1_group1 <- round(100 * n_1_group1 / total_group1, 0)
+    
+    # Store raw p-values
+    p_values_raw[i] <- test_result$p.value
+    
+    # Store results in a list
+    results_list[[col]] <- c(
+      n_1_group0 = n_1_group0,
+      pct_1_group0 = pct_1_group0,
+      n_1_group1 = n_1_group1,
+      pct_1_group1 = pct_1_group1,
+      statistic = round(unname(test_result$statistic), 2),
+      df = unname(test_result$parameter),
+      p_value = round(test_result$p.value, 2),
+      missings_group0 = missings_group0,
+      missings_group1 = missings_group1
+    )
+  }
+  
+  df_results <- data.frame(do.call(rbind, results_list), stringsAsFactors = FALSE)
+  
+  # Adjust p-values
+  p_values_adjusted <- p.adjust(p_values_raw, method = "BH")
+  df_results$p_value_adjusted <- round(p_values_adjusted, 2)
+  
+  return(df_results)
+}
+
+
+# Function to perform Levene's test for homogeneity of variance on multiple independent variables
+
+levene_test_mult_cols <- function(df_basis, cols, grouping_variable) {
+  df <- data.frame(p_value = numeric(length(cols)))
+  rownames(df) <- cols
+  
+  for (i in seq_along(cols)) {
+    col <- cols[i]
+    # Remove NA-cases per variable/task
+    df_basis_nomissings <- df_basis[!is.na(df_basis[[col]]),]
+    df_basis_nomissings[[col]] <- as.numeric(df_basis_nomissings[[col]])
+    # Perform Levene's test
+    levene_result <- car::leveneTest(df_basis_nomissings[[col]] ~ df_basis_nomissings[[grouping_variable]])
+    df[col, "p_value"] <- round(levene_result[1, "Pr(>F)"], 4)
+  }
+  
+  return(df)
+}
+
+
+####################################################
+# Results tables (for publication)
+####################################################
+
 # Function to configure flextable settings and Word document formatting
 
 flextable_settings <- function(
     word_orientation = "portrait" # Orientation: "portrait" or "landscape"
-    ){
+){
   # Set flextable defaults
   flextable::set_flextable_defaults(font.family = "Arial",
-                         font.size = 8,
-                         padding.bottom = 3,
-                         padding.top = 3,
-                         padding.left = 0.5,
-                         paddings.right = 0.5,
-                         #theme_fun = "theme_apa",
-                         theme_fun = NULL,
-                         text.align = "center",
-                         line_spacing = 1.5)
+                                    font.size = 8,
+                                    padding.bottom = 3,
+                                    padding.top = 3,
+                                    padding.left = 0.5,
+                                    paddings.right = 0.5,
+                                    #theme_fun = "theme_apa",
+                                    theme_fun = NULL,
+                                    text.align = "center",
+                                    line_spacing = 1.5)
   
   # Word document formatting 
   margins <- officer::page_mar(
@@ -124,149 +286,6 @@ create_save_flextable <- function(
 }
 
 
-####################################################
-# Statistical Analyses
-####################################################
-
-# Function to calculate an independent-sample Welch t-test for multiple comparisons 
-# and store the results in a dataframe
-
-t_test_mult_cols <- function(df_basis, cols, grouping_variable) {
-  # This function assumes that the grouping variable is 0-1 coded.
-  
-  # Initialize an empty list to store results
-  results_list <- vector("list", length(cols))
-  names(results_list) <- cols  # Assign column names dynamically
-  #Create empty vector to store raw p-values
-  p_values_raw <- numeric(length(cols)) 
-  
-  for (i in seq_along(cols)) {
-    col <- cols[i] #seq_along for sequencing column indices
-    
-    # Extract data for each group
-    group0 <- na.omit(df_basis[df_basis[[grouping_variable]] == 0, col])
-    group1 <- na.omit(df_basis[df_basis[[grouping_variable]] == 1, col])
-    
-    # Count missing values
-    missings_group0 <- sum(is.na(df_basis[df_basis[[grouping_variable]] == 0, col]))
-    missings_group1 <- sum(is.na(df_basis[df_basis[[grouping_variable]] == 1, col]))
-    
-    # Perform t-test
-    # We use the Welch-test as default, following Delacre et al., 2017 https://pure.tue.nl/ws/portalfiles/portal/80459772/82_534_3_PB.pdf
-    results <- t.test(group0, group1, paired = FALSE, var.equal = FALSE)
-    #Alternativ using formula method:
-    #results <- t.test(df_basis[[col]] ~ df_basis[["Gruppe"]], paired = FALSE, var.equal = FALSE)
-    
-    # Calculate Hedges g based on non-pooled standard-deviations as recommended in https://orbilu.uni.lu/bitstream/10993/57901/1/ES.pdf
-    # using the package "effectsize"
-    effsize_result <- effectsize::hedges_g(group0, group1,pooled_SD = FALSE)
-    effsize <-effsize_result$Hedges_g
-    
-    # Dynamically assign results to the dataframe
-    results_list[[col]] <- c(
-      group_1_mean = round(mean(group1), 2),
-      group_1_sd = round(sd(group1), 2),
-      group_0_mean = round(mean(group0), 2),
-      group_0_sd = round(sd(group0), 2),
-      statistic = round(results$statistic[["t"]], 2),
-      df = round(results$parameter[["df"]], 2),
-      p_value = round(results$p.value, 2),
-      effect_size = round(effsize, 2),
-      missings_group1 = missings_group1,
-      missings_group0 = missings_group0
-    )
-    
-    # Store raw p-values for BH correction
-    p_values_raw[i] <- results$p.value
-  }
-  df_results <- data.frame(do.call(rbind, results_list))
-  
-  # Adjust p-values using Benjamini-Hochberg method for multiple testing of related tasks
-  p_values_adjusted <- p.adjust(p_values_raw, method = "BH")
-  df_results$p_value_adjusted <- round(p_values_adjusted, 2)
-  
-  return(df_results)
-}
-
-
-# Function to calculate a Chi-square test for multiple comparisons and store the results in a dataframe
-
-chi_sq_test_mult_cols <- function(df_basis, cols, grouping_variable){
-  # This function assumes that the grouping variable is 0-1 coded and cols are categorical
-  
-  results_list <- vector("list", length(cols))
-  names(results_list) <- cols
-  p_values_raw <- numeric(length(cols))
-  
-  for (i in seq_along(cols)){
-    col <- cols[i]
-    
-    # Build contingency table (removes NAs automatically)
-    table_data <- table(df_basis[[col]], df_basis[[grouping_variable]])
-    
-    # Perform Chi-square test
-    test_result <- chisq.test(table_data)
-    
-    # Get counts and percentages of category 1 in each group
-    ## Group 0
-    total_group0 <- sum(df_basis[[grouping_variable]] == 0)
-    n_1_group0 <- sum(df_basis[[col]][df_basis[[grouping_variable]] == 0])
-    pct_1_group0 <- round(100 * n_1_group0 / total_group0, 0)
-    
-    ## Group 1
-    total_group1 <- sum(df_basis[[grouping_variable]] == 1)
-    n_1_group1 <- sum(df_basis[[col]][df_basis[[grouping_variable]] == 1])
-    pct_1_group1 <- round(100 * n_1_group1 / total_group1, 0)
-    
-    # Store raw p-values
-    p_values_raw[i] <- test_result$p.value
-    
-    # Store results in a list
-    results_list[[col]] <- c(
-      n_1_group0 = n_1_group0,
-      pct_1_group0 = pct_1_group0,
-      n_1_group1 = n_1_group1,
-      pct_1_group1 = pct_1_group1,
-      statistic = round(unname(test_result$statistic), 2),
-      df = unname(test_result$parameter),
-      p_value = round(test_result$p.value, 4)
-    )
-  }
-  
-  df_results <- data.frame(do.call(rbind, results_list), stringsAsFactors = FALSE)
-  
-  # Adjust p-values
-  p_values_adjusted <- p.adjust(p_values_raw, method = "BH")
-  df_results$p_value_adjusted <- round(p_values_adjusted, 4)
-  
-  return(df_results)
-}
-
-
-# Function to perform Levene's test for homogeneity of variance on multiple independent variables
-
-levene_test_mult_cols <- function(df_basis, cols, grouping_variable) {
-  df <- data.frame(p_value = numeric(length(cols)))
-  rownames(df) <- cols
-  
-  for (i in seq_along(cols)) {
-    col <- cols[i]
-    # Remove NA-cases per variable/task
-    df_basis_nomissings <- df_basis[!is.na(df_basis[[col]]),]
-    df_basis_nomissings[[col]] <- as.numeric(df_basis_nomissings[[col]])
-    # Perform Levene's test
-    levene_result <- car::leveneTest(df_basis_nomissings[[col]] ~ df_basis_nomissings[[grouping_variable]])
-    df[col, "p_value"] <- round(levene_result[1, "Pr(>F)"], 4)
-  }
-  
-  return(df)
-}
-
-
-####################################################
-# Results tables (for publication)
-####################################################
-
 # Function to concatenate (t-)test results for dimensional and categorical variables in a standardized way 
 
 prepare_ttest_table <- function(ttest_table, var_type = c("dimensional", "categorical")) {
@@ -280,11 +299,11 @@ prepare_ttest_table <- function(ttest_table, var_type = c("dimensional", "catego
     # Format mean (SD)
     t_test_table_pub <- t_test_table_pub %>%
       mutate(
-        `Healthy Controls` = paste0(round(group_0_mean, 2), " (", round(group_0_sd, 2), ")"),
-        `Patients` = paste0(round(group_1_mean, 2), " (", round(group_1_sd, 2), ")"),
+        `Healthy Controls` = paste0(group_0_mean, " (", group_0_sd, ")"),
+        `Patients` = paste0(group_1_mean, " (", group_1_sd, ")"),
         `Comparison` = paste0("t(", df, ") = ", statistic, ", p = ", format(p_value_adjusted, nsmall = 2))
       ) %>%
-      select(dependent_variables, `Healthy Controls`, `Patients`, `Comparison`)
+      select(dependent_variables, `Healthy Controls`, `Patients`, `Comparison`, missings_group0, missings_group1)
     
   } else if (type == "categorical") {
     # Format count (percentage)
@@ -294,11 +313,11 @@ prepare_ttest_table <- function(ttest_table, var_type = c("dimensional", "catego
         `Patients` = paste0(n_1_group1, " (", pct_1_group1, "%)"),
         `Comparison` = paste0("χ²(", df, ") = ", statistic, ", p = ", format(p_value_adjusted, nsmall = 2))
       ) %>%
-      select(dependent_variables, `Healthy Controls`, `Patients`, `Comparison`)
+      select(dependent_variables, `Healthy Controls`, `Patients`, `Comparison`, missings_group0, missings_group1)
   }
   
   # Rename columns
-  colnames(t_test_table_pub) <- c("Variable", "Healthy Controls", "Patients", "Statistic")
+  colnames(t_test_table_pub) <- c("Variable", "Healthy Controls", "Patients", "Statistic", "Missings_HC", "Missings_Patients")
   
   return(t_test_table_pub)
 }
