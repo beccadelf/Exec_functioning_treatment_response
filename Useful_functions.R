@@ -105,7 +105,10 @@ t_test_mult_cols <- function(df_basis, cols, grouping_variable) {
     # Set rounding precision based on variable name
     if (col == "T1_BAT_Kirby_k_score") {
       decimal_places <- 3
-    } else if (col %in% imp_columns) { # for use in "Group Comparison_Healthy Controls Patients.Rmd"
+    } else if (col %in% c("NumberLetter_BIS_Repeat", "NumberLetter_BIS_Switch", "NumberLetter_BIS_Diff_Score", 
+                          "Stroop_BIS_Congruent", "Stroop_BIS_Incongruent", "Stroop_BIS_Diff_Score", 
+                          "TwoBack_BIS_Foil", "TwoBack_BIS_Target", "TwoBack_BIS_Total", "SSRT")) 
+      { # for use in "Group Comparison_Healthy Controls Patients.Rmd"
       decimal_places <- 2
     } else {
       decimal_places <- 1
@@ -288,7 +291,7 @@ create_save_flextable <- function(
 
 # Function to concatenate (t-)test results for dimensional and categorical variables in a standardized way 
 
-prepare_ttest_table <- function(ttest_table, var_type = c("dimensional", "categorical")) {
+prepare_ttest_table <- function(ttest_table, var_type = c("dimensional", "categorical"), group_0, group_1) {
   type <- match.arg(var_type)
   
   # Convert rownames (dependent variables) to separate column
@@ -299,25 +302,25 @@ prepare_ttest_table <- function(ttest_table, var_type = c("dimensional", "catego
     # Format mean (SD)
     t_test_table_pub <- t_test_table_pub %>%
       mutate(
-        `Healthy Controls` = paste0(group_0_mean, " (", group_0_sd, ")"),
-        `Patients` = paste0(group_1_mean, " (", group_1_sd, ")"),
+        group_0 = paste0(group_0_mean, " (", group_0_sd, ")"),
+        group_1 = paste0(group_1_mean, " (", group_1_sd, ")"),
         `Comparison` = paste0("t(", df, ") = ", statistic, ", p = ", format(p_value_adjusted, nsmall = 2))
       ) %>%
-      select(dependent_variables, `Healthy Controls`, `Patients`, `Comparison`, missings_group0, missings_group1)
+      select(dependent_variables, group_0, group_1, Comparison, missings_group0, missings_group1)
     
   } else if (type == "categorical") {
     # Format count (percentage)
     t_test_table_pub <- t_test_table_pub %>%
       mutate(
-        `Healthy Controls` = paste0(n_1_group0, " (", pct_1_group0, "%)"),
-        `Patients` = paste0(n_1_group1, " (", pct_1_group1, "%)"),
+        group_0 = paste0(n_1_group0, " (", pct_1_group0, "%)"),
+        group_1 = paste0(n_1_group1, " (", pct_1_group1, "%)"),
         `Comparison` = paste0("χ²(", df, ") = ", statistic, ", p = ", format(p_value_adjusted, nsmall = 2))
       ) %>%
-      select(dependent_variables, `Healthy Controls`, `Patients`, `Comparison`, missings_group0, missings_group1)
+      select(dependent_variables, group_0, group_1, Comparison, missings_group0, missings_group1)
   }
   
   # Rename columns
-  colnames(t_test_table_pub) <- c("Variable", "Healthy Controls", "Patients", "Statistic", "Missings_HC", "Missings_Patients")
+  colnames(t_test_table_pub) <- c("Variable", group_0, group_1, "Statistic", paste0("Missings_", group_0), paste0("Missings_", group_1))
   
   return(t_test_table_pub)
 }

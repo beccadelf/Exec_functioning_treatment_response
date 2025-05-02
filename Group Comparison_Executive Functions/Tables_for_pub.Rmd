@@ -98,40 +98,74 @@ chi_sq_test_descr_Response <- chi_sq_test_mult_cols(df_basis = data_Pat_pre_clea
 ```
 
 ## 3. Converge tables format and merge
+### 3.1. HCs vs Patients
 ```{r}
-t_test_descr_pub <- prepare_ttest_table(ttest_table = t_test_descr_HC_Pat, var_type = "dimensional")
-chi_sq_test_descr_pub <- prepare_ttest_table(ttest_table = chi_sq_test_descr_HC_Pat, var_type = "categorical")
+t_test_descr_pub_HC_Pat <- prepare_ttest_table(ttest_table = t_test_descr_HC_Pat, var_type = "dimensional", group_0 = "Healthy Controls", group_1 = "Patients")
+chi_sq_test_descr_pub_HC_Pat <- prepare_ttest_table(ttest_table = chi_sq_test_descr_HC_Pat, var_type = "categorical", group_0 = "Healthy Controls", group_1 = "Patients")
 
 # Merge the dataframes
-descr_comps_pub <- rbind(t_test_descr_pub, chi_sq_test_descr_pub)
+descr_comps_pub_HC_Pat <- rbind(t_test_descr_pub_HC_Pat, chi_sq_test_descr_pub_HC_Pat)
 # Reorder and rename the variables
-descr_comps_pub <- reorder_and_rename_rows(df = descr_comps_pub, col_name = "Variable", label_map = variable_labels)
+descr_comps_pub_HC_Pat <- reorder_and_rename_rows(df = descr_comps_pub_HC_Pat, col_name = "Variable", label_map = variable_labels)
 
 # Print missings
-for (i in seq_len(nrow(descr_comps_pub))) {
-  miss_hc <- descr_comps_pub$Missings_HC[i]
-  miss_pat <- descr_comps_pub$Missings_Patients[i]
+for (i in seq_len(nrow(descr_comps_pub_HC_Pat))) {
+  miss_hc <- descr_comps_pub_HC_Pat$Missings_HC[i]
+  miss_pat <- descr_comps_pub_HC_Pat$Missings_Patients[i]
   
   if (miss_hc > 0 || miss_pat > 0) {
-    var_name <- descr_comps_pub$Variable[i]
+    var_name <- descr_comps_pub_HC_Pat$Variable[i]
     cat(sprintf("Missing values **%s**: Healthy Controls = %s, Patients = %s \n",
                 var_name, miss_hc, miss_pat))
   }
 }
 
 # Remove columns Missings_HC, Missings_Patients
-descr_comps_pub <- descr_comps_pub[, !(names(descr_comps_pub) %in% c("Missings_HC", "Missings_Patients"))]
+descr_comps_pub_HC_Pat <- descr_comps_pub_HC_Pat[, !(names(descr_comps_pub_HC_Pat) %in% c("Missings_HC", "Missings_Patients"))]
 
 # Add number of subjects per group
 n_HC <- sum(Patients_vs_HC$Gruppe == 0)
 n_Patients <- sum(Patients_vs_HC$Gruppe == 1)
 n_subjects_row <- data.frame(Variable = "N", `Healthy Controls` = n_HC, Patients = n_Patients, Statistic = "-", stringsAsFactors = FALSE, check.names = FALSE)
-descr_comps_pub <- rbind(n_subjects_row, descr_comps_pub)
+descr_comps_pub_HC_Pat <- rbind(n_subjects_row, descr_comps_pub_HC_Pat)
+```
+
+### 3.1. Non-Responder vs Responder
+```{r}
+t_test_descr_pub_Response <- prepare_ttest_table(ttest_table = t_test_descr_Response, var_type = "dimensional", group_0 = "Non-Responder", group_1 = "Responder")
+chi_sq_test_descr_pub_Response <- prepare_ttest_table(ttest_table = chi_sq_test_descr_Response, var_type = "categorical", group_0 = "Non-Responder", group_1 = "Responder")
+
+# Merge the dataframes
+descr_comps_Response <- rbind(t_test_descr_pub_Response, chi_sq_test_descr_pub_Response)
+# Reorder and rename the variables
+descr_comps_Response <- reorder_and_rename_rows(df = descr_comps_Response, col_name = "Variable", label_map = variable_labels)
+
+# Print missings
+for (i in seq_len(nrow(descr_comps_Response))) {
+  miss_NR <- descr_comps_Response$`Missings_Non-Responder`[i]
+  miss_R <- descr_comps_Response$Missings_Responder[i]
+  
+  if (miss_NR > 0 || miss_R > 0) {
+    var_name <- descr_comps_Response$Variable[i]
+    cat(sprintf("Missing values **%s**: Non-Responder = %s, Responder = %s \n",
+                var_name, miss_NR, miss_R))
+  }
+}
+
+# Remove columns Missings_HC, Missings_Patients
+descr_comps_Response <- descr_comps_Response[, !(names(descr_comps_Response) %in% c("Missings_Non-Responder", "Missings_Responder"))]
+
+# Add number of subjects per group
+n_NR <- sum(data_Pat_pre_clean$Response == 0)
+n_R <- sum(data_Pat_pre_clean$Response == 1)
+n_subjects_row <- data.frame(Variable = "N", `Non-Responder` = n_NR, Responder = n_R, Statistic = "-", stringsAsFactors = FALSE, check.names = FALSE)
+descr_comps_Response <- rbind(n_subjects_row, descr_comps_Response)
 ```
 
 ## 3. Create and save flextable
 ```{r}
 create_save_flextable(table_pub = descr_comps_pub, results_path = results_path_HC_Pat, file_name = "descr_tests_Patients_HCs.docx")
+create_save_flextable(table_pub = descr_comps_Response, results_path = results_path_Response, file_name = "descr_tests_R_vs_NR.docx")
 ```
 
 
@@ -160,7 +194,7 @@ generate_characteristics_table <- function(data, task_name, grouping_variable, g
                               T1_BAT_STAI_T_score= c(1, 1)),
                 label = list(
                   Alter ~ "Age",
-                  Geschlecht ~ "Sex (Female)",
+                  Geschlecht ~ "Sex",
                   Abschluss ~ "Education",
                   T1_BAT_FAS_score ~ "FSQ Score",
                   T1_BAT_BDI_II_score ~ "BDI-II Score",
@@ -242,7 +276,7 @@ calculate_n <- function(data) {
 stroop_n <- calculate_n(task_list[["Stroop Task"]]$subset_data)
 number_letter_n <- calculate_n(task_list[["Number-Letter Task"]]$subset_data)
 two_back_n <- calculate_n(task_list[["2-Back Task"]]$subset_data)
-ssrt_n <- calculate_n(task_list[["Stop Signal Task"]]$subset_data)
+ssrt_n <- calculate_n(task_list[["Stop-Signal Task"]]$subset_data)
 
 # Convert the tbl_summary tables to tibbles and rename columns dynamically (no information on specific N needed)
 stroop_df <- as_tibble(characteristics_tables[["Stroop Task"]]) %>%
@@ -254,7 +288,7 @@ number_letter_df <- as_tibble(characteristics_tables[["Number-Letter Task"]]) %>
 two_back_df <- as_tibble(characteristics_tables[["2-Back Task"]]) %>%
   rename_with(~ c("Healthy Controls", "Patients"), .cols = 2:3)
 
-ssrt_df <- as_tibble(characteristics_tables[["Stop Signal Task"]]) %>%
+ssrt_df <- as_tibble(characteristics_tables[["Stop-Signal Task"]]) %>%
   rename_with(~ c("Healthy Controls", "Patients"), .cols = 2:3)
 
 # Insert the "N" row into each data frame
@@ -372,7 +406,7 @@ task_list <- list(
              !is.na(TwoBack_BIS_Target) & 
              !is.na(TwoBack_BIS_Total))
   ),
-  "Stop Signal Task" = list(
+  "Stop-Signal Task" = list(
     subset_data = data_Pat_pre_clean %>%
       filter(!is.na(SSRT))
   )
@@ -381,7 +415,7 @@ task_list <- list(
 # Loop through the tasks and create tables
 characteristics_tables <- lapply(names(task_list), function(task_name) {
   data <- task_list[[task_name]]$subset_data
-  generate_characteristics_table(data, task_name)
+  generate_characteristics_table(data, task_name, grouping_variable = Response, group_labels = c("Non-Response", "Response"))
 })
 
 # Name the tables for easy reference
@@ -402,7 +436,7 @@ calculate_n <- function(data) {
 stroop_n <- calculate_n(task_list[["Stroop Task"]]$subset_data)
 number_letter_n <- calculate_n(task_list[["Number-Letter Task"]]$subset_data)
 two_back_n <- calculate_n(task_list[["2-Back Task"]]$subset_data)
-ssrt_n <- calculate_n(task_list[["Stop Signal Task"]]$subset_data)
+ssrt_n <- calculate_n(task_list[["Stop-Signal Task"]]$subset_data)
 
 # Convert the tbl_summary tables to tibbles and rename columns dynamically (no information on specific N needed)
 stroop_df <- as_tibble(characteristics_tables[["Stroop Task"]]) %>%
@@ -414,7 +448,7 @@ number_letter_df <- as_tibble(characteristics_tables[["Number-Letter Task"]]) %>
 two_back_df <- as_tibble(characteristics_tables[["2-Back Task"]]) %>%
   rename_with(~ c("Non-Response", "Response"), .cols = 2:3)
 
-ssrt_df <- as_tibble(characteristics_tables[["Stop Signal Task"]]) %>%
+ssrt_df <- as_tibble(characteristics_tables[["Stop-Signal Task"]]) %>%
   rename_with(~ c("Non-Response", "Response"), .cols = 2:3)
 
 # Insert the "N" row into each data frame
@@ -468,7 +502,7 @@ colnames(characteristics_tasks) <- c(
 primary_headers <- c("Characteristic", "Stroop Task", "Stroop Task", 
                      "Number-Letter Task", "Number-Letter Task", 
                      "2-Back Task", "2-Back Task", 
-                     "Stop Signal Task", "Stop Signal Task")
+                     "Stop-Signal Task", "Stop-Signal Task")
 
 secondary_headers <- c("Characteristic", "Non-Response", "Response", 
                        "Non-Response", "Response", 

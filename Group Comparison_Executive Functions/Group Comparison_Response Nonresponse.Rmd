@@ -99,7 +99,7 @@ Levene tests show variance homogeneity for all task conditions between responder
 
 ### 3. Calculate Welch t-tests 
 ```{r}
-t_test_table <- t_test_mult_cols(df_basis = data_Pat_pre_clean, cols = imp_columns, df_results_columns = ttest_results_columns, grouping_variable = "Response")
+t_test_table <- t_test_mult_cols(df_basis = data_Pat_pre_clean, cols = imp_columns, grouping_variable = "Response")
 #pander(t_test_table, style = "rmarkdown", split.table = Inf, fontsize = "tiny")
 t_test_table
 ```
@@ -112,27 +112,16 @@ t_test_table_pub <- cbind(performance_measures = rownames(t_test_table), t_test_
 # Combine "Mean" and "SD" columns and reduce dataframe
 t_test_table_pub <- t_test_table_pub %>%
   mutate(
-    `Responder Mean (SD)` = paste0(round(group_1_mean, 2), " (", round(group_1_sd, 2), ")"),
-    `Nonresponder Mean (SD)` = paste0(round(group_0_mean, 2), " (", round(group_0_sd, 2), ")")
+    `Responder Mean (SD)` = paste0(group_1_mean, " (", group_1_sd, ")"),
+    `Nonresponder Mean (SD)` = paste0(group_0_mean, " (", group_0_sd, ")")
     ) %>%
-  select(performance_measures, `Responder Mean (SD)`, `Nonresponder Mean (SD)`, df, t_statistic, effect_size, p_value, p_value_adjusted)
-
-# Rename performance measures using a named vector
-rename_map <- c(
-  'NumberLetter_BIS_Repeat' = "Number-Letter: Repeat",
-  'NumberLetter_BIS_Switch' = "Number-Letter: Switch",
-  'NumberLetter_BIS_Diff_Score' = "Number-Letter: Switch - Repeat",
-  'Stroop_BIS_Congruent' = "Stroop: Congruent",
-  'Stroop_BIS_Incongruent' = "Stroop: Incongruent",
-  'Stroop_BIS_Diff_Score' = "Stroop: Incongruent - Congruent",
-  'TwoBack_BIS_Foil' = "2-Back: Foil",
-  'TwoBack_BIS_Target' = "2-Back: Target",
-  'TwoBack_BIS_Total' = "2-Back: Total",
-  'SSRT' = "Stop-Signal RT")
-t_test_table_pub$performance_measures <- rename_map[t_test_table_pub$performance_measures]
+  select(performance_measures, `Responder Mean (SD)`, `Nonresponder Mean (SD)`, df, statistic, effect_size, p_value, p_value_adjusted)
 
 # Change colnames
 colnames(t_test_table_pub) <- c("Performance Measure", "Responder Mean (SD)", "Non-Responder Mean (SD)", "df", "t-Statistic", "Hedges' g","p-Value", "adj. p-Value")
+
+# Rename performance measures using a named vector
+t_test_table_pub <- reorder_and_rename_rows(df = t_test_table_pub, col_name = "Performance Measure", label_map = variable_labels)
 ```
 
 ### 5. Create and save flextable
