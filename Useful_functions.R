@@ -105,12 +105,12 @@ t_test_mult_cols <- function(df_basis, cols, grouping_variable) {
     # Set rounding precision based on variable name
     if (col == "T1_BAT_Kirby_k_score") {
       decimal_places <- 3
-    } else if (col %in% c("NumberLetter_BIS_Repeat", "NumberLetter_BIS_Switch", "NumberLetter_BIS_Diff_Score", 
-                          "Stroop_BIS_Congruent", "Stroop_BIS_Incongruent", "Stroop_BIS_Diff_Score", 
-                          "TwoBack_BIS_Foil", "TwoBack_BIS_Target", "TwoBack_BIS_Total", "SSRT")) 
-      { # for use in "Group Comparison_Healthy Controls Patients.Rmd"
+    } else if (col %in% c("NumberLetter_BIS_Repeat", "NumberLetter_BIS_Switch", "NumberLetter_BIS_Diff_Score",
+                          "Stroop_BIS_Congruent", "Stroop_BIS_Incongruent", "Stroop_BIS_Diff_Score",
+                          "TwoBack_BIS_Foil", "TwoBack_BIS_Target", "TwoBack_BIS_Total", "SSRT"))
+      {
       decimal_places <- 2
-    } else {
+    } else { # for questionnaire scores, age
       decimal_places <- 1
     }
     
@@ -169,12 +169,12 @@ chi_sq_test_mult_cols <- function(df_basis, cols, grouping_variable){
     
     # Get counts and percentages of category 1 in each group
     ## Group 0
-    total_group0 <- sum(!is.na(group0_data))
+    total_group0 <- length(group0_data)
     n_1_group0 <- sum(group0_data, na.rm = TRUE)
     pct_1_group0 <- round(100 * n_1_group0 / total_group0, 0)
     
     ## Group 1
-    total_group1 <- sum(!is.na(group1_data))
+    total_group1 <- length(group1_data)
     n_1_group1 <- sum(group1_data, na.rm = TRUE)
     pct_1_group1 <- round(100 * n_1_group1 / total_group1, 0)
     

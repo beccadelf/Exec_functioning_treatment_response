@@ -110,7 +110,7 @@ descr_comps_pub_HC_Pat <- reorder_and_rename_rows(df = descr_comps_pub_HC_Pat, c
 
 # Print missings
 for (i in seq_len(nrow(descr_comps_pub_HC_Pat))) {
-  miss_hc <- descr_comps_pub_HC_Pat$Missings_HC[i]
+  miss_hc <- descr_comps_pub_HC_Pat$`Missings_Healthy Controls`[i]
   miss_pat <- descr_comps_pub_HC_Pat$Missings_Patients[i]
   
   if (miss_hc > 0 || miss_pat > 0) {
@@ -121,7 +121,7 @@ for (i in seq_len(nrow(descr_comps_pub_HC_Pat))) {
 }
 
 # Remove columns Missings_HC, Missings_Patients
-descr_comps_pub_HC_Pat <- descr_comps_pub_HC_Pat[, !(names(descr_comps_pub_HC_Pat) %in% c("Missings_HC", "Missings_Patients"))]
+descr_comps_pub_HC_Pat <- descr_comps_pub_HC_Pat[, !(names(descr_comps_pub_HC_Pat) %in% c("Missings_Healthy Controls", "Missings_Patients"))]
 
 # Add number of subjects per group
 n_HC <- sum(Patients_vs_HC$Gruppe == 0)
