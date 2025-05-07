@@ -29,6 +29,7 @@ variable_labels <- c(
   Alter = "Age",
   Geschlecht = "Sex (Female)",
   Abschluss = "Education",
+  Abschluss_Gymnasium = "Education (High-School)",
   NumberLetter_BIS_Repeat = "Number-Letter: Repeat",
   NumberLetter_BIS_Switch = "Number-Letter: Switch",
   NumberLetter_BIS_Diff_Score = "Number-Letter: Switch-Repeat",
@@ -67,6 +68,23 @@ reorder_and_rename_rows <- function(df, col_name, label_map) {
 ####################################################
 # Statistical Analyses
 ####################################################
+
+# Function to create a dummy-variable "Abschluss_Gymnasium" to account for underrepresented and meaningless categories
+dummy_code_education <- function(data) {
+  data[["Abschluss"]] <- as.factor(data[["Abschluss"]]) 
+  levels(data[["Abschluss"]]) <- list("Hauptschule" = "1", "Realschule" = "2", "Gymnasium" = "3", "Anderes" = "4")
+  
+  data_recoded <- data
+  
+  # Set level "Anderes" (= other degree) to NA as it is not meaningful
+  data_recoded[["Abschluss"]][data_recoded[["Abschluss"]] == "Anderes"] <- NA
+  
+  # Add Hauptschule to Realschule and create dummy-variable "Gymnasium"
+  data_recoded[["Abschluss_Gymnasium"]] <- dplyr::recode(data_recoded[["Abschluss"]], "Hauptschule" = 0, "Realschule" = 0, "Gymnasium" = 1)
+  
+  return(list(data = data, data_recoded = data_recoded))
+}
+
 
 # Function to calculate an independent-sample Welch t-test for multiple comparisons 
 # and store the results in a dataframe

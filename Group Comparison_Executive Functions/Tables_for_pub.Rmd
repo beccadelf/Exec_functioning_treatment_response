@@ -65,14 +65,22 @@ results_path_Response <- create_results_path(inputdata_path = basic_path,
 ## 4. Prepare dataset
 ### HCs vs Patients
 ```{r}
-## Merge patients pre and controls
+# Merge patients pre and controls
 Patients_vs_HC <- rbind(data_Pat_pre, data_HC)
+
+# Dummy-code variable education
+recode_results_1 <- dummy_code_education(Patients_vs_HC)
+Patients_vs_HC <- recode_results_1$data_recoded
 ```
 
 ### Non-Responder vs Responder
 Remove all patients that had no post-treatment score
 ```{r}
 data_Pat_pre_clean <- data_Pat_pre[!is.na(data_Pat_pre$Response),]
+
+# Dummy-code variable education
+recode_results_2 <- dummy_code_education(data_Pat_pre_clean)
+data_Pat_pre_clean <- recode_results_2$data_recoded
 ```
 We had `r nrow(data_Pat_pre[!is.na(data_Pat_pre$Response),])` patients with a post-value available, and `r nrow(data_Pat_pre_clean[data_Pat_pre_clean$Response == 1,])`
 
@@ -81,7 +89,7 @@ We had `r nrow(data_Pat_pre[!is.na(data_Pat_pre$Response),])` patients with a po
 
 ## 0. Define categorical vs. dimensional variables
 ```{r}
-categorical_vars <- c("Geschlecht") # TODO: Add "Abschluss" once binarized
+categorical_vars <- c("Geschlecht", "Abschluss_Gymnasium")
 dimensional_vars <- c("Alter", "T1_BAT_FAS_score", "T1_BAT_BDI_II_score", "T1_BAT_STAI_T_score", "T1_BAT_BIS_11_score", "T1_BAT_Kirby_k_score", "T1_BAT_CFC_14_score", "T1_BAT_SRHI_score")
 ```
 
@@ -164,7 +172,7 @@ descr_comps_Response <- rbind(n_subjects_row, descr_comps_Response)
 
 ## 3. Create and save flextable
 ```{r}
-create_save_flextable(table_pub = descr_comps_pub, results_path = results_path_HC_Pat, file_name = "descr_tests_Patients_HCs.docx")
+create_save_flextable(table_pub = descr_comps_pub_HC_Pat, results_path = results_path_HC_Pat, file_name = "descr_tests_Patients_HCs.docx")
 create_save_flextable(table_pub = descr_comps_Response, results_path = results_path_Response, file_name = "descr_tests_R_vs_NR.docx")
 ```
 
