@@ -10,6 +10,8 @@ output:
     df_print: paged
 params:
   input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
+  output_base_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison"
+  response_criterion: "response_FSQ" # choose between "response_FSQ" or "response_BAT"
 ---
 <style type="text/css">
 .main-container { /* Adjust main blocks */
@@ -46,20 +48,20 @@ format_flextable_landscape <- flextable_settings(word_orientation = "landscape")
 
 ## 2. Import Data (HCs and Patients_Pre)
 ```{r}
-basic_path = params$input_data_path
+basic_path <- file.path(params$input_data_path, params$response_criterion)
 data_HC <- read.csv(file.path(basic_path,"Data_HC.csv"))
 data_Pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
 ```
 
 ## 3. Set results path to save tables and images
 ```{r}
+output_mainpath_HC_Pat <- file.path(params$output_base_path, "HC_vs_Pat", params$response_criterion)
+output_mainpath_Response <- file.path(params$output_base_path, "R_vs_NR", params$response_criterion)
+
 results_path_HC_Pat <- create_results_path(inputdata_path = basic_path, 
-                                      output_mainpath = "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/HC_vs_Pat"
-                                          )
+                                      output_mainpath = output_mainpath_HC_Pat)
 results_path_Response <- create_results_path(inputdata_path = basic_path, 
-                                      output_mainpath =
-                                        "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/R_vs_NR"
-                                          )
+                                      output_mainpath = output_mainpath_Response)
 ```
 
 ## 4. Prepare dataset

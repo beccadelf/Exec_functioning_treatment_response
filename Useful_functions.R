@@ -7,9 +7,10 @@
 # This function creates a path to save the results which is named after the folder-structure of the import-data path
 create_results_path <- function(inputdata_path, output_mainpath){
   # Get the part of the file-path describing the dealing with outliers
-  outliers_part = basename(inputdata_path)
+  outliers_part = dirname(inputdata_path)
+  outliers_part = basename(outliers_part)
   # Get the part of the file-path describing the processing of RT
-  grandparent_dir = dirname(dirname(inputdata_path))
+  grandparent_dir = dirname(dirname(dirname(inputdata_path)))
   RTprocessing_part = basename(grandparent_dir)
   
   # Create a new path

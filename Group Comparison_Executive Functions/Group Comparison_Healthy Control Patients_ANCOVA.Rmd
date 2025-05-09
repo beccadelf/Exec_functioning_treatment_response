@@ -10,6 +10,8 @@ output:
     df_print: paged
 params:
   input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
+  output_base_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/HC_vs_Pat"
+  response_criterion: "response_FSQ" # choose between "response_FSQ" or "response_BAT"
 ---
 <style type="text/css">
 .main-container { /* Adjust main blocks */
@@ -47,9 +49,10 @@ source("../Useful_functions.R")
 # Set-Up
 ### 0. Set results path to save tables and images
 ```{r}
-basic_path = params$input_data_path
+basic_path <- file.path(params$input_data_path, params$response_criterion)
+output_mainpath <- file.path(params$output_base_path, params$response_criterion)
 results_path <- create_results_path(inputdata_path = basic_path, 
-                                      output_mainpath = "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/HC_vs_Pat"
+                                      output_mainpath = output_mainpath
                                           )
 ```
 
