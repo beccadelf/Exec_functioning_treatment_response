@@ -11,7 +11,7 @@ output:
 params:
   input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
   output_base_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/R_vs_NR"
-  response_criterion: "response_FSQ" # choose between "response_FSQ" or "response_BAT"
+  response_criterion: "response_BAT" # choose between "response_FSQ" or "response_BAT"
   
 ---
 <style type="text/css">

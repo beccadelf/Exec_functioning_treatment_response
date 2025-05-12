@@ -42,6 +42,7 @@ variable_labels <- c(
   TwoBack_BIS_Total = "2-Back: Total",
   SSRT = "Stop-Signal RT",
   T1_BAT_FAS_score = "FSQ Score",
+  BAT_T1 = "BAT Score",
   T1_BAT_BDI_II_score = "BDI-II Score",
   T1_BAT_STAI_T_score = "STAI-T Score",
   T1_BAT_BIS_11_score = "BIS-11 Score",

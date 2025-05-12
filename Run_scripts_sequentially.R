@@ -104,18 +104,22 @@ generate_htmlfilename_analyses <- function(input_data_path, prefix, response_cri
 
 # Group comparison script (HC vs. patients)
 for (input_data_path in inputdata_variants_paths) {
-  for (response_criterion in response_criteria) {
     
-    full_input_path <- file.path(input_data_path, response_criterion)
+    full_input_path <- file.path(input_data_path, "response_FSQ")
     
     params_list <- list(
       input_data_path = full_input_path,
-      response_criterion = response_criterion)
+      output_base_path = file.path(parent_path, "1_Group_comparison/HC_vs_Pat")
+      )
+    
+    output_mainpath <- params_list$output_base_path
+    results_path <- create_results_path(
+      inputdata_path = full_input_path,
+      output_mainpath = output_mainpath
+    )
     
     output_filename <- generate_htmlfilename_analyses(full_data_path, prefix = "HC_vs_patients")
-    output_path <- file.path(create_results_path(inputdata_path = full_data_path,
-                                                 output_mainpath = file.path(parent_path,"1_Group_comparison/HC_vs_Pat")),
-                             output_filename)
+    output_path <- file.path(results_path, output_filename)
     
     rmarkdown::render(
       input = "Group Comparison_Executive Functions\\Group Comparison_Healthy Controls Patients.Rmd",
@@ -124,7 +128,6 @@ for (input_data_path in inputdata_variants_paths) {
       envir = new.env()
     )
     cat("Generated file:", output_filename, "\n")
-  }
 }
 
 # Group comparison script (Response vs. Nonresponse)
@@ -135,12 +138,17 @@ for (input_data_path in inputdata_variants_paths) {
     
     params_list <- list(
       input_data_path = input_data_path,
-      response_criterion = response_criterion)
+      response_criterion = response_criterion,
+      output_base_path = file.path(parent_path, "1_Group_comparison/R_vs_NR"))
+    
+    output_mainpath <- file.path(params_list$output_base_path, response_criterion)
+    results_path <- create_results_path(
+      inputdata_path = full_input_path,
+      output_mainpath = output_mainpath
+    )
     
     output_filename <- generate_htmlfilename_analyses(full_data_path, prefix = "Response_vs_Nonresponse")
-    output_path <- file.path(create_results_path(inputdata_path = full_data_path,
-                                                 output_mainpath = file.path(parent_path,"1_Group_comparison/R_vs_NR")),
-                             output_filename)
+    output_path <- file.path(results_path, output_filename)
     
     rmarkdown::render(
       input = "Group Comparison_Executive Functions\\Group Comparison_Response Nonresponse.Rmd",
@@ -160,12 +168,17 @@ for (input_data_path in inputdata_variants_paths) {
     
     params_list <- list(
       input_data_path = input_data_path,
-      response_criterion = response_criterion)
+      response_criterion = response_criterion,
+      output_base_path = file.path(parent_path, "2_Machine_Learning/Feature_Label_Dataframes"))
+    
+    output_mainpath <- file.path(params_list$output_base_path, response_criterion)
+    results_path <- create_results_path(
+      inputdata_path = full_input_path,
+      output_mainpath = output_mainpath
+    )
     
     output_filename <- generate_htmlfilename_analyses(full_data_path, prefix = "Machine_learning_preparation")
-    output_path <- file.path(create_results_path(inputdata_path = full_data_path,
-                                                 output_mainpath = file.path(parent_path,"2_Machine_Learning/Feature_Label_Dataframes")),
-                             output_filename)
+    output_path <- file.path(results_path, output_filename)
     
     rmarkdown::render(
       input = "Machine Learning_Response Prediction/ML_preprocessing.Rmd",

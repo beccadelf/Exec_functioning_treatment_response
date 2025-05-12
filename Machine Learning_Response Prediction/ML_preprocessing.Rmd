@@ -103,6 +103,7 @@ features_df_enc <- features_df_enc %>%
   rename(is_woman = Geschlecht,
          Age = Alter,
          FAS = T1_BAT_FAS_score,
+         BAT = BAT_T1,
          BDI_II = T1_BAT_BDI_II_score,
          STAI_T = T1_BAT_STAI_T_score,
          BIS_11 = T1_BAT_BIS_11_score,

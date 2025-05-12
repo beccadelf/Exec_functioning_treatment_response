@@ -92,7 +92,7 @@ We had `r nrow(data_Pat_pre[!is.na(data_Pat_pre$Response),])` patients with a po
 ## 0. Define categorical vs. dimensional variables
 ```{r}
 categorical_vars <- c("Geschlecht", "Abschluss_Gymnasium")
-dimensional_vars <- c("Alter", "T1_BAT_FAS_score", "T1_BAT_BDI_II_score", "T1_BAT_STAI_T_score", "T1_BAT_BIS_11_score", "T1_BAT_Kirby_k_score", "T1_BAT_CFC_14_score", "T1_BAT_SRHI_score")
+dimensional_vars <- c("Alter", "T1_BAT_FAS_score", "T1_BAT_BDI_II_score", "T1_BAT_STAI_T_score", "T1_BAT_BIS_11_score", "T1_BAT_Kirby_k_score", "T1_BAT_CFC_14_score", "T1_BAT_SRHI_score", "BAT_T1")
 ```
 
 ## 1. Welch t-test for dimensional variables
