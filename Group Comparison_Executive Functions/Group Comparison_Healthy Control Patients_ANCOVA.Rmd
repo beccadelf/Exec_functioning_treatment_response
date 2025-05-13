@@ -50,10 +50,8 @@ source("../Useful_functions.R")
 ### 0. Set results path to save tables and images
 ```{r}
 basic_path <- file.path(params$input_data_path, params$response_criterion)
-output_mainpath <- file.path(params$output_base_path, params$response_criterion)
 results_path <- create_results_path(inputdata_path = basic_path, 
-                                      output_mainpath = output_mainpath
-                                          )
+                                    output_mainpath = params$output_base_path)
 ```
 
 ### 1. Import Task Performance Data

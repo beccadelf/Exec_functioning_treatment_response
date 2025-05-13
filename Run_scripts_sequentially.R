@@ -75,7 +75,7 @@ for (outliers_removed in outliers_removed_options) {
 }
 
 
-# 3. Group comparison and machine learning analyses
+# 3. Group comparison, descriptive tables, and machine learning analyses
 # General further processing
 response_criteria <- c("response_FSQ", "response_BAT")
 inputdata_variants_paths <- c(
@@ -158,6 +158,16 @@ for (input_data_path in inputdata_variants_paths) {
     )
     cat("Generated file:", output_filename, "\n")
   }
+}
+
+# Descriptive tables (descriptive comparisons and task-wise descriptive statistics)
+for (input_data_path in inputdata_variants_paths) {
+  params_list <- list(
+    input_data_path = input_data_path,
+    output_base_path = file.path(parent_path, "1_Group_comparison"),
+    response_criterion = response_criterion
+  )
+  # TODO: think about where to best save the corresponding html's (as "Tables_for_pub uses two different output pathes depending on the type of analysis)
 }
 
 # Machine learning preprocessing

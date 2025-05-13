@@ -55,13 +55,11 @@ data_Pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
 
 ## 3. Set results path to save tables and images
 ```{r}
-output_mainpath_HC_Pat <- file.path(params$output_base_path, "HC_vs_Pat", params$response_criterion)
-output_mainpath_Response <- file.path(params$output_base_path, "R_vs_NR", params$response_criterion)
-
 results_path_HC_Pat <- create_results_path(inputdata_path = basic_path, 
-                                      output_mainpath = output_mainpath_HC_Pat)
-results_path_Response <- create_results_path(inputdata_path = basic_path, 
-                                      output_mainpath = output_mainpath_Response)
+                                           output_mainpath = file.path(params$output_base_path, "HC_vs_Pat"))
+base_results_path_Response <- create_results_path(inputdata_path = basic_path, 
+                                                  output_mainpath = file.path(params$output_base_path, "R_vs_NR"))
+results_path_Response <- file.path(base_results_path_Response, params$response_criterion)
 ```
 
 ## 4. Prepare dataset
