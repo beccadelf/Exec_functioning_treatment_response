@@ -10,7 +10,9 @@ source("Useful_functions.R")
 base_path <- "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation"
 parent_path <- dirname(base_path)
 
+# ===========================
 # 1. Taskdata_preprocessing-Skript
+# ===========================
 # Define the parameters you want to iterate over
 RT_trimming_options <- c(TRUE,FALSE)
 RT_remove_wrong_options <- c(TRUE,FALSE)
@@ -40,7 +42,9 @@ for (RT_trimming in RT_trimming_options) {
     }
   }
 
+# ===========================
 # 2. BIS-Script
+# ===========================
 outliers_removed_options <- c("yes", "no")
 input_data_path_options <- c(
   file.path(base_path, "not_trimmed_not_removed"),
@@ -62,7 +66,7 @@ for (outliers_removed in outliers_removed_options) {
       params_list <- list(outliers_removed = outliers_removed, input_data_path = input_data_path)
       
       output_filename <- generate_htmlfilename_BIS(outliers_removed)
-      outliers_text <- ifelse(outliers_removed == "yes", "outliers-removed", "outliers-not-removed")
+      #outliers_text <- ifelse(outliers_removed == "yes", "outliers-removed", "outliers-not-removed")
       
       rmarkdown::render(
         input = file.path(base_path, "Add_groupinfo_calc_BIS.Rmd"),
@@ -74,8 +78,9 @@ for (outliers_removed in outliers_removed_options) {
 }
 }
 
-
+# ===========================
 # 3. Group comparison, descriptive tables, and machine learning analyses
+# ===========================
 # General further processing
 response_criteria <- c("response_FSQ", "response_BAT")
 inputdata_variants_paths <- c(
@@ -102,7 +107,8 @@ generate_htmlfilename_analyses <- function(input_data_path, prefix, response_cri
   paste0(filename, ".html")
 }
 
-# Group comparison script (HC vs. patients)
+# ---- Group comparison script (HC vs. patients) ----
+
 for (input_data_path in inputdata_variants_paths) {
     
     full_input_path <- file.path(input_data_path, "response_FSQ")
@@ -112,13 +118,13 @@ for (input_data_path in inputdata_variants_paths) {
       output_base_path = file.path(parent_path, "1_Group_comparison/HC_vs_Pat")
       )
     
-    output_mainpath <- params_list$output_base_path
     results_path <- create_results_path(
       inputdata_path = full_input_path,
-      output_mainpath = output_mainpath
+      output_mainpath = params_list$output_base_path
     )
     
-    output_filename <- generate_htmlfilename_analyses(full_data_path, prefix = "HC_vs_patients")
+    # Main script
+    output_filename <- generate_htmlfilename_analyses(input_data_path, prefix = "HC_vs_patients")
     output_path <- file.path(results_path, output_filename)
     
     rmarkdown::render(
@@ -128,9 +134,22 @@ for (input_data_path in inputdata_variants_paths) {
       envir = new.env()
     )
     cat("Generated file:", output_filename, "\n")
+    
+    # Decsriptives
+    output_filename_descr <- generate_htmlfilename_analyses(input_data_path, prefix = "Descriptives_HC_vs_patients")
+    output_path_descr <- file.path(results_path, output_filename_descr)
+    
+    rmarkdown::render(
+      input = "Group Comparison_Executive Functions\\Descriptive_Tabels_Healthy_Controls_Patients.Rmd",
+      output_file = output_path_descr,
+      params = params_list,
+      envir = new.env()
+    )
+    cat("Generated file:", output_filename_descr, "\n")
 }
 
-# Group comparison script (Response vs. Nonresponse)
+# ---- Group comparison script (Response vs. Nonresponse) ----
+
 for (input_data_path in inputdata_variants_paths) {
   for (response_criterion in response_criteria) {
     
@@ -141,13 +160,14 @@ for (input_data_path in inputdata_variants_paths) {
       response_criterion = response_criterion,
       output_base_path = file.path(parent_path, "1_Group_comparison/R_vs_NR"))
     
-    output_mainpath <- file.path(params_list$output_base_path, response_criterion)
-    results_path <- create_results_path(
+    base_results_path <- create_results_path(
       inputdata_path = full_input_path,
-      output_mainpath = output_mainpath
+      output_mainpath = params_list$output_base_path
     )
+    results_path <- file.path(base_results_path, params_list$response_criterion)
     
-    output_filename <- generate_htmlfilename_analyses(full_data_path, prefix = "Response_vs_Nonresponse")
+    # Main script
+    output_filename <- generate_htmlfilename_analyses(input_data_path, prefix = "Response_vs_Nonresponse")
     output_path <- file.path(results_path, output_filename)
     
     rmarkdown::render(
@@ -157,20 +177,23 @@ for (input_data_path in inputdata_variants_paths) {
       envir = new.env()
     )
     cat("Generated file:", output_filename, "\n")
+    
+    # Descriptives
+    output_filename_descr <- generate_htmlfilename_analyses(input_data_path, prefix = "Descriptives_Response_vs_Nonresponse")
+    output_path_descr <- file.path(results_path, output_filename_descr)
+    
+    rmarkdown::render(
+      input = "Group Comparison_Executive Functions\\Descriptive_Tables_Response_Nonresponse.Rmd.Rmd",
+      output_file = output_path_descr,
+      params = params_list,
+      envir = new.env()
+    )
+    cat("Generated file:", output_filename_descr, "\n")
   }
 }
 
-# Descriptive tables (descriptive comparisons and task-wise descriptive statistics)
-for (input_data_path in inputdata_variants_paths) {
-  params_list <- list(
-    input_data_path = input_data_path,
-    output_base_path = file.path(parent_path, "1_Group_comparison"),
-    response_criterion = response_criterion
-  )
-  # TODO: think about where to best save the corresponding html's (as "Tables_for_pub uses two different output pathes depending on the type of analysis)
-}
+# ---- Machine learning preprocessing ----
 
-# Machine learning preprocessing
 for (input_data_path in inputdata_variants_paths) {
   for (response_criterion in response_criteria) {
     
@@ -181,13 +204,13 @@ for (input_data_path in inputdata_variants_paths) {
       response_criterion = response_criterion,
       output_base_path = file.path(parent_path, "2_Machine_Learning/Feature_Label_Dataframes"))
     
-    output_mainpath <- file.path(params_list$output_base_path, response_criterion)
-    results_path <- create_results_path(
+    base_results_path <- create_results_path(
       inputdata_path = full_input_path,
-      output_mainpath = output_mainpath
+      output_mainpath = params_list$output_base_path
     )
+    results_path <- file.path(base_results_path, params_list$response_criterion)
     
-    output_filename <- generate_htmlfilename_analyses(full_data_path, prefix = "Machine_learning_preparation")
+    output_filename <- generate_htmlfilename_analyses(input_data_path, prefix = "Machine_learning_preparation")
     output_path <- file.path(results_path, output_filename)
     
     rmarkdown::render(

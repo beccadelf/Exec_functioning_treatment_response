@@ -1,10 +1,12 @@
-# Useful Functions
 
-####################################################
+# ===========================
 # File Management and Settings
-####################################################
+# ===========================
 
-# This function creates a path to save the results which is named after the folder-structure of the import-data path
+# ---- Create results paths ----
+# This function creates a path to save the results which is named after the folder-structure 
+# of the import-data path
+
 create_results_path <- function(inputdata_path, output_mainpath){
   # Get the part of the file-path describing the dealing with outliers
   outliers_part = dirname(inputdata_path)
@@ -21,6 +23,7 @@ create_results_path <- function(inputdata_path, output_mainpath){
   return(output_path)
 }
 
+# ---- Standardize variable naming ----
 # Function that uses a centralized label map to rename variables
 
 variable_labels <- c(
@@ -67,11 +70,14 @@ reorder_and_rename_rows <- function(df, col_name, label_map) {
 }
 
 
-####################################################
+# ===========================
 # Statistical Analyses
-####################################################
+# ===========================
 
-# Function to create a dummy-variable "Abschluss_Gymnasium" to account for underrepresented and meaningless categories
+# ---- Dummy code "Abschluss" ----
+# Function to create a dummy-variable "Abschluss_Gymnasium" to account for underrepresented 
+# and meaningless categories
+
 dummy_code_education <- function(data) {
   data[["Abschluss"]] <- as.factor(data[["Abschluss"]]) 
   levels(data[["Abschluss"]]) <- list("Hauptschule" = "1", "Realschule" = "2", "Gymnasium" = "3", "Anderes" = "4")
@@ -88,6 +94,7 @@ dummy_code_education <- function(data) {
 }
 
 
+# ---- t-test for multiple comparisons ----
 # Function to calculate an independent-sample Welch t-test for multiple comparisons 
 # and store the results in a dataframe
 
@@ -161,6 +168,7 @@ t_test_mult_cols <- function(df_basis, cols, grouping_variable) {
 }
 
 
+# ---- Chi-square test for multiple comparisons ----
 # Function to calculate a Chi-square test for multiple comparisons and store the results in a dataframe
 
 chi_sq_test_mult_cols <- function(df_basis, cols, grouping_variable){
@@ -225,6 +233,7 @@ chi_sq_test_mult_cols <- function(df_basis, cols, grouping_variable){
 }
 
 
+# ---- Levene's test on multiple IVs ----
 # Function to perform Levene's test for homogeneity of variance on multiple independent variables
 
 levene_test_mult_cols <- function(df_basis, cols, grouping_variable) {
@@ -245,10 +254,11 @@ levene_test_mult_cols <- function(df_basis, cols, grouping_variable) {
 }
 
 
-####################################################
+# ===========================
 # Results tables (for publication)
-####################################################
+# ===========================
 
+# ---- Flextable & Word settings ----
 # Function to configure flextable settings and Word document formatting
 
 flextable_settings <- function(
@@ -285,8 +295,9 @@ flextable_settings <- function(
   return(format_table)
 }
 
-
+# ---- Create and save flextable ----
 # Function to create and save a flextable, using formatting according to APA
+
 create_save_flextable <- function(
     table_pub, results_path, file_name) {
   ft <- flextable(table_pub)
@@ -309,7 +320,9 @@ create_save_flextable <- function(
 }
 
 
-# Function to concatenate (t-)test results for dimensional and categorical variables in a standardized way 
+# ---- Concatenate test results ----
+# Function to concatenate (t-)test results for dimensional and categorical variables 
+# in a standardized way 
 
 prepare_ttest_table <- function(ttest_table, var_type = c("dimensional", "categorical"), group_0, group_1) {
   type <- match.arg(var_type)
@@ -343,4 +356,54 @@ prepare_ttest_table <- function(ttest_table, var_type = c("dimensional", "catego
   colnames(t_test_table_pub) <- c("Variable", group_0, group_1, "Statistic", paste0("Missings_", group_0), paste0("Missings_", group_1))
   
   return(t_test_table_pub)
+}
+
+
+# ---- Generate characteristics table (task-wise) ----
+
+generate_characteristics_table <- function(data, task_name, grouping_variable, group_labels) {
+  data %>%
+    select({{ grouping_variable }}, Alter, Geschlecht, Abschluss, 
+           T1_BAT_BDI_II_score, T1_BAT_BIS_11_score, T1_BAT_CFC_14_score, 
+           T1_BAT_FAS_score, T1_BAT_Kirby_k_score, T1_BAT_SRHI_score, T1_BAT_STAI_T_score) %>%
+    mutate({{ grouping_variable }} := factor({{ grouping_variable }}, levels = c(0, 1), labels = group_labels),
+           Geschlecht = factor(Geschlecht, levels = c(0, 1), labels = c("Male", "Female")),
+           Abschluss = factor(Abschluss, levels = c(1, 2, 3, 4), 
+                              labels = c("Basic secondary education", 
+                                         "Intermediate secondary education",
+                                         "Higher secondary education", 
+                                         "Other"))) %>%
+    tbl_summary(by = {{ grouping_variable }},  
+                digits = list(T1_BAT_BDI_II_score = c(1, 1),
+                              T1_BAT_BIS_11_score = c(1, 1),
+                              T1_BAT_CFC_14_score = c(1, 1),
+                              T1_BAT_FAS_score = c(1, 1),
+                              T1_BAT_SRHI_score = c(1, 1),
+                              T1_BAT_STAI_T_score= c(1, 1)),
+                label = list(
+                  Alter ~ "Age",
+                  Geschlecht ~ "Sex",
+                  Abschluss ~ "Education",
+                  T1_BAT_FAS_score ~ "FSQ Score",
+                  T1_BAT_BDI_II_score ~ "BDI-II Score",
+                  T1_BAT_STAI_T_score ~ "STAI-T Score",
+                  T1_BAT_BIS_11_score ~ "BIS-11 Score",
+                  T1_BAT_Kirby_k_score ~ "Kirby k Score",
+                  T1_BAT_CFC_14_score ~ "CFC-14 Score",
+                  T1_BAT_SRHI_score ~ "SRHI Score"
+                ),
+                statistic = list(
+                  all_continuous() ~ "{mean} ({sd})",
+                  all_categorical() ~ "{n} ({p}%)"
+                ),
+                missing = "ifany" # or "no" to not display
+    ) %>%
+    modify_header(label ~ "**Characteristic**") %>%
+    modify_spanning_header(
+      starts_with("T1_BAT_") ~ "**Baseline Assessment**"
+    ) %>%
+    # Remove the row for "Male" in sex
+    modify_table_body(
+      ~ .x %>% filter(!(variable == "Geschlecht" & label == "Male"))
+    ) 
 }
