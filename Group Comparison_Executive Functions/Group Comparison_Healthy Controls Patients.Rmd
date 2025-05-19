@@ -9,7 +9,7 @@ output:
     code_folding: hide
     df_print: paged
 params:
-  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
+  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/not_trimmed_not_removed/BIS/outliers-not-removed/response_FSQ"
   output_base_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/HC_vs_Pat"
 ---
 <style type="text/css">
@@ -48,27 +48,19 @@ source("../Useful_functions.R")
 ```
 
 # Set-Up
-
-### 1. Settings flextable
+## 1. Importing Data
 ```{r}
-format_flextable_portrait <- flextable_settings(word_orientation = "portrait")
-format_flextable_landscape <- flextable_settings(word_orientation = "landscape")
+data_HC <- read.csv(file.path(params$input_data_path,"Data_HC.csv"))
+data_Pat_pre <- read.csv(file.path(params$input_data_path,"Data_Patients_Pre.csv"))
 ```
 
-### 2. Importing Data
+## 2. Set results path to save tables and images
 ```{r}
-basic_path = file.path(params$input_data_path, "response_FSQ")
-data_HC <- read.csv(file.path(basic_path,"Data_HC.csv"))
-data_Pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
-```
-
-### 3. Set results path to save tables and images
-```{r}
-results_path <- create_results_path(inputdata_path = basic_path, 
+results_path <- create_results_path(inputdata_path = params$input_data_path, 
                                     output_mainpath = params$output_base_path)
 ```
 
-### 4. Prepare dataset
+## 3. Prepare dataset
 ```{r}
 ## 1. Merge patients pre and controls
 Patients_vs_HC <- rbind(data_Pat_pre, data_HC)
@@ -82,11 +74,10 @@ Patients_vs_HC_imp <- Patients_vs_HC[,c("Subject","Gruppe",imp_columns)]
 ## 3. Add confounds (Alter, Geschlecht, Abschluss)
 Patients_vs_HC_imp_conf <- merge(Patients_vs_HC[,c("Subject","Alter","Geschlecht","Abschluss")], Patients_vs_HC_imp, by = "Subject")
 ```
-In total, data for `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1,])` patients and `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0,])` healthy controls were available. When outliers were removed, the number of subjects varied slightly: 
+In total, data for `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1,])` patients and `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0,])` healthy controls were available. When outliers were removed, the number of subjects varied slightly:  
 Number-Letter Task: `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0 & !is.na(Patients_vs_HC_imp$NumberLetter_BIS_Repeat),])` healthy controls,  `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1 & !is.na(Patients_vs_HC_imp$NumberLetter_BIS_Repeat),])` patients;  
 Stroop Task: `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0 & !is.na(Patients_vs_HC_imp$Stroop_BIS_Congruent),])` healthy controls,  `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1 & !is.na(Patients_vs_HC_imp$Stroop_BIS_Congruent),])` patients;  
 2back-Task: `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0 & !is.na(Patients_vs_HC_imp$TwoBack_BIS_Total),])` healthy controls,  `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1 & !is.na(Patients_vs_HC_imp$TwoBack_BIS_Total),])` patients;  
-
 SSRT: `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0 & !is.na(Patients_vs_HC_imp$SSRT),])` healthy controls,  `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1 & !is.na(Patients_vs_HC_imp$SSRT),])` patients.
 
 
@@ -145,7 +136,6 @@ t_test_table_pub <- reorder_and_rename_rows(df = t_test_table_pub, col_name = "P
 ```{r}
 create_save_flextable(table_pub = t_test_table_pub, results_path = results_path, file_name = "t-test_Patients_HCs.docx")
 ```
-
 
 # Plotting
 

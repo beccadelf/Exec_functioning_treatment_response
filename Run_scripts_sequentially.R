@@ -17,7 +17,7 @@ parent_path <- dirname(base_path)
 RT_trimming_options <- c(TRUE,FALSE)
 RT_remove_wrong_options <- c(TRUE,FALSE)
 
-# Create a function to generate the filename based on options chosen for 
+# Create a function to generate the filename based on options chosen for
 # the preprocessing of the reaction time
 generate_htmlfilename_meanRTacc<- function(RT_trimming, RT_remove_wrong) {
   trimming_text <- ifelse(RT_trimming == TRUE, "trimmed", "not_trimmed")
@@ -29,9 +29,9 @@ generate_htmlfilename_meanRTacc<- function(RT_trimming, RT_remove_wrong) {
 for (RT_trimming in RT_trimming_options) {
   for (RT_remove_wrong in RT_remove_wrong_options){
         params_list <- list(RT_trimming = RT_trimming, RT_remove_wrong =  RT_remove_wrong )
-        
+
         output_filename <- generate_htmlfilename_meanRTacc(RT_trimming, RT_remove_wrong)
-      
+
         rmarkdown::render(
           input = file.path(base_path, "Calc_meanRT_meanacc.Rmd"),
           output_file = output_filename,
@@ -56,7 +56,7 @@ input_data_path_options <- c(
 # Create a function to generate the filename based on parameters
 generate_htmlfilename_BIS <- function(outliers_removed) {
   # Get the name of the input data folder as it tells us how the mean RT was calculated
-  last_folder <- basename(input_data_path) 
+  last_folder <- basename(input_data_path)
   outliers_text <- ifelse(outliers_removed == "yes", "outliers-removed", "outliers-not-removed")
   paste0("Add_groupinfo_calc_BIS_", last_folder, "_", outliers_text,".html")
 }
@@ -64,12 +64,12 @@ generate_htmlfilename_BIS <- function(outliers_removed) {
 for (outliers_removed in outliers_removed_options) {
   for (input_data_path in input_data_path_options){
       params_list <- list(outliers_removed = outliers_removed, input_data_path = input_data_path)
-      
+
       output_filename <- generate_htmlfilename_BIS(outliers_removed)
       #outliers_text <- ifelse(outliers_removed == "yes", "outliers-removed", "outliers-not-removed")
-      
+
       rmarkdown::render(
-        input = file.path(base_path, "Add_groupinfo_calc_BIS.Rmd"),
+        input = file.path(base_path, "Add_groupinfo_calc_BIS_new.Rmd"),
         output_file = output_filename,
         params = params_list,
         envir = new.env()
@@ -110,37 +110,39 @@ generate_htmlfilename_analyses <- function(input_data_path, prefix, response_cri
 # ---- Group comparison script (HC vs. patients) ----
 
 for (input_data_path in inputdata_variants_paths) {
-    
+
+    # We use the FSQ-data as it does not make a difference
     full_input_path <- file.path(input_data_path, "response_FSQ")
-    
+
+    # These are the parameters of the html-file
     params_list <- list(
       input_data_path = full_input_path,
       output_base_path = file.path(parent_path, "1_Group_comparison/HC_vs_Pat")
       )
-    
+
+    # Get the outputpath to save the html
     results_path <- create_results_path(
       inputdata_path = full_input_path,
       output_mainpath = params_list$output_base_path
     )
-    
-    # Main script
     output_filename <- generate_htmlfilename_analyses(input_data_path, prefix = "HC_vs_patients")
     output_path <- file.path(results_path, output_filename)
-    
+
+    cat("Generated file:", output_filename, "\n")
     rmarkdown::render(
       input = "Group Comparison_Executive Functions\\Group Comparison_Healthy Controls Patients.Rmd",
       output_file = output_path,
       params = params_list,
       envir = new.env()
     )
-    cat("Generated file:", output_filename, "\n")
-    
-    # Decsriptives
+
+
+    # Descriptives
     output_filename_descr <- generate_htmlfilename_analyses(input_data_path, prefix = "Descriptives_HC_vs_patients")
     output_path_descr <- file.path(results_path, output_filename_descr)
-    
+
     rmarkdown::render(
-      input = "Group Comparison_Executive Functions\\Descriptive_Tabels_Healthy_Controls_Patients.Rmd",
+      input = "Group Comparison_Executive Functions\\Descriptive_Tables_Healthy_Controls_Patients.Rmd",
       output_file = output_path_descr,
       params = params_list,
       envir = new.env()
@@ -160,12 +162,12 @@ for (input_data_path in inputdata_variants_paths) {
       response_criterion = response_criterion,
       output_base_path = file.path(parent_path, "1_Group_comparison/R_vs_NR"))
     
-    base_results_path <- create_results_path(
+    results_path <- create_results_path(
       inputdata_path = full_input_path,
-      output_mainpath = params_list$output_base_path
+      output_mainpath = params_list$output_base_path,
+      response_criterion =  params_list$response_criterion
     )
-    results_path <- file.path(base_results_path, params_list$response_criterion)
-    
+   
     # Main script
     output_filename <- generate_htmlfilename_analyses(input_data_path, prefix = "Response_vs_Nonresponse")
     output_path <- file.path(results_path, output_filename)
@@ -183,7 +185,7 @@ for (input_data_path in inputdata_variants_paths) {
     output_path_descr <- file.path(results_path, output_filename_descr)
     
     rmarkdown::render(
-      input = "Group Comparison_Executive Functions\\Descriptive_Tables_Response_Nonresponse.Rmd.Rmd",
+      input = "Group Comparison_Executive Functions\\Descriptive_Tables_Response_Nonresponse.Rmd",
       output_file = output_path_descr,
       params = params_list,
       envir = new.env()
@@ -204,11 +206,11 @@ for (input_data_path in inputdata_variants_paths) {
       response_criterion = response_criterion,
       output_base_path = file.path(parent_path, "2_Machine_Learning/Feature_Label_Dataframes"))
     
-    base_results_path <- create_results_path(
+    results_path <- create_results_path(
       inputdata_path = full_input_path,
-      output_mainpath = params_list$output_base_path
+      output_mainpath = params_list$output_base_path,
+      response_criterion = response_criterion
     )
-    results_path <- file.path(base_results_path, params_list$response_criterion)
     
     output_filename <- generate_htmlfilename_analyses(input_data_path, prefix = "Machine_learning_preparation")
     output_path <- file.path(results_path, output_filename)

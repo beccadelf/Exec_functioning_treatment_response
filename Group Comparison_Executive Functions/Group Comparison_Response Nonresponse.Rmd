@@ -9,9 +9,9 @@ output:
     code_folding: hide
     df_print: paged
 params:
-  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
+  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/RT_trimmed_RT_wrong_removed/BIS/outliers-not-removed"
   output_base_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/R_vs_NR"
-  response_criterion: "response_FSQ" # choose between "response_FSQ" or "response_BAT"
+  response_criterion: "response_BAT" # choose between "response_FSQ" or "response_BAT"
   
 ---
 <style type="text/css">
@@ -62,9 +62,9 @@ data_Pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
 
 ### 3. Set results path to save tables and images
 ```{r}
-base_results_path <- create_results_path(inputdata_path = basic_path, 
-                                         output_mainpath = params$output_base_path)
-results_path <- file.path(base_results_path, params$response_criterion)
+results_path <- create_results_path(inputdata_path = basic_path, 
+                                         output_mainpath = params$output_base_path,
+                                         response_criterion =  params$response_criterion)
 ```
 
 ### 4. Prepare dataset
@@ -126,21 +126,21 @@ t_test_table_pub <- reorder_and_rename_rows(df = t_test_table_pub, col_name = "P
 ```
 
 ### 5. Create and save flextable
-```{r flextable settings, echo=FALSE, warning = FALSE}
-ft_t_test <- flextable(t_test_table_pub)
+```{r flextablesettings, echo=FALSE, warning = FALSE}
+ft_t_test <- flextable::flextable(t_test_table_pub)
 
 # Set table properties
-ft_t_test <- set_table_properties(ft_t_test, width = 1, layout = "autofit")
+ft_t_test <- flextable::set_table_properties(ft_t_test, width = 1, layout = "autofit")
 
 # Header in bold
-ft_t_test <- bold(ft_t_test, bold = TRUE, part = "header")
+ft_t_test <- flextable::bold(ft_t_test, bold = TRUE, part = "header")
 
 # Alignments
-ft_t_test <- align(ft_t_test, j = 1, align = "left", part = "all") # first column
-ft_t_test <- align(ft_t_test, j = 2:ncol(t_test_table_pub), align = "center", part = "all") # rest
+ft_t_test <- flextable::align(ft_t_test, j = 1, align = "left", part = "all") # first column
+ft_t_test <- flextable::align(ft_t_test, j = 2:ncol(t_test_table_pub), align = "center", part = "all") # rest
 
 # Export flextable
-save_as_docx(
+flextable::save_as_docx(
   ft_t_test,
   path = file.path(results_path, "t-test_Responder_Nonresponder.docx"), 
   pr_section = format_flextable_portrait)
@@ -217,10 +217,11 @@ violin_plots_response_vs_nonresponse <- ggplot(Response_vs_NonResponse_long, aes
     strip.text = element_text(size = 20),
     panel.spacing.x = unit(3, "lines")
   )
-print(violin_plots_response_vs_nonresponse)
+#print(violin_plots_response_vs_nonresponse)
 
 ggsave(file.path(results_path,"violin_plots_response_nonresponse.png"), 
        plot = violin_plots_response_vs_nonresponse, width = 16, height = 9, dpi = 300)
 ggsave(file.path(results_path, "violin_plots_response_nonresponse.svg"), 
        plot = violin_plots_response_vs_nonresponse, width = 16, height = 9, dpi = 300)
+
 ```
