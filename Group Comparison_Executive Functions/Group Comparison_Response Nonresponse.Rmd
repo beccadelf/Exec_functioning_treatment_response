@@ -10,6 +10,8 @@ output:
     df_print: paged
 params:
   input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
+  output_base_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/R_vs_NR"
+  response_criterion: "response_FSQ" # choose between "response_FSQ" or "response_BAT"
   
 ---
 <style type="text/css">
@@ -54,16 +56,15 @@ format_flextable_landscape <- flextable_settings(word_orientation = "landscape")
 
 ### 2. Import Data 
 ```{r}
-basic_path <- params$input_data_path
+basic_path <- file.path(params$input_data_path, params$response_criterion)
 data_Pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
 ```
 
 ### 3. Set results path to save tables and images
 ```{r}
-results_path <- create_results_path(inputdata_path = basic_path, 
-                                      output_mainpath =
-                                        "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/R_vs_NR"
-                                          )
+base_results_path <- create_results_path(inputdata_path = basic_path, 
+                                         output_mainpath = params$output_base_path)
+results_path <- file.path(base_results_path, params$response_criterion)
 ```
 
 ### 4. Prepare dataset
@@ -73,267 +74,6 @@ data_Pat_pre_clean <- data_Pat_pre[!is.na(data_Pat_pre$Response),]
 ```
 We had `r nrow(data_Pat_pre[!is.na(data_Pat_pre$Response),])` patients with a post-value available, and `r nrow(data_Pat_pre_clean[data_Pat_pre_clean$Response == 1,])`
 
-
-# Descriptive Statistics
-### 1. Prepare task-specific data frame of characteristics
-```{r}
-# 1. Subset data frame by non-NA for respective tasks
-task_list <- list(
-  "Stroop Task" = list(
-    subset_data = data_Pat_pre_clean %>%
-      filter(!is.na(Stroop_BIS_Congruent) & 
-             !is.na(Stroop_BIS_Incongruent) & 
-             !is.na(Stroop_BIS_Diff_Score))
-  ),
-  "Number-Letter Task" = list(
-    subset_data = data_Pat_pre_clean %>%
-      filter(!is.na(NumberLetter_BIS_Repeat) & 
-             !is.na(NumberLetter_BIS_Switch) & 
-             !is.na(NumberLetter_BIS_Diff_Score))
-  ),
-  "2-Back Task" = list(
-    subset_data = data_Pat_pre_clean %>%
-      filter(!is.na(TwoBack_BIS_Foil) & 
-             !is.na(TwoBack_BIS_Target) & 
-             !is.na(TwoBack_BIS_Total))
-  ),
-  "Stop Signal Task" = list(
-    subset_data = data_Pat_pre_clean %>%
-      filter(!is.na(SSRT))
-  )
-)
-
-
-# 2. Function to generate characteristics table
-generate_characteristics_table <- function(data, task_name) {
-  data %>%
-    select(Response, Alter, Geschlecht, Abschluss, 
-           T1_BAT_BDI_II_score, T1_BAT_BIS_11_score, T1_BAT_CFC_14_score, 
-           T1_BAT_FAS_score, T1_BAT_Kirby_k_score, T1_BAT_SRHI_score, T1_BAT_STAI_T_score) %>%
-    mutate(Response = factor(Response, levels = c(0, 1), labels = c("Non-Response", "Response")),
-           Geschlecht = factor(Geschlecht, levels = c(0, 1), labels = c("Male", "Female")),
-           Abschluss = factor(Abschluss, levels = c(1, 2, 3, 4), 
-                              labels = c("Basic secondary education", 
-                                         "Intermediate secondary education",
-                                         "Higher secondary education", 
-                                         "Other"))) %>%
-    tbl_summary(by = Response,  # Compare by Response
-                digits = list(T1_BAT_BDI_II_score = c(1, 1),
-                              T1_BAT_BIS_11_score = c(1, 1),
-                              T1_BAT_CFC_14_score = c(1, 1),
-                              T1_BAT_FAS_score = c(1, 1),
-                              T1_BAT_SRHI_score = c(1, 1),
-                              T1_BAT_STAI_T_score= c(1, 1)),
-                label = list(
-                  Alter ~ "Age",
-                  Geschlecht ~ "Sex",
-                  Abschluss ~ "Education",
-                  T1_BAT_BDI_II_score ~ "BDI-II Score",
-                  T1_BAT_BIS_11_score ~ "BIS-11 Score",
-                  T1_BAT_CFC_14_score ~ "CFC-14 Score",
-                  T1_BAT_FAS_score ~ "FSQ Score",
-                  T1_BAT_Kirby_k_score ~ "Kirby k Score",
-                  T1_BAT_SRHI_score ~ "SRHI Score",
-                  T1_BAT_STAI_T_score ~ "STAI-T Score"
-                ),
-      statistic = list(
-        all_continuous() ~ "{mean} ({sd})",
-        all_categorical() ~ "{n} ({p}%)"
-      ),
-      missing = "no"
-    ) %>%
-    modify_header(label ~ "**Characteristic**") %>%
-    modify_spanning_header(
-      starts_with("T1_BAT_") ~ "**Baseline Assessment**"
-    ) %>%
-    # Remove the row for "Male" in sex
-    modify_table_body(
-      ~ .x %>% filter(!(variable == "Geschlecht" & label == "Male"))
-    )
-}
-
-# Loop through the tasks and create tables
-characteristics_tables <- lapply(names(task_list), function(task_name) {
-  data <- task_list[[task_name]]$subset_data
-  generate_characteristics_table(data, task_name)
-})
-
-# Name the tables for easy reference
-names(characteristics_tables) <- names(task_list)
-
-
-# 3. Combined data frame of task-specific descriptive characteristics
-# Calculate N for Healthy Controls and Patients for each task
-calculate_n <- function(data) {
-  data %>%
-    group_by(Response) %>%
-    summarize(N = n(), .groups = "drop") %>%
-    pivot_wider(names_from = Response, values_from = N, names_prefix = "Group_") %>%
-    rename("Non-Response" = Group_0, "Response" = Group_1)
-}
-
-# Get N for each task
-stroop_n <- calculate_n(task_list[["Stroop Task"]]$subset_data)
-number_letter_n <- calculate_n(task_list[["Number-Letter Task"]]$subset_data)
-two_back_n <- calculate_n(task_list[["2-Back Task"]]$subset_data)
-ssrt_n <- calculate_n(task_list[["Stop Signal Task"]]$subset_data)
-
-# Convert the tbl_summary tables to tibbles and rename columns dynamically (no information on specific N needed)
-stroop_df <- as_tibble(characteristics_tables[["Stroop Task"]]) %>%
-  rename_with(~ c("Non-Response", "Response"), .cols = 2:3)
-
-number_letter_df <- as_tibble(characteristics_tables[["Number-Letter Task"]]) %>%
-  rename_with(~ c("Non-Response", "Response"), .cols = 2:3)
-
-two_back_df <- as_tibble(characteristics_tables[["2-Back Task"]]) %>%
-  rename_with(~ c("Non-Response", "Response"), .cols = 2:3)
-
-ssrt_df <- as_tibble(characteristics_tables[["Stop Signal Task"]]) %>%
-  rename_with(~ c("Non-Response", "Response"), .cols = 2:3)
-
-# Insert the "N" row into each data frame
-stroop_df <- rbind(
-  tibble("**Characteristic**" = "N", 
-         "Non-Response" = stroop_n[["Non-Response"]], 
-         "Response" = stroop_n[["Response"]]),
-  stroop_df
-)
-number_letter_df <- rbind(
-  tibble("**Characteristic**" = "N", 
-         "Non-Response" = number_letter_n[["Non-Response"]], 
-         "Response" = number_letter_n[["Response"]]),
-  number_letter_df
-)
-two_back_df <- rbind(
-  tibble("**Characteristic**" = "N", 
-         "Non-Response" = two_back_n[["Non-Response"]], 
-         "Response" = two_back_n[["Response"]]),
-  two_back_df
-)
-ssrt_df <- rbind(
-  tibble("**Characteristic**" = "N", 
-         "Non-Response" = ssrt_n[["Non-Response"]], 
-         "Response" = ssrt_n[["Response"]]),
-  ssrt_df
-)
-
-# Combine the modified data frames
-characteristics_tasks <- cbind(
-  stroop_df[, "**Characteristic**", drop = FALSE],  # Include "Characteristic" column only once
-  stroop_df[, -which(names(stroop_df) == "**Characteristic**")],
-  number_letter_df[, -which(names(number_letter_df) == "**Characteristic**")],
-  two_back_df[, -which(names(two_back_df) == "**Characteristic**")],
-  ssrt_df[, -which(names(ssrt_df) == "**Characteristic**")]  # Drop "Characteristic" column from all others
-)
-```
-
-### 2. Flextable of characteristics by task
-```{r}
-# Rename columns to ensure uniqueness
-colnames(characteristics_tasks) <- c(
-  "Characteristic", 
-  "Stroop_NR", "Stroop_R", 
-  "Number_Letter_NR", "Number_Letter_R", 
-  "Two_Back_NR", "Two_Back_R", 
-  "Stop_Signal_NR", "Stop_Signal_R"
-)
-
-# Define primary (task) and secondary (HC vs Pat) headers
-primary_headers <- c("Characteristic", "Stroop Task", "Stroop Task", 
-                     "Number-Letter Task", "Number-Letter Task", 
-                     "2-Back Task", "2-Back Task", 
-                     "Stop Signal Task", "Stop Signal Task")
-
-secondary_headers <- c("Characteristic", "Non-Response", "Response", 
-                       "Non-Response", "Response", 
-                       "Non-Response", "Response", 
-                       "Non-Response", "Response")
-
-# Create a flextable
-ft <- flextable(characteristics_tasks)
-
-# Add primary and secondary column headers
-ft <- set_header_df(
-  x = ft,
-  mapping = data.frame(
-    keys = colnames(characteristics_tasks),
-    primary = primary_headers,
-    secondary = secondary_headers,
-    stringsAsFactors = FALSE
-  ),
-  key = "keys"
-)
-
-# Merge the primary headers to span across related columns
-ft <- merge_h(ft, part = "header")
-
-# Align and format the headers
-ft <- align(ft, align = "center", part = "header")
-ft <- bold(ft, part = "header")
-ft <- autofit(ft)
-
-# Write to Word
-save_as_docx(
-  ft,
-  path = file.path(results_path, "Characteristics_Response_Nonresponse.docx"), 
-  pr_section = format_flextable_landscape)
-ft
-```
-
-## 3. Get information about removed trials during the calculation of the mean RT
-```{r}
-library(dplyr)
-
-# Select columns
-columns_n_trimmed <- grep("_n_trimmed_removed_RT$", names(data_Pat_pre_clean), value = TRUE)
-columns_n_wrong <- grep("_n_wrong_removed_RT$", names(data_Pat_pre_clean), value = TRUE)
-
-# Create a data frame dynamically
-df <- data.frame(
-  Condition = gsub("_n_trimmed_removed_RT", "", columns_n_trimmed),  # Remove suffix for clean names
-  n_trimmed_removed = sapply(data_Pat_pre_clean[ columns_n_trimmed], mean, na.rm = TRUE),
-  n_trimmed_removed_sd = sapply(data_Pat_pre_clean[ columns_n_trimmed], sd, na.rm = TRUE),
-  n_wrong_removed = sapply(data_Pat_pre_clean[columns_n_wrong], mean, na.rm = TRUE),
-  n_wrong_removed_sd = sapply(data_Pat_pre_clean[columns_n_wrong], sd, na.rm = TRUE)
-)
-
-# Rename variables
-df$Condition <- dplyr::recode(df$Condition, Repeat = "Number-Letter: Repeat",
-                          Switch = "Number-Letter: Switch", Congruent = "Stroop: Congruent",
-                          Incongruent = "Stroop: Incongruent", Foil = "2-Back: Foil", 
-                          Target = "2-Back: Target")
-colnames(df) <- c("Condition", "Number of trials removed due to trimming (Mean)",
-                  "Number of trials removed due to trimming (SD)",
-                  "Number of wrong trials removed (Mean)",
-                  "Number of wrong trials removed (SD)")
-
-# Turn to flextable
-ft_removedRT <- flextable(df)
-
-# Round to 2
-ft_removedRT <- colformat_double(ft_removedRT, digits = 2)
-
-# Set table properties
-ft_removedRT <- set_table_properties(ft_removedRT, width = 1, layout = "autofit")
-
-# Header in bold
-ft_removedRT <- bold(ft_removedRT, bold = TRUE, part = "header")
-
-# Alignments
-ft_removedRT<- align(ft_removedRT, j = 1, align = "left", part = "all") # first column
-ft_removedRT <- align(ft_removedRT, j = 2:ncol(df), align = "center", part = "all") # rest
-
-# Export flextable
-save_as_docx(
-  ft_removedRT,
-  path = file.path(results_path, "removed_trials_Responder_Nonresponder.docx"), 
-  pr_section = format_flextable_portrait)
-
-# Info for interpreting the results: 
-# Number-letter: switch 64, Repeat: 63
-# Stroop: Congruent: 80 trials, Incongruent: 80 trials
-# Spatial 2-back: Foil: 48 trials, Target: 112 trials
-```
 
 # Inferential statistics
 ### 1. Preparation
@@ -360,7 +100,7 @@ Levene tests show variance homogeneity for all task conditions between responder
 
 ### 3. Calculate Welch t-tests 
 ```{r}
-t_test_table <- t_test_mult_cols(df_basis = data_Pat_pre_clean, cols = imp_columns, df_results_columns = ttest_results_columns, grouping_variable = "Response")
+t_test_table <- t_test_mult_cols(df_basis = data_Pat_pre_clean, cols = imp_columns, grouping_variable = "Response")
 #pander(t_test_table, style = "rmarkdown", split.table = Inf, fontsize = "tiny")
 t_test_table
 ```
@@ -373,27 +113,16 @@ t_test_table_pub <- cbind(performance_measures = rownames(t_test_table), t_test_
 # Combine "Mean" and "SD" columns and reduce dataframe
 t_test_table_pub <- t_test_table_pub %>%
   mutate(
-    `Responder Mean (SD)` = paste0(round(group_1_mean, 2), " (", round(group_1_sd, 2), ")"),
-    `Nonresponder Mean (SD)` = paste0(round(group_0_mean, 2), " (", round(group_0_sd, 2), ")")
+    `Responder Mean (SD)` = paste0(group_1_mean, " (", group_1_sd, ")"),
+    `Nonresponder Mean (SD)` = paste0(group_0_mean, " (", group_0_sd, ")")
     ) %>%
-  select(performance_measures, `Responder Mean (SD)`, `Nonresponder Mean (SD)`, df, t_statistic, effect_size, p_value, p_value_adjusted)
-
-# Rename performance measures using a named vector
-rename_map <- c(
-  'NumberLetter_BIS_Repeat' = "Number-Letter: Repeat",
-  'NumberLetter_BIS_Switch' = "Number-Letter: Switch",
-  'NumberLetter_BIS_Diff_Score' = "Number-Letter: Switch - Repeat",
-  'Stroop_BIS_Congruent' = "Stroop: Congruent",
-  'Stroop_BIS_Incongruent' = "Stroop: Incongruent",
-  'Stroop_BIS_Diff_Score' = "Stroop: Incongruent - Congruent",
-  'TwoBack_BIS_Foil' = "2-Back: Foil",
-  'TwoBack_BIS_Target' = "2-Back: Target",
-  'TwoBack_BIS_Total' = "2-Back: Total",
-  'SSRT' = "Stop-Signal RT")
-t_test_table_pub$performance_measures <- rename_map[t_test_table_pub$performance_measures]
+  select(performance_measures, `Responder Mean (SD)`, `Nonresponder Mean (SD)`, df, statistic, effect_size, p_value, p_value_adjusted)
 
 # Change colnames
 colnames(t_test_table_pub) <- c("Performance Measure", "Responder Mean (SD)", "Non-Responder Mean (SD)", "df", "t-Statistic", "Hedges' g","p-Value", "adj. p-Value")
+
+# Rename performance measures using a named vector
+t_test_table_pub <- reorder_and_rename_rows(df = t_test_table_pub, col_name = "Performance Measure", label_map = variable_labels)
 ```
 
 ### 5. Create and save flextable

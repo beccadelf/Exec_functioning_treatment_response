@@ -10,6 +10,7 @@ output:
     df_print: paged
 params:
   input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
+  output_base_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/HC_vs_Pat"
 ---
 <style type="text/css">
 .main-container { /* Adjust main blocks */
@@ -47,10 +48,9 @@ source("../Useful_functions.R")
 # Set-Up
 ### 0. Set results path to save tables and images
 ```{r}
-basic_path = params$input_data_path
+basic_path <- file.path(params$input_data_path, "response_FSQ")
 results_path <- create_results_path(inputdata_path = basic_path, 
-                                      output_mainpath = "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/HC_vs_Pat"
-                                          )
+                                    output_mainpath = params$output_base_path)
 ```
 
 ### 1. Import Task Performance Data
@@ -70,12 +70,12 @@ performance_tasks <- performance_tasks[performance_tasks != "T1_BAT_BIS_11_score
 Patients_vs_HC_imp_conf <- Patients_vs_HC[,c("Subject","Alter","Gruppe","Abschluss", performance_tasks)]
 ```
 
-### 3. Descriptive statistics for covariates
+### 3. Dummy coding for education based on descriptive statistics
 ```{r}
 #Descriptive statistics
 #Data for `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1,])` patients and `r #n#row(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0,])` healthy controls were available.
-Patients_vs_HC_imp_conf$Abschluss <- as.factor(Patients_vs_HC_imp_conf$Abschluss)
-levels(Patients_vs_HC_imp_conf$Abschluss) <- list("Hauptschule" = "1", "Realschule" = "2", "Gymnasium" = "3", "Anderes" = "4")
+recode_results <- dummy_code_education(Patients_vs_HC_imp_conf)
+Patients_vs_HC_imp_conf <- recode_results$data_recoded
 
 table1 <- 
   Patients_vs_HC_imp_conf %>%
@@ -84,19 +84,7 @@ pander(as.data.frame(table1))
 ```
 As can be seen from the descriptives table, the variable "Abschluss" has the level "Hauptschule" with only one subject and the variables "Anderes" ("Other") which is not meaningful for regression. Therefore, to use "Abschluss" (Education) in our analysis, we turned it into a dummy variable.
 
-### 4. Dummy coding for education
-```{r}
-# Set level "Anderes" (= other degree) to NA as it is not meaningful
-Patients_vs_HC_imp_conf$Abschluss[Patients_vs_HC_imp_conf$Abschluss == "Anderes"] <- NA
-
-# Add Hauptschule to Realschule and create dummy-variable "Gymnasium"
-Patients_vs_HC_imp_conf$Abschluss_Gymnasium <- dplyr::recode(Patients_vs_HC_imp_conf$Abschluss, "Hauptschule" = 0, "Realschule" = 0, "Gymnasium" = 1)
-
-# Control
-#Patients_vs_HC_imp_conf[,c("Abschluss_Gymnasium", "Abschluss")]
-```
-
-### 5. Final dataset
+### 4. Final dataset
 ```{r}
 Patients_vs_HC_imp_conf_final <- 
 Patients_vs_HC_imp_conf[!(is.na(Patients_vs_HC_imp_conf$Alter)|is.na(Patients_vs_HC_imp_conf$Abschluss_Gymnasium)),]

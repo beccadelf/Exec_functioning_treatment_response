@@ -10,6 +10,8 @@ output:
     df_print: paged
 params:
   input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
+  output_base_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/2_Machine_learning/Feature_Label_Dataframes"
+  response_criterion: "response_FSQ" # choose between "response_FSQ" or "response_BAT"
 ---
 <style type="text/css">
 .main-container { /* Adjust main blocks */
@@ -37,11 +39,13 @@ source("../Useful_functions.R")
 ## 0. Load relevant data and define paths
 
 ```{r}
-basic_path <- params$input_data_path
-output_path <- create_results_path(inputdata_path = params$input_data_path,output_mainpath = "Y:PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/2_Machine_learning/Feature_Label_Dataframes")
-
-task_data <- read.csv(file.path(basic_path,"Performance_scoresTask_Performance_Scores.csv")) # contains overall accuracy
+basic_path <- file.path(params$input_data_path, params$response_criterion)
+task_data <- read.csv(file.path(basic_path,"Task_Performance_Scores.csv")) # contains overall accuracy
 data_pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
+
+base_output_path <- create_results_path(inputdata_path = basic_path, output_mainpath = params$output_base_path)
+output_path <- file.path(base_output_path, params$response_criterion)
+dir.create(output_path, recursive = TRUE)
 ```
 
 ## 1. Exclude patients due to missing values
@@ -73,7 +77,11 @@ features_df$Response <- NULL
 
 ### 3.2. Regression: Outcome (Percent-change in FAS)
 ```{r}
-outcome_df <- round(data.frame(FAS_perc_change = ((features_df$T3_BAT_FAS_score - features_df$T1_BAT_FAS_score) / features_df$T1_BAT_FAS_score) * 100) * (-1),2)
+if (params$response_criterion == "response_FSQ") {
+  outcome_df <- round(data.frame(FAS_perc_change = ((features_df$T3_BAT_FAS_score - features_df$T1_BAT_FAS_score) / features_df$T1_BAT_FAS_score) * 100) * (-1),2)
+} else {
+  outcome_df <- round(data.frame(FAS_perc_change = ((features_df$BAT_T3 - features_df$BAT_T3) / features_df$BAT_T1) * 100) * (-1),2)
+}
 ```
 
 ## 4. Dummy-Vars and renaming of features
@@ -100,6 +108,7 @@ features_df_enc <- features_df_enc %>%
   rename(is_woman = Geschlecht,
          Age = Alter,
          FAS = T1_BAT_FAS_score,
+         BAT = BAT_T1,
          BDI_II = T1_BAT_BDI_II_score,
          STAI_T = T1_BAT_STAI_T_score,
          BIS_11 = T1_BAT_BIS_11_score,
@@ -129,7 +138,7 @@ for (feature in non_bin_cols) {
 
 ```{r Reduced feature dataframe}
 # Set 1: Clinical features only
-clin_features <- c("is_woman", "Age", "FAS", "BDI_II", "STAI_T", "BIS_11", "Kirby_k", "CFC_14", "SRHI", "Abschluss_Gymnasium")
+clin_features <- c("is_woman", "Age", "Abschluss_Gymnasium", "FAS", "BAT", "BDI_II", "STAI_T", "BIS_11", "Kirby_k", "CFC_14", "SRHI")
 clin_features_df_enc <- features_df_enc[clin_features]
 
 # Set 2: All features (including executive functioning) but without Overall Accuracy etc.
@@ -151,4 +160,3 @@ write.csv(clin_features_df_enc, file.path(output_path, "clinical_features_only.c
 write.csv(labels_df, file.path(output_path, "labels.csv"), row.names = FALSE)
 write.csv(outcome_df, file.path(output_path, "outcomes.csv"), row.names = FALSE)
 ```
-
