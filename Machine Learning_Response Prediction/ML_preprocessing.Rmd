@@ -43,9 +43,8 @@ basic_path <- file.path(params$input_data_path, params$response_criterion)
 task_data <- read.csv(file.path(basic_path,"Task_Performance_Scores.csv")) # contains overall accuracy
 data_pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
 
-base_output_path <- create_results_path(inputdata_path = basic_path, output_mainpath = params$output_base_path)
-output_path <- file.path(base_output_path, params$response_criterion)
-dir.create(output_path, recursive = TRUE)
+output_path <- create_results_path(inputdata_path = basic_path, output_mainpath = params$output_base_path,
+                                        response_criterion = params$response_criterion)
 ```
 
 ## 1. Exclude patients due to missing values
@@ -96,12 +95,12 @@ table(features_df$Abschluss)
 features_df_enc <- features_df
 features_df_enc$Abschluss_Gymnasium <- dplyr::recode(features_df_enc$Abschluss, "1" = 0, "2" = 0, "3" = 1, "4" = 1)
 
-
-# 2. Drop variables "Abschluss", "Subject", "Gruppe", and "T3_BAT_FAS_score"
+# 2. Drop variables "Abschluss", "Subject", "Gruppe", and "T3_BAT_FAS_score" and "BAT_T3_score"
 features_df_enc$Subject <- NULL
 features_df_enc$Gruppe <- NULL
 features_df_enc$Abschluss <- NULL
 features_df_enc$T3_BAT_FAS_score <- NULL
+features_df_enc$BAT_T3 <- NULL
 
 # 3. Rename columns
 features_df_enc <- features_df_enc %>%
@@ -145,6 +144,7 @@ clin_features_df_enc <- features_df_enc[clin_features]
 cols_n_trimmed <- colnames(features_df_enc)[grep("n_trimmed_removed", colnames(features_df_enc))]
 cols_n_wrong <- colnames(features_df_enc)[grep("n_wrong_removed", colnames(features_df_enc))]
 cols_accuracy <- colnames(features_df_enc)[grep("Average_PC", colnames(features_df_enc))]
+
 addit_performance_features <- c(cols_n_trimmed, cols_n_wrong, cols_accuracy)
 all_features_final <- features_df_enc[, !names(features_df_enc) %in% addit_performance_features]
 
