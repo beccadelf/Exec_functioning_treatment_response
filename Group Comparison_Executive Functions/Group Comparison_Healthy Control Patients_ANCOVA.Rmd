@@ -67,7 +67,7 @@ Patients_vs_HC <- rbind(data_Pat_pre, data_HC)
 ## 2. Reduce dataset to BIS columns and SSRT
 performance_tasks <- colnames(Patients_vs_HC)[grep("BIS|SSRT", colnames(Patients_vs_HC))]
 performance_tasks <- performance_tasks[performance_tasks != "T1_BAT_BIS_11_score"]
-Patients_vs_HC_imp_conf <- Patients_vs_HC[,c("Subject","Alter", "Geschlecht","Gruppe","Abschluss", performance_tasks)]
+Patients_vs_HC_imp_conf <- Patients_vs_HC[,c("Subject","Alter","Gruppe","Abschluss", performance_tasks)]
 ```
 
 ### 3. Descriptive statistics for covariates
@@ -79,7 +79,7 @@ levels(Patients_vs_HC_imp_conf$Abschluss) <- list("Hauptschule" = "1", "Realschu
 
 table1 <- 
   Patients_vs_HC_imp_conf %>%
-  tbl_summary(include = c(Alter, Geschlecht, Abschluss), by = Gruppe)
+  tbl_summary(include = c(Alter,Abschluss), by = Gruppe)
 pander(as.data.frame(table1))
 ```
 As can be seen from the descriptives table, the variable "Abschluss" has the level "Hauptschule" with only one subject and the variables "Anderes" ("Other") which is not meaningful for regression. Therefore, to use "Abschluss" (Education) in our analysis, we turned it into a dummy variable.
@@ -99,8 +99,7 @@ Patients_vs_HC_imp_conf$Abschluss_Gymnasium <- dplyr::recode(Patients_vs_HC_imp_
 ### 5. Final dataset
 ```{r}
 Patients_vs_HC_imp_conf_final <- 
-Patients_vs_HC_imp_conf[!(is.na(Patients_vs_HC_imp_conf$Alter)|is.na(Patients_vs_HC_imp_conf$Abschluss_Gymnasium)|
-                         is.na(Patients_vs_HC_imp_conf$Geschlecht)),]
+Patients_vs_HC_imp_conf[!(is.na(Patients_vs_HC_imp_conf$Alter)|is.na(Patients_vs_HC_imp_conf$Abschluss_Gymnasium)),]
 ```
 `r nrow(Patients_vs_HC_imp_conf) - nrow(Patients_vs_HC_imp_conf_final)` subjects were removed due to missing values in the covariates. The final sample consists of `r nrow(Patients_vs_HC_imp_conf_final)` subjects.
 
@@ -134,7 +133,6 @@ run_ancova <- function(data, formula, heterosced = FALSE){
   if (length(interaction_term) > 0) {
     interaction_term <- gsub("Gruppe","Group", interaction_term)
     interaction_term <- gsub("Alter","Age", interaction_term)
-    interaction_term <- gsub("Geschlecht","Sex", interaction_term)
     statement_interaction <- paste0("interaction term ", interaction_term," added")
     if (heterosced == FALSE){
       condition <- statement_interaction
@@ -199,12 +197,12 @@ summarize_ancova_results <- function(results_list){
 ### Run Uncorrected models (Initial ANCOVA)
 ```{r, message=FALSE}
 # Define covariates and model formula
-covariates = c("Alter", "Geschlecht", "Abschluss_Gymnasium")
+covariates = c("Alter", "Abschluss_Gymnasium")
 covariate_main_effects <- paste(covariates, collapse = " + ")
 df_basis = Patients_vs_HC_imp_conf_final
 cols = performance_tasks 
 
-# Run ANCOVA forall executive functioning measures
+# Run ANCOVA for all executive functioning measures
 results_uncorrected <- list()
 for (i in seq_along(cols)){
     col <- cols[i]
@@ -344,7 +342,6 @@ test_interaction <- function(data, performance_task, covariates, cov_interest){
 
 # Initialize a dataframe to store results, with an extra column for "Violated" or "Not Violated"
 interaction_results <- data.frame(Task = tasks_homosced_violated, 
-                                  Interaction_Group_Sex_p_value = numeric(length(tasks_homosced_violated)),
                                   Interaction_Group_Education_p_value = numeric(length(tasks_homosced_violated)),
                                   Interaction_Group_Age_p_value = numeric(length(tasks_homosced_violated)),
                                   Interaction_Violated = character(length(tasks_homosced_violated)),  # New column
@@ -353,16 +350,13 @@ interaction_results <- data.frame(Task = tasks_homosced_violated,
 # Loop through each task and perform the interaction tests
 for (i in seq_along(tasks_homosced_violated)) {
   task <- tasks_homosced_violated[i]
-  # 1. Sex
-  interaction_results$Interaction_Group_Sex_p_value[i] <- test_interaction(data = data, performance_task = task, covariates = covariates, cov_interest = "Geschlecht") 
   # 2. Age
   interaction_results$Interaction_Group_Age_p_value[i] <- test_interaction(data = data, performance_task = task, covariates = covariates, cov_interest = "Alter")
   # 3. Education
   interaction_results$Interaction_Group_Education_p_value[i] <- test_interaction(data = data, performance_task = task, covariates = covariates, cov_interest = "Abschluss_Gymnasium")
  
   # Check if any of the p-values are less than 0.05
-  if (interaction_results$Interaction_Group_Sex_p_value[i] < 0.05 || 
-      interaction_results$Interaction_Group_Education_p_value[i] < 0.05 || 
+  if (interaction_results$Interaction_Group_Education_p_value[i] < 0.05 || 
       interaction_results$Interaction_Group_Age_p_value[i] < 0.05) {
     interaction_results$Interaction_Violated[i] <- "Violated"
   } else {
@@ -374,8 +368,7 @@ for (i in seq_along(tasks_homosced_violated)) {
 pander(interaction_results, style = "rmarkdown", split.table = Inf, fontsize = "tiny")
 
 # Define models 
-tasks_homosced_correct_interaction <- interaction_results[interaction_results$Interaction_Group_Sex_p_value
-< 0.05 | interaction_results$Interaction_Group_Education_p_value < 0.05 | interaction_results$Interaction_Group_Age_p_value < 0.05, "Task"]
+tasks_homosced_correct_interaction <- interaction_results[interaction_results$Interaction_Group_Education_p_value < 0.05 | interaction_results$Interaction_Group_Age_p_value < 0.05, "Task"]
 tasks_homosced_violated_correct_homosced <- setdiff(tasks_homosced_violated, tasks_homosced_correct_interaction)
 ```
 For some executive functioning measures, adding a group-covariate interaction improves the model fit.
@@ -391,14 +384,12 @@ run_corrected_interaction <- function(data, tasks_interaction, interaction_resul
     task_row <- which(interaction_results$Task == task)
 
     # Get the column names for the interaction p-values
-    colnames_interaction <- colnames(interaction_results)[2:4]  # Interaction p-values columns
+    colnames_interaction <- colnames(interaction_results)[startsWith(colnames(interaction_results), "Interaction_Group")] # Interaction p-values columns
     # Find which column has a p-value < 0.05
-    p_value_column <- which(interaction_results[task_row, 2:4] < 0.05)
+    p_value_column <- which(interaction_results[task_row, colnames_interaction] < 0.05)
     
     # Assign corresponding covariate interaction term based on column
-    if (colnames_interaction[p_value_column] == "Interaction_Group_Sex_p_value") {
-      covariate_int_effect <- "Gruppe:Geschlecht"  # Interaction with Sex
-    } else if (colnames_interaction[p_value_column] == "Interaction_Group_Education_p_value") {
+    if (colnames_interaction[p_value_column] == "Interaction_Group_Education_p_value") {
       covariate_int_effect <- "Gruppe:Abschluss_Gymnasium"  # Interaction with Education
     } else if (colnames_interaction[p_value_column] == "Interaction_Group_Age_p_value") {
       covariate_int_effect <- "Gruppe:Alter"  # Interaction with Age
@@ -419,8 +410,7 @@ results_corrected_interaction <- run_corrected_interaction(data = Patients_vs_HC
 list_models_corrected_interaction <- get_models(results_corrected_interaction)
 test_assumptions_of_MLR(list_models_corrected_interaction)
 ```
-The visualizations shows that homoscedasticity is not violated anymore in Number_Letter_BIS_Switch but remains violated in TwoBack_BIS_Target. Therefore, TwoBack_BIS_Target
-is corrected for heteroscedasticity as well in 3.3.
+The visualizations shows that homoscedasticity is not violated anymore in Number_Letter_BIS_Switch.
 
 ### 3.2 Rerun models with correction for heteroscedasticity
 ```{r, message=FALSE}
@@ -432,11 +422,12 @@ for (task in tasks_homosced_violated_correct_homosced) {
 ```
 
 ### 3.3. Rerun Models with both interaction and heteroscedasticity correction
+No models need to be runned with both corrections.
 ```{r}
-tasks_homosced_violated_correct_homosced_interaction <- c("TwoBack_BIS_Target")
-results_corrected_both <- run_corrected_interaction(data = Patients_vs_HC_imp_conf_final, tasks = tasks_homosced_violated_correct_homosced_interaction, 
-                          interaction_results = interaction_results,
-                          heterosced = TRUE)
+#tasks_homosced_violated_correct_homosced_interaction <- c("TwoBack_BIS_Target")
+#results_corrected_both <- run_corrected_interaction(data = Patients_vs_HC_imp_conf_final, tasks = tasks_homosced_violated_correct_homosced_interaction, 
+#                          interaction_results = interaction_results,
+#                          heterosced = TRUE)
 ```
 
 ## 5. Summarize 
@@ -450,9 +441,9 @@ for (task in names(results_corrected_interaction)) {
 for (task in names(results_corrected_homogeneity)) {
     combined_results[[task]] <- results_corrected_homogeneity[[task]]
 }
-for (task in names(results_corrected_both)) {
-    combined_results[[task]] <- results_corrected_both[[task]]
-}
+# for (task in names(results_corrected_both)) {
+#     combined_results[[task]] <- results_corrected_both[[task]]
+# }
 
 # Combine results to a table
 table_summary <- summarize_ancova_results(results_list = combined_results)
