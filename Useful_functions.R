@@ -4,20 +4,25 @@
 # ===========================
 
 # ---- Create results paths ----
-# This function creates a path to save the results which is named after the folder-structure 
-# of the import-data path
+# This function creates a folder which is named after the processing in the given directory
 
-create_results_path <- function(inputdata_path, output_mainpath){
+create_results_path <- function(inputdata_path, output_mainpath, response_criterion = NULL){
+  # 'inputdata_path: ending with response_FSQ / response_BAT
   # Get the part of the file-path describing the dealing with outliers
-  outliers_part = dirname(inputdata_path)
-  outliers_part = basename(outliers_part)
+  outliers_part = basename(dirname(inputdata_path))
   # Get the part of the file-path describing the processing of RT
   grandparent_dir = dirname(dirname(dirname(inputdata_path)))
   RTprocessing_part = basename(grandparent_dir)
   
-  # Create a new path
+  # Get new folder-name
   new_folder = paste(RTprocessing_part, outliers_part, sep = "_")
-  output_path = file.path(output_mainpath, new_folder)
+  
+  # Create the new folder in the output-directory
+  if (!is.null(response_criterion)) {
+    output_path = file.path(output_mainpath, new_folder, response_criterion)
+  } else {
+    output_path = file.path(output_mainpath, new_folder)
+  }
   dir.create(output_path, recursive = TRUE)
   
   return(output_path)
@@ -261,38 +266,36 @@ levene_test_mult_cols <- function(df_basis, cols, grouping_variable) {
 # ---- Flextable & Word settings ----
 # Function to configure flextable settings and Word document formatting
 
-flextable_settings <- function(
-    word_orientation = "portrait" # Orientation: "portrait" or "landscape"
-){
-  # Set flextable defaults
-  flextable::set_flextable_defaults(font.family = "Arial",
-                                    font.size = 8,
-                                    padding.bottom = 3,
-                                    padding.top = 3,
-                                    padding.left = 0.5,
-                                    paddings.right = 0.5,
-                                    #theme_fun = "theme_apa",
-                                    theme_fun = NULL,
-                                    text.align = "center",
-                                    line_spacing = 1.5)
-  
-  # Word document formatting 
-  margins <- officer::page_mar(
-    bottom = 2 / 2.54,
-    top = 2.5 / 2.54,
-    right = 2.5 / 2.54,
-    left = 1 / 2.54
-    #header = 0.5,
-    #footer = 0.5,
-    #gutter = 0.5
-  )
-  
-  format_table <- officer::prop_section(
-    page_size = officer::page_size(orient = word_orientation),
-    page_margins = margins
-  )
-  
-  return(format_table)
+flextable_settings <- function(word_orientation = "portrait"){ # Orientation: "portrait" or "landscape"
+    # Set flextable defaults
+    flextable::set_flextable_defaults(font.family = "Arial",
+                                      font.size = 8,
+                                      padding.bottom = 3,
+                                      padding.top = 3,
+                                      padding.left = 0.5,
+                                      paddings.right = 0.5,
+                                      #theme_fun = "theme_apa",
+                                      theme_fun = NULL,
+                                      text.align = "center",
+                                      line_spacing = 1.5)
+    
+    # Word document formatting 
+    margins <- officer::page_mar(
+      bottom = 2 / 2.54,
+      top = 2.5 / 2.54,
+      right = 2.5 / 2.54,
+      left = 1 / 2.54
+      #header = 0.5,
+      #footer = 0.5,
+      #gutter = 0.5
+    )
+    
+    format_table <- officer::prop_section(
+      page_size = officer::page_size(orient = word_orientation),
+      page_margins = margins
+    )
+    
+    return(format_table)
 }
 
 # ---- Create and save flextable ----
@@ -300,6 +303,10 @@ flextable_settings <- function(
 
 create_save_flextable <- function(
     table_pub, results_path, file_name) {
+  
+  format_flextable_portrait <- flextable_settings(word_orientation = "portrait")
+  format_flextable_landscape <- flextable_settings(word_orientation = "landscape")
+  
   ft <- flextable(table_pub)
   
   # Set table properties

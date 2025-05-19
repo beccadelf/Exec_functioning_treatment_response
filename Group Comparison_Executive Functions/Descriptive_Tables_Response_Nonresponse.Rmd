@@ -54,10 +54,9 @@ data_Pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
 
 ## 3. Set results path to save tables and images
 ```{r}
-base_results_path_Response <- create_results_path(inputdata_path = basic_path, 
-                                                  output_mainpath = params$output_base_path)
-results_path_Response <- file.path(base_results_path_Response, params$response_criterion)
-dir.create(results_path_Response, recursive = TRUE)
+results_path <- create_results_path(inputdata_path = basic_path, 
+                                                  output_mainpath = params$output_base_path,
+                                                  response_criterion =  params$response_criterion)
 ```
 
 ## 4. Prepare dataset
@@ -124,7 +123,7 @@ descr_comps_Response <- rbind(n_subjects_row, descr_comps_Response)
 
 ## 3. Create and save flextable
 ```{r}
-create_save_flextable(table_pub = descr_comps_Response, results_path = results_path_Response, file_name = "descr_tests_R_vs_NR.docx")
+create_save_flextable(table_pub = descr_comps_Response, results_path = results_path, file_name = "descr_tests_R_vs_NR.docx")
 ```
 
 
@@ -281,7 +280,7 @@ ft <- autofit(ft)
 # Write to Word
 save_as_docx(
   ft,
-  path = file.path(results_path_Response, "Characteristics_Response_Nonresponse.docx"), 
+  path = file.path(results_path, "Characteristics_Response_Nonresponse.docx"), 
   pr_section = format_flextable_landscape)
 ft
 ```
@@ -331,7 +330,7 @@ ft_removedRT <- align(ft_removedRT, j = 2:ncol(df), align = "center", part = "al
 # Export flextable
 save_as_docx(
   ft_removedRT,
-  path = file.path(results_path_Response, "removed_trials_Responder_Nonresponder.docx"), 
+  path = file.path(results_path, "removed_trials_Responder_Nonresponder.docx"), 
   pr_section = format_flextable_portrait)
 
 # Info for interpreting the results: 
