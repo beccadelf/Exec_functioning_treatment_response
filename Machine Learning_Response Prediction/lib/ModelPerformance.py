@@ -48,13 +48,14 @@ def calc_eval_metrics_regression(y_true, y_pred):
                                "MAE": MAE, "Correlation": corr}, index = [0])
     return ev_metrics
 
-def calc_eval_metrics_classification(y_true, y_pred):
+def calc_eval_metrics_classification(y_true, y_pred, y_prob):
     """ 
     Calculate evaluation metrics for classification.
 
     Arguments:
         y_true: array-like of shape (n_samples,), true target labels (i.e. y_test).
         y_pred: array-like of shape (n_samples,), predicted target labels.
+        y_prob: array-like of shape (n_samples,), predicted probabilities for the positive class.
 
     Returns:
         pd.DataFrame, containing the following classification metrics:
@@ -63,16 +64,18 @@ def calc_eval_metrics_classification(y_true, y_pred):
             - Specificity: True negative rate.
             - Sensitivity: True positive rate.
             - F1 Score: Harmonic mean of precision and recall.
+            - AUC: Area Under the ROC Curve.
     """
     accuracy = metrics.accuracy_score(y_true, y_pred)
     bal_acc = metrics.balanced_accuracy_score(y_true, y_pred)
     specificity = metrics.recall_score(y_true, y_pred, pos_label = 0)
     sensitivity = metrics.recall_score(y_true, y_pred, pos_label = 1)
     f1_score = metrics.f1_score(y_true, y_pred)
+    auc = metrics.roc_auc_score(y_true, y_prob[:, 1]) # probability of the class with the greater label
     # Save metrics in dataframe
     ev_metrics = pd.DataFrame({"accuracy": accuracy, "balanced_accuracy": bal_acc,
                                "sensitivity": sensitivity, "specificity": specificity, 
-                               "f1_score": f1_score}, index = [0])    
+                               "f1_score": f1_score, "auc": auc}, index = [0])    
     return ev_metrics
 
 def get_performance_metrics_across_iters(outcomes, key_metrics):

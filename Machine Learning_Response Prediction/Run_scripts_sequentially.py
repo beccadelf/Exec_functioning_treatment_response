@@ -18,6 +18,7 @@ script_wd = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_wd)
 
 # Define the parameters
+outcome = ["response_FSQ", "response_BAT"]
 regressors = ["random_forest_regressor","ridge_regressor"]
 classifiers = ["random_forest_classifier","svm_classifier"]
 analysis = ["all_features", "clinical_features_only"]
@@ -30,28 +31,28 @@ path_results_base = "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Re
 # Generate argument_sets
 # Regression
 argument_sets_regression = []
-all_combinations_regression = product(analysis, regressors, permutation)
+all_combinations_regression = product(outcome, analysis, regressors, permutation)
 for combo in all_combinations_regression:
     argument_sets_regression.append({
-        'PATH_INPUT_DATA': path_input_data,
-        'PATH_RESULTS_BASE': path_results_base,
-        'ANALYSIS': combo[0],
-        'REGRESSOR': combo[1],
+        'PATH_INPUT_DATA': os.path.join(path_input_data, combo[0]),
+        'PATH_RESULTS_BASE': os.path.join(path_results_base, combo[0]),
+        'ANALYSIS': combo[1],
+        'REGRESSOR': combo[2],
         'NUMBER_REPETITIONS': "100",
-        'NULL_MODEL': combo[2]
+        'NULL_MODEL': combo[3]
     })
 # Classification
 argument_sets_classification = []
-all_combinations_classification = product(analysis, classifiers, oversampling, permutation)
+all_combinations_classification = product(outcome, analysis, classifiers, oversampling, permutation)
 for combo in all_combinations_classification:
     argument_sets_classification.append({
-        'PATH_INPUT_DATA': path_input_data,
-        'PATH_RESULTS_BASE': path_results_base,
-        'ANALYSIS': combo[0],
-        'CLASSIFIER': combo[1],
-        'OVERSAMPLING': combo[2], 
+        'PATH_INPUT_DATA': os.path.join(path_input_data, combo[0]),
+        'PATH_RESULTS_BASE': os.path.join(path_results_base, combo[0]),
+        'ANALYSIS': combo[1],
+        'CLASSIFIER': combo[2],
+        'OVERSAMPLING': combo[3], 
         'NUMBER_REPETITIONS': 100,
-        'NULL_MODEL': combo[3]
+        'NULL_MODEL': combo[4]
     })
 
 

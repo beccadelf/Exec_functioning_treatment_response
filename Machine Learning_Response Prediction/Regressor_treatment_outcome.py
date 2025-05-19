@@ -77,8 +77,8 @@ def set_options_and_paths():
     except:
         print("Using arguments given in the script")
         args = parser.parse_args([
-            '--PATH_INPUT_DATA', "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Feature_Label_Dataframes\\RT_trimmed_RT_wrong_removed_outliers-removed",
-            '--PATH_RESULTS_BASE', "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Results",
+            '--PATH_INPUT_DATA', "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Feature_Label_Dataframes\\RT_trimmed_RT_wrong_removed_outliers-removed\\response_FSQ",
+            '--PATH_RESULTS_BASE', "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Results\\response_FSQ",
             '--ANALYSIS', "clinical_features_only", 
             '--REGRESSOR', 'random_forest_regressor',
             '--NUMBER_REPETITIONS', "3",

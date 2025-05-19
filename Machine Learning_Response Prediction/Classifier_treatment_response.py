@@ -81,8 +81,8 @@ def set_options_and_paths():
     except:
         print("Using arguments given in the script")
         args = parser.parse_args([
-            '--PATH_INPUT_DATA', "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Feature_Label_Dataframes\\RT_trimmed_RT_wrong_removed_outliers-removed",
-            '--PATH_RESULTS_BASE', "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Results",
+            '--PATH_INPUT_DATA', "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Feature_Label_Dataframes\\RT_trimmed_RT_wrong_removed_outliers-removed\\response_FSQ",
+            '--PATH_RESULTS_BASE', "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Results\\response_FSQ",
             '--ANALYSIS', "all_features",
             '--CLASSIFIER', 'random_forest_classifier',
             '--OVERSAMPLING', 'yes_smote',
@@ -151,13 +151,15 @@ def procedure_per_iter(num_iter, args):
     
     # Calculate model performance metrics
     y_pred_test = clf.predict(X_test_imp_clean_scaled_sel)
+    y_prob_test = clf.predict_proba(X_test_imp_clean_scaled_sel) 
     ev_metrics_test = calc_eval_metrics_classification(
-        y_true=y_test, y_pred=y_pred_test)
+        y_true=y_test, y_pred=y_pred_test, y_prob=y_prob_test)
     
     # Calculate training metrics
     y_pred_train = clf.predict(X_train_imp_clean_scaled_sel)
+    y_prob_train = clf.predict_proba(X_train_imp_clean_scaled_sel)
     ev_metrics_train = calc_eval_metrics_classification(
-        y_true=y_train_final, y_pred=y_pred_train)
+        y_true=y_train_final, y_pred=y_pred_train, y_prob=y_prob_train)
     
     # Save relevant information for each iteration in a dictionary
     results_single_iter = {
