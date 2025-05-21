@@ -11,7 +11,7 @@ output:
 params:
   input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
   output_base_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/2_Machine_learning/Feature_Label_Dataframes"
-  response_criterion: "response_FSQ" # choose between "response_FSQ" or "response_BAT"
+  response_criterion: "response_BAT" # choose between "response_FSQ" or "response_BAT"
 ---
 <style type="text/css">
 .main-container { /* Adjust main blocks */
@@ -79,7 +79,7 @@ features_df$Response <- NULL
 if (params$response_criterion == "response_FSQ") {
   outcome_df <- round(data.frame(FAS_perc_change = ((features_df$T3_BAT_FAS_score - features_df$T1_BAT_FAS_score) / features_df$T1_BAT_FAS_score) * 100) * (-1),2)
 } else {
-  outcome_df <- round(data.frame(FAS_perc_change = ((features_df$BAT_T3 - features_df$BAT_T3) / features_df$BAT_T1) * 100) * (-1),2)
+  outcome_df <- round(data.frame(BAT_perc_change = ((features_df$BAT_T3 - features_df$BAT_T1) / features_df$BAT_T1) * 100), 2) # 2 cases in which BAT_T1=0 and BAT_perc_change thus Inf
 }
 ```
 

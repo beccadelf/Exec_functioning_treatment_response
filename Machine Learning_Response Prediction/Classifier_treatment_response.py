@@ -42,7 +42,7 @@ def set_options_and_paths():
         model_name = f"{args.ANALYSIS}_{args.CLASSIFIER}_{args.OVERSAMPLING}" + "_oversampling_final" 
         if args.NULL_MODEL == "yes":
             model_name = model_name + "_permuted"
-        path_results_base = args.PATH_INPUT_DATA.replace( "Feature_Label_Dataframes","Results")
+        path_results_base = args.PATH_INPUT_DATA.replace("Feature_Label_Dataframes","Results")
         PATH_RESULTS = os.path.join(path_results_base, model_name)
         os.makedirs(PATH_RESULTS) # as exist_ok is not True, the scripts stops if the path already exists
         PATH_RESULTS_PLOTS = os.path.join(PATH_RESULTS, "plots")
@@ -59,8 +59,8 @@ def set_options_and_paths():
         description='Script to predict treatment outcome')
     parser.add_argument('--PATH_INPUT_DATA', type=str,
                         help='Path to input data')
-    parser.add_argument('--PATH_RESULTS_BASE', type=str,
-                        help='Path to save results')
+    # parser.add_argument('--PATH_RESULTS_BASE', type=str,
+    #                     help='Path to save results')
     parser.add_argument('--ANALYSIS', type=str,
                         help='Features to include, set all_features or clinical_features_only')
     parser.add_argument('--CLASSIFIER', type=str,
@@ -71,25 +71,29 @@ def set_options_and_paths():
                         help='Number of repetitions of the cross-validation')
     parser.add_argument('--NULL_MODEL', type=str, default = "no",
                         help='Should balanced accuracy distribution for a null model be calculated? Choose yes or no')
-
-
-    args = parser.parse_args()
     
+    # Try to get command-line args
     try:
-        PATHS = generate_and_create_results_path(args)
+        args = parser.parse_args()
+        
+        # Check if required args are None
+        if None in (args.PATH_INPUT_DATA, args.ANALYSIS, args.CLASSIFIER):
+            raise ValueError("Missing required arguments. Falling back to inline args")
+            
         print("Using arguments given via terminal")
     except:
         print("Using arguments given in the script")
         args = parser.parse_args([
             '--PATH_INPUT_DATA', "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Feature_Label_Dataframes\\RT_trimmed_RT_wrong_removed_outliers-removed\\response_FSQ",
-            '--PATH_RESULTS_BASE', "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Results\\response_FSQ",
+            # '--PATH_RESULTS_BASE', "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Results\\response_FSQ",
             '--ANALYSIS', "all_features",
             '--CLASSIFIER', 'random_forest_classifier',
             '--OVERSAMPLING', 'yes_smote',
             '--NUMBER_REPETITIONS', "100",
             '--NULL_MODEL', "no"
         ])
-        PATHS = generate_and_create_results_path(args)
+    
+    PATHS = generate_and_create_results_path(args)
         
     return args, PATHS
 

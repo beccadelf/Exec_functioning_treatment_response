@@ -26,7 +26,7 @@ oversampling = ["yes_simple","yes_smote", "no"]
 permutation = ["no","yes"]
 
 path_input_data = "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Feature_Label_Dataframes\\RT_trimmed_RT_wrong_removed_outliers-removed"
-path_results_base = "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\RT_trimmed_RT_wrong_removed_outliers-removed\\Results"
+# path_results_base = "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\RT_trimmed_RT_wrong_removed_outliers-removed\\Results"
 
 # Generate argument_sets
 # Regression
@@ -35,7 +35,7 @@ all_combinations_regression = product(outcome, analysis, regressors, permutation
 for combo in all_combinations_regression:
     argument_sets_regression.append({
         'PATH_INPUT_DATA': os.path.join(path_input_data, combo[0]),
-        'PATH_RESULTS_BASE': os.path.join(path_results_base, combo[0]),
+        # 'PATH_RESULTS_BASE': os.path.join(path_results_base, combo[0]),
         'ANALYSIS': combo[1],
         'REGRESSOR': combo[2],
         'NUMBER_REPETITIONS': "100",
@@ -47,7 +47,7 @@ all_combinations_classification = product(outcome, analysis, classifiers, oversa
 for combo in all_combinations_classification:
     argument_sets_classification.append({
         'PATH_INPUT_DATA': os.path.join(path_input_data, combo[0]),
-        'PATH_RESULTS_BASE': os.path.join(path_results_base, combo[0]),
+        # 'PATH_RESULTS_BASE': os.path.join(path_results_base, combo[0]),
         'ANALYSIS': combo[1],
         'CLASSIFIER': combo[2],
         'OVERSAMPLING': combo[3], 

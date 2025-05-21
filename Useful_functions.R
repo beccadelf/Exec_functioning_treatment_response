@@ -153,7 +153,7 @@ t_test_mult_cols <- function(df_basis, cols, grouping_variable) {
       group_1_mean = formatC(mean(group1), format = "f", digits = decimal_places),
       group_1_sd = formatC(sd(group1), format = "f", digits = decimal_places),
       statistic = round(results$statistic[["t"]], 2),
-      df = round(results$parameter[["df"]], 0),
+      df = round(results$parameter[["df"]], 1),
       p_value = round(results$p.value, 2),
       effect_size = round(effsize, 2),
       missings_group0 = missings_group0,
