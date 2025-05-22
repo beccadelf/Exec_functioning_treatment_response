@@ -1,7 +1,7 @@
 ---
-title: "Descriptive tables (publication-ready): Responder vs non-responder"
-author: "Rebecca Delfendahl"
-date: "2025-05-14"
+title: "Descriptive tables (publication-ready): Healthy controls vs patients"
+authors: "Rebecca Delfendahl, Till Julius Adam, Charlotte Meinke"
+date: "2025-04-15"
 output:
   html_document:
     toc: true
@@ -10,8 +10,7 @@ output:
     df_print: paged
 params:
   input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
-  output_base_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/R_vs_NR"
-  response_criterion: "response_FSQ" # choose between "response_FSQ" or "response_BAT"
+  output_base_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/HC_vs_Pat"
 ---
 <style type="text/css">
 .main-container { /* Adjust main blocks */
@@ -40,35 +39,34 @@ source("../Useful_functions.R")
 ```
 
 # Set-Up
-## 1. Load settings flextable
+## 1. Settings flextable
 ```{r}
 format_flextable_portrait <- flextable_settings(word_orientation = "portrait")
 format_flextable_landscape <- flextable_settings(word_orientation = "landscape")
 ```
 
-## 2. Import Data (Patients_Pre)
+## 2. Import Data (HCs and Patients_Pre)
 ```{r}
-basic_path <- file.path(params$input_data_path, params$response_criterion)
+basic_path <- file.path(params$input_data_path, "response_FSQ")
+data_HC <- read.csv(file.path(basic_path,"Data_HC.csv"))
 data_Pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
 ```
 
 ## 3. Set results path to save tables and images
 ```{r}
-results_path <- create_results_path(inputdata_path = basic_path, 
-                                    output_mainpath = params$output_base_path,
-                                    response_criterion =  params$response_criterion)
+results_path_HC_Pat <- create_results_path(inputdata_path = basic_path, 
+                                           output_mainpath = params$output_base_path)
 ```
 
 ## 4. Prepare dataset
-Remove all patients that had no post-treatment score
 ```{r}
-data_Pat_pre_clean <- data_Pat_pre[!is.na(data_Pat_pre$Response),]
+# Merge patients pre and controls
+Patients_vs_HC <- rbind(data_Pat_pre, data_HC)
 
 # Dummy-code variable education
-recode_results_2 <- dummy_code_education(data_Pat_pre_clean)
-data_Pat_pre_clean <- recode_results_2$data_recoded
+recode_results_1 <- dummy_code_education(Patients_vs_HC)
+Patients_vs_HC <- recode_results_1$data_recoded
 ```
-We had `r nrow(data_Pat_pre[!is.na(data_Pat_pre$Response),])` patients with a post-value available, and `r nrow(data_Pat_pre_clean[data_Pat_pre_clean$Response == 1,])`
 
 
 # Descriptive group comparisons
@@ -81,49 +79,49 @@ dimensional_vars <- c("Alter", "T1_BAT_FAS_score", "T1_BAT_BDI_II_score", "T1_BA
 
 ## 1. Welch t-test for dimensional variables
 ```{r}
-t_test_descr_Response <- t_test_mult_cols(df_basis = data_Pat_pre_clean, cols = dimensional_vars, grouping_variable = "Response")
+t_test_descr_HC_Pat <- t_test_mult_cols(df_basis = Patients_vs_HC, cols = dimensional_vars, grouping_variable = "Gruppe")
 ```
 
 ## 2. Chi-square test for categorical variables
 ```{r}
-chi_sq_test_descr_Response <- chi_sq_test_mult_cols(df_basis = data_Pat_pre_clean, cols = categorical_vars, grouping_variable = "Response")
+chi_sq_test_descr_HC_Pat <- chi_sq_test_mult_cols(df_basis = Patients_vs_HC, cols = categorical_vars, grouping_variable = "Gruppe")
 ```
 
 ## 3. Converge tables format and merge
 ```{r}
-t_test_descr_pub_Response <- prepare_ttest_table(ttest_table = t_test_descr_Response, var_type = "dimensional", group_0 = "Non-Responder", group_1 = "Responder")
-chi_sq_test_descr_pub_Response <- prepare_ttest_table(ttest_table = chi_sq_test_descr_Response, var_type = "categorical", group_0 = "Non-Responder", group_1 = "Responder")
+t_test_descr_pub_HC_Pat <- prepare_ttest_table(ttest_table = t_test_descr_HC_Pat, var_type = "dimensional", group_0 = "Healthy Controls", group_1 = "Patients")
+chi_sq_test_descr_pub_HC_Pat <- prepare_ttest_table(ttest_table = chi_sq_test_descr_HC_Pat, var_type = "categorical", group_0 = "Healthy Controls", group_1 = "Patients")
 
 # Merge the dataframes
-descr_comps_Response <- rbind(t_test_descr_pub_Response, chi_sq_test_descr_pub_Response)
+descr_comps_pub_HC_Pat <- rbind(t_test_descr_pub_HC_Pat, chi_sq_test_descr_pub_HC_Pat)
 # Reorder and rename the variables
-descr_comps_Response <- reorder_and_rename_rows(df = descr_comps_Response, col_name = "Variable", label_map = variable_labels)
+descr_comps_pub_HC_Pat <- reorder_and_rename_rows(df = descr_comps_pub_HC_Pat, col_name = "Variable", label_map = variable_labels)
 
 # Print missings
-for (i in seq_len(nrow(descr_comps_Response))) {
-  miss_NR <- descr_comps_Response$`Missings_Non-Responder`[i]
-  miss_R <- descr_comps_Response$Missings_Responder[i]
+for (i in seq_len(nrow(descr_comps_pub_HC_Pat))) {
+  miss_hc <- descr_comps_pub_HC_Pat$`Missings_Healthy Controls`[i]
+  miss_pat <- descr_comps_pub_HC_Pat$Missings_Patients[i]
   
-  if (miss_NR > 0 || miss_R > 0) {
-    var_name <- descr_comps_Response$Variable[i]
-    cat(sprintf("Missing values **%s**: Non-Responder = %s, Responder = %s \n",
-                var_name, miss_NR, miss_R))
+  if (miss_hc > 0 || miss_pat > 0) {
+    var_name <- descr_comps_pub_HC_Pat$Variable[i]
+    cat(sprintf("Missing values **%s**: Healthy Controls = %s, Patients = %s \n",
+                var_name, miss_hc, miss_pat))
   }
 }
 
 # Remove columns Missings_HC, Missings_Patients
-descr_comps_Response <- descr_comps_Response[, !(names(descr_comps_Response) %in% c("Missings_Non-Responder", "Missings_Responder"))]
+descr_comps_pub_HC_Pat <- descr_comps_pub_HC_Pat[, !(names(descr_comps_pub_HC_Pat) %in% c("Missings_Healthy Controls", "Missings_Patients"))]
 
 # Add number of subjects per group
-n_NR <- sum(data_Pat_pre_clean$Response == 0)
-n_R <- sum(data_Pat_pre_clean$Response == 1)
-n_subjects_row <- data.frame(Variable = "N", `Non-Responder` = n_NR, Responder = n_R, Statistic = "-", stringsAsFactors = FALSE, check.names = FALSE)
-descr_comps_Response <- rbind(n_subjects_row, descr_comps_Response)
+n_HC <- sum(Patients_vs_HC$Gruppe == 0)
+n_Patients <- sum(Patients_vs_HC$Gruppe == 1)
+n_subjects_row <- data.frame(Variable = "N", `Healthy Controls` = n_HC, Patients = n_Patients, Statistic = "-", stringsAsFactors = FALSE, check.names = FALSE)
+descr_comps_pub_HC_Pat <- rbind(n_subjects_row, descr_comps_pub_HC_Pat)
 ```
 
 ## 3. Create and save flextable
 ```{r}
-create_save_flextable(table_pub = descr_comps_Response, results_path = results_path, file_name = "descr_tests_R_vs_NR.docx")
+create_save_flextable(table_pub = descr_comps_pub_HC_Pat, results_path = results_path_HC_Pat, file_name = "descr_tests_Patients_HCs.docx")
 ```
 
 
@@ -134,25 +132,25 @@ create_save_flextable(table_pub = descr_comps_Response, results_path = results_p
 # 1. Subset data frame by non-NA for respective tasks
 task_list <- list(
   "Stroop Task" = list(
-    subset_data = data_Pat_pre_clean %>%
+    subset_data = Patients_vs_HC %>%
       filter(!is.na(Stroop_BIS_Congruent) & 
              !is.na(Stroop_BIS_Incongruent) & 
              !is.na(Stroop_BIS_Diff_Score))
   ),
   "Number-Letter Task" = list(
-    subset_data = data_Pat_pre_clean %>%
+    subset_data = Patients_vs_HC %>%
       filter(!is.na(NumberLetter_BIS_Repeat) & 
              !is.na(NumberLetter_BIS_Switch) & 
              !is.na(NumberLetter_BIS_Diff_Score))
   ),
   "2-Back Task" = list(
-    subset_data = data_Pat_pre_clean %>%
+    subset_data = Patients_vs_HC %>%
       filter(!is.na(TwoBack_BIS_Foil) & 
              !is.na(TwoBack_BIS_Target) & 
              !is.na(TwoBack_BIS_Total))
   ),
   "Stop-Signal Task" = list(
-    subset_data = data_Pat_pre_clean %>%
+    subset_data = Patients_vs_HC %>%
       filter(!is.na(SSRT))
   )
 )
@@ -160,7 +158,7 @@ task_list <- list(
 # Loop through the tasks and create tables
 characteristics_tables <- lapply(names(task_list), function(task_name) {
   data <- task_list[[task_name]]$subset_data
-  generate_characteristics_table(data, task_name, grouping_variable = Response, group_labels = c("Non-Response", "Response"))
+  generate_characteristics_table(data, task_name, grouping_variable = Gruppe, group_labels = c("Healthy Controls", "Patients"))
 })
 
 # Name the tables for easy reference
@@ -171,10 +169,10 @@ names(characteristics_tables) <- names(task_list)
 # Calculate N for Healthy Controls and Patients for each task
 calculate_n <- function(data) {
   data %>%
-    group_by(Response) %>%
+    group_by(Gruppe) %>%
     summarize(N = n(), .groups = "drop") %>%
-    pivot_wider(names_from = Response, values_from = N, names_prefix = "Group_") %>%
-    rename("Non-Response" = Group_0, "Response" = Group_1)
+    pivot_wider(names_from = Gruppe, values_from = N, names_prefix = "Group_") %>%
+    rename("Healthy Controls" = Group_0, "Patients" = Group_1)
 }
 
 # Get N for each task
@@ -185,40 +183,40 @@ ssrt_n <- calculate_n(task_list[["Stop-Signal Task"]]$subset_data)
 
 # Convert the tbl_summary tables to tibbles and rename columns dynamically (no information on specific N needed)
 stroop_df <- as_tibble(characteristics_tables[["Stroop Task"]]) %>%
-  rename_with(~ c("Non-Response", "Response"), .cols = 2:3)
+  rename_with(~ c("Healthy Controls", "Patients"), .cols = 2:3)
 
 number_letter_df <- as_tibble(characteristics_tables[["Number-Letter Task"]]) %>%
-  rename_with(~ c("Non-Response", "Response"), .cols = 2:3)
+  rename_with(~ c("Healthy Controls", "Patients"), .cols = 2:3)
 
 two_back_df <- as_tibble(characteristics_tables[["2-Back Task"]]) %>%
-  rename_with(~ c("Non-Response", "Response"), .cols = 2:3)
+  rename_with(~ c("Healthy Controls", "Patients"), .cols = 2:3)
 
 ssrt_df <- as_tibble(characteristics_tables[["Stop-Signal Task"]]) %>%
-  rename_with(~ c("Non-Response", "Response"), .cols = 2:3)
+  rename_with(~ c("Healthy Controls", "Patients"), .cols = 2:3)
 
 # Insert the "N" row into each data frame
 stroop_df <- rbind(
   tibble("**Characteristic**" = "N", 
-         "Non-Response" = stroop_n[["Non-Response"]], 
-         "Response" = stroop_n[["Response"]]),
+         "Healthy Controls" = stroop_n[["Healthy Controls"]], 
+         "Patients" = stroop_n[["Patients"]]),
   stroop_df
 )
 number_letter_df <- rbind(
   tibble("**Characteristic**" = "N", 
-         "Non-Response" = number_letter_n[["Non-Response"]], 
-         "Response" = number_letter_n[["Response"]]),
+         "Healthy Controls" = number_letter_n[["Healthy Controls"]], 
+         "Patients" = number_letter_n[["Patients"]]),
   number_letter_df
 )
 two_back_df <- rbind(
   tibble("**Characteristic**" = "N", 
-         "Non-Response" = two_back_n[["Non-Response"]], 
-         "Response" = two_back_n[["Response"]]),
+         "Healthy Controls" = two_back_n[["Healthy Controls"]], 
+         "Patients" = two_back_n[["Patients"]]),
   two_back_df
 )
 ssrt_df <- rbind(
   tibble("**Characteristic**" = "N", 
-         "Non-Response" = ssrt_n[["Non-Response"]], 
-         "Response" = ssrt_n[["Response"]]),
+         "Healthy Controls" = ssrt_n[["Healthy Controls"]], 
+         "Patients" = ssrt_n[["Patients"]]),
   ssrt_df
 )
 
@@ -234,13 +232,14 @@ characteristics_tasks <- cbind(
 
 ## 2. Flextable of characteristics by task
 ```{r}
+# Create Flextable
 # Rename columns to ensure uniqueness
 colnames(characteristics_tasks) <- c(
   "Characteristic", 
-  "Stroop_NR", "Stroop_R", 
-  "Number_Letter_NR", "Number_Letter_R", 
-  "Two_Back_NR", "Two_Back_R", 
-  "Stop_Signal_NR", "Stop_Signal_R"
+  "Stroop_Healthy_Controls", "Stroop_Patients", 
+  "Number_Letter_Healthy_Controls", "Number_Letter_Patients", 
+  "Two_Back_Healthy_Controls", "Two_Back_Patients", 
+  "Stop_Signal_Healthy_Controls", "Stop_Signal_Patients"
 )
 
 # Define primary (task) and secondary (HC vs Pat) headers
@@ -249,10 +248,10 @@ primary_headers <- c("Characteristic", "Stroop Task", "Stroop Task",
                      "2-Back Task", "2-Back Task", 
                      "Stop-Signal Task", "Stop-Signal Task")
 
-secondary_headers <- c("Characteristic", "Non-Response", "Response", 
-                       "Non-Response", "Response", 
-                       "Non-Response", "Response", 
-                       "Non-Response", "Response")
+secondary_headers <- c("Characteristic", "Healthy Controls", "Patients", 
+                       "Healthy Controls", "Patients", 
+                       "Healthy Controls", "Patients", 
+                       "Healthy Controls", "Patients")
 
 # Create a flextable
 ft <- flextable(characteristics_tasks)
@@ -280,8 +279,8 @@ ft <- autofit(ft)
 # Write to Word
 save_as_docx(
   ft,
-  path = file.path(results_path, "Characteristics_Response_Nonresponse.docx"), 
-  pr_section = format_flextable_landscape)
+  path =file.path(results_path_HC_Pat, "Characteristics_Patients_HCs.docx"), 
+  pr_section = format_flextable_portrait)
 ft
 ```
 
@@ -289,16 +288,16 @@ ft
 
 ```{r}
 # Select columns
-columns_n_trimmed <- grep("_n_trimmed_removed_RT$", names(data_Pat_pre_clean), value = TRUE)
-columns_n_wrong <- grep("_n_wrong_removed_RT$", names(data_Pat_pre_clean), value = TRUE)
+columns_n_trimmed <- grep("_n_trimmed_removed_RT$", names(Patients_vs_HC), value = TRUE)
+columns_n_wrong <- grep("_n_wrong_removed_RT$", names(Patients_vs_HC), value = TRUE)
 
 # Create a data frame dynamically
 df <- data.frame(
   Condition = gsub("_n_trimmed_removed_RT", "", columns_n_trimmed),  # Remove suffix for clean names
-  n_trimmed_removed = sapply(data_Pat_pre_clean[ columns_n_trimmed], mean, na.rm = TRUE),
-  n_trimmed_removed_sd = sapply(data_Pat_pre_clean[ columns_n_trimmed], sd, na.rm = TRUE),
-  n_wrong_removed = sapply(data_Pat_pre_clean[columns_n_wrong], mean, na.rm = TRUE),
-  n_wrong_removed_sd = sapply(data_Pat_pre_clean[columns_n_wrong], sd, na.rm = TRUE)
+  n_trimmed_removed = sapply(Patients_vs_HC[ columns_n_trimmed], mean, na.rm = TRUE),
+  n_trimmed_removed_sd = sapply(Patients_vs_HC[ columns_n_trimmed], sd, na.rm = TRUE),
+  n_wrong_removed = sapply(Patients_vs_HC[columns_n_wrong], mean, na.rm = TRUE),
+  n_wrong_removed_sd = sapply(Patients_vs_HC[columns_n_wrong], sd, na.rm = TRUE)
 )
 
 # Rename variables
@@ -330,7 +329,7 @@ ft_removedRT <- align(ft_removedRT, j = 2:ncol(df), align = "center", part = "al
 # Export flextable
 save_as_docx(
   ft_removedRT,
-  path = file.path(results_path, "removed_trials_Responder_Nonresponder.docx"), 
+  path = file.path(results_path_HC_Pat, "removed_trials_Patients_HCs.docx"), 
   pr_section = format_flextable_portrait)
 
 # Info for interpreting the results: 
