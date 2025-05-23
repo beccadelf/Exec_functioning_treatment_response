@@ -63,7 +63,7 @@ def set_options_and_paths():
     parser.add_argument('--ANALYSIS', type=str,
                         help='Features to include, set all_features or clinical_features_only')
     parser.add_argument('--REGRESSOR', type=str,
-                        help='Regressor to use, set random_forest or ridge_regression')
+                        help='Regressor to use, set random_forest_regressor or ridge_regressor')
     parser.add_argument('--NUMBER_REPETITIONS', type=int, default=100,
                         help='Number of repetitions of the cross-validation')
     parser.add_argument('--NULL_MODEL', type=str, default = "no",
@@ -74,7 +74,7 @@ def set_options_and_paths():
         args = parser.parse_args()
         
         # Check if required args are None
-        if None in (args.PATH_INPUT_DATA, args.ANALYSIS, args.CLASSIFIER):
+        if None in (args.PATH_INPUT_DATA, args.ANALYSIS, args.REGRESSOR):
             raise ValueError("Missing required arguments. Falling back to inline args")
 
         print("Using arguments given via terminal")
@@ -86,7 +86,7 @@ def set_options_and_paths():
             '--ANALYSIS', "clinical_features_only", 
             '--REGRESSOR', 'random_forest_regressor',
             '--NUMBER_REPETITIONS', "3",
-            '--NULL_MODEL', "yes"])
+            '--NULL_MODEL', "no"])
     
     PATHS = generate_and_create_results_path(args)
         

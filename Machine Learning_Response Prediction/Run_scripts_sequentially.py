@@ -20,7 +20,8 @@ os.chdir(script_wd)
 # Define the parameters
 outcome = ["response_FSQ", "response_BAT"]
 regressors = ["random_forest_regressor","ridge_regressor"]
-classifiers = ["random_forest_classifier","svm_classifier"]
+#classifiers = ["random_forest_clf","svm_clf"]
+classifiers = ["svm_classifier"]
 analysis = ["all_features", "clinical_features_only"]
 oversampling = ["yes_simple","yes_smote", "no"]
 permutation = ["no","yes"]
@@ -92,5 +93,5 @@ def run_script(script_path, argument_sets):
             print(f"Error running script with arguments {arguments}: {e}")
 
 # Run the scripts with generated argument sets
-run_script(script_paths["regression"], argument_sets_regression)
+#run_script(script_paths["regression"], argument_sets_regression)
 run_script(script_paths["classification"], argument_sets_classification)

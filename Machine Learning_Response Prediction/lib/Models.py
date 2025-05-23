@@ -50,7 +50,7 @@ def fit_svm_classifier(X, y, C = 0.1, kernel = "rbf"):
         - feature_weights: array (1, n_features), coefficients representing the
                            importance of each feature in the linear decision boundary.
     """
-    clf = svm.SVC(C=C, kernel= kernel, random_state=0)
+    clf = svm.SVC(C=C, kernel= kernel, random_state=0, probability = True)
     clf = clf.fit(X, y)
     
     if kernel == "linear":

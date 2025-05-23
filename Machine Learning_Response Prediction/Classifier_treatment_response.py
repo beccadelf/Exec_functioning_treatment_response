@@ -64,7 +64,7 @@ def set_options_and_paths():
     parser.add_argument('--ANALYSIS', type=str,
                         help='Features to include, set all_features or clinical_features_only')
     parser.add_argument('--CLASSIFIER', type=str,
-                        help='Classifier to use, set random_forest_classifier or svm_classifier')
+                        help='Classifier to use, set random_forest_clf or svm_clf')
     parser.add_argument('--OVERSAMPLING', type=str, default="yes_simple",
                         help='Should training and testset be oversampled to represent distribution in sample?')
     parser.add_argument('--NUMBER_REPETITIONS', type=int, default=100,
@@ -84,13 +84,13 @@ def set_options_and_paths():
     except:
         print("Using arguments given in the script")
         args = parser.parse_args([
-            '--PATH_INPUT_DATA', "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Feature_Label_Dataframes\\RT_trimmed_RT_wrong_removed_outliers-removed\\response_FSQ",
+            '--PATH_INPUT_DATA', "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Feature_Label_Dataframes\\RT_trimmed_RT_wrong_removed_outliers-removed\\response_BAT",
             # '--PATH_RESULTS_BASE', "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Results\\response_FSQ",
             '--ANALYSIS', "all_features",
-            '--CLASSIFIER', 'random_forest_classifier',
-            '--OVERSAMPLING', 'yes_smote',
+            '--CLASSIFIER', 'svm_clf',
+            '--OVERSAMPLING', 'no',
             '--NUMBER_REPETITIONS', "100",
-            '--NULL_MODEL', "no"
+            '--NULL_MODEL', "yes"
         ])
     
     PATHS = generate_and_create_results_path(args)
@@ -146,10 +146,10 @@ def procedure_per_iter(num_iter, args):
     X_train_imp_clean_scaled_sel, X_test_imp_clean_scaled_sel, features_selected = select_features_classification(X_train_imp_clean_scaled, X_test_imp_clean_scaled, y_train_final, feature_names_clean)
     
     # Fit classifier
-    if args.CLASSIFIER == "random_forest_classifier":
+    if args.CLASSIFIER == "random_forest_clf":
         clf, feature_weights = fit_random_forest_classifier(
             X_train_imp_clean_scaled_sel, y_train_final)
-    elif args.CLASSIFIER == "svm_classifier":
+    elif args.CLASSIFIER == "svm_clf":
         clf, feature_weights = fit_svm_classifier(
             X_train_imp_clean_scaled_sel, y_train_final, C=1)
     

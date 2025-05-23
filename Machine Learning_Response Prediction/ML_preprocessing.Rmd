@@ -78,9 +78,12 @@ features_df$Response <- NULL
 ```{r}
 if (params$response_criterion == "response_FSQ") {
   outcome_df <- round(data.frame(FAS_perc_change = ((features_df$T3_BAT_FAS_score - features_df$T1_BAT_FAS_score) / features_df$T1_BAT_FAS_score) * 100) * (-1),2)
-} else {
-  outcome_df <- round(data.frame(BAT_perc_change = ((features_df$BAT_T3 - features_df$BAT_T1) / features_df$BAT_T1) * 100), 2) # 2 cases in which BAT_T1=0 and BAT_perc_change thus Inf
-}
+# } else {
+#   outcome_df <- round(data.frame(BAT_perc_change = ((features_df$BAT_T3 - features_df$BAT_T1) / features_df$BAT_T1) * 100), 2) # 2 cases in which BAT_T1=0 and BAT_perc_change thus Inf
+# }
+  } else {
+  outcome_df <- data.frame(BAT_perc_change = features_df$BAT_T3)
+  }
 ```
 
 ## 4. Dummy-Vars and renaming of features

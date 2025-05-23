@@ -9,7 +9,7 @@ output:
     code_folding: hide
     df_print: paged
 params:
-  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
+  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/RT_trimmed_RT_wrong_removed/BIS/outliers-removed/response_FSQ"
   output_base_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/HC_vs_Pat"
 ---
 <style type="text/css">
@@ -47,7 +47,7 @@ format_flextable_landscape <- flextable_settings(word_orientation = "landscape")
 
 ## 2. Import Data (HCs and Patients_Pre)
 ```{r}
-basic_path <- file.path(params$input_data_path, "response_FSQ")
+basic_path <- file.path(params$input_data_path)
 data_HC <- read.csv(file.path(basic_path,"Data_HC.csv"))
 data_Pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
 ```
