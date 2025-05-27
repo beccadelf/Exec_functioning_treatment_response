@@ -344,8 +344,9 @@ prepare_ttest_table <- function(ttest_table, var_type = c("dimensional", "catego
       mutate(
         group_0 = paste0(group_0_mean, " (", group_0_sd, ")"),
         group_1 = paste0(group_1_mean, " (", group_1_sd, ")"),
-        `Comparison` = paste0("t(", df, ") = ", statistic, ", p = ", format(p_value_adjusted, nsmall = 2))
-      ) %>%
+        `Comparison` = map2(df, statistic, ~as_paragraph(
+          as_i("t"), "(", .x, ") = ", .y, ", ", as_i("p"), " = ", format(p_value_adjusted, nsmall = 2)
+        ))) %>%
       select(dependent_variables, group_0, group_1, Comparison, missings_group0, missings_group1)
     
   } else if (type == "categorical") {
@@ -354,8 +355,9 @@ prepare_ttest_table <- function(ttest_table, var_type = c("dimensional", "catego
       mutate(
         group_0 = paste0(n_1_group0, " (", pct_1_group0, "%)"),
         group_1 = paste0(n_1_group1, " (", pct_1_group1, "%)"),
-        `Comparison` = paste0("χ²(", df, ") = ", statistic, ", p = ", format(p_value_adjusted, nsmall = 2))
-      ) %>%
+        `Comparison` = map2(df, statistic, ~as_paragraph(
+          as_i("χ²"), "(", .x, ") = ", .y, ", ", as_i("p"), " = ", format(p_value_adjusted, nsmall = 2)
+      ))) %>%
       select(dependent_variables, group_0, group_1, Comparison, missings_group0, missings_group1)
   }
   

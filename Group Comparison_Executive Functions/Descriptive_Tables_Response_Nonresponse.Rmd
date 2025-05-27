@@ -34,6 +34,7 @@ library(dplyr)
 library(gtsummary)
 library(tidyr)
 library(flextable)
+library(officer)
 
 # User-defined functions
 source("../Useful_functions.R")

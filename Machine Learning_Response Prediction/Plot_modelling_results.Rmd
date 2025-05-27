@@ -19,7 +19,11 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 windowsFonts(Arial=windowsFont("Arial"))
 library(readr)
 library(dplyr)
+library(flextable)
 library(ggplot2)
+
+# User-defined functions
+source("../Useful_functions.R")
 ```
 
 # Plot Settings
@@ -40,8 +44,8 @@ theme_set(theme_bw() + theme(text = element_text(family = family),
 # Load and combine results
 ```{r}
 # Get all folders in the results folder (each containing the results of another model)
-basic_path = "Y:\\Psythera"
-path_results_folder = file.path(basic_path, "Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Results\\RT_trimmed_RT_wrong_removed_outliers-removed")
+basic_path = "Y:\\Psythera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning"
+path_results_folder = file.path(basic_path, "Results\\RT_trimmed_RT_wrong_removed_outliers-removed\\response_FSQ")
 results_folders <- list.files(path = path_results_folder, full.names = FALSE)
 
 # Filter for new results
@@ -60,9 +64,51 @@ combined_results <- bind_rows(results_dict, .id = "FolderName")
 combined_results$X <- NULL
 
 # Separate into regressor and classifier dataframes
-classification_results <- combined_results[grepl("classifier", combined_results$FolderName), ]
+classification_results <- combined_results[grepl("clf", combined_results$FolderName), ]
 regression_results <- combined_results[grepl("regressor", combined_results$FolderName), ]
 ```
+
+# Prepare classification results
+```{r}
+# Create new model variable
+classification_results$Model <- ifelse(grepl("random_forest_clf_yes_smote_oversampling", classification_results$FolderName),
+                                       "Random Forest\n(OS: SMOTE)",
+                    ifelse(grepl("random_forest_clf_yes_simple", classification_results$FolderName),
+                           "Random Forest\n(OS: Simple)",
+                    ifelse(grepl("random_forest_clf_no_oversampling", classification_results$FolderName),
+                           "Random Forest\n(OS: no)",
+                    ifelse(grepl("svm_clf_yes_smote", classification_results$FolderName),
+                           "Rbf-SVM\n(OS: SMOTE)",
+                    ifelse(grepl("svm_clf_yes_simple", classification_results$FolderName), 
+                           "Rbf-SVM\n(OS: Simple)",
+                    ifelse(grepl("svm_clf_no_oversampling", classification_results$FolderName), 
+                           "Rbf-SVM\n(OS: no)", NA))))))
+# Ensure correct ordering
+classification_results$Model <- factor(classification_results$Model, levels = c("Random Forest\n(OS: SMOTE)","Random Forest\n(OS: Simple)",
+                                                                                "Random Forest\n(OS: no)","Rbf-SVM\n(OS: SMOTE)", "Rbf-SVM\n(OS: Simple)","Rbf-SVM\n(OS: no)"))
+```
+
+# Summarize in a table
+```{r}
+metrics <- c("accuracy", "balanced_accuracy", "sensitivity", "specificity", "f1_score", "auc")
+
+# Compute mean (SD) for each metric per model
+summary_table <- classification_results %>%
+  group_by(Model) %>%
+  summarise(across(all_of(metrics),
+                   ~ paste0(round(mean(.x, na.rm = TRUE), 2),
+                            " (", round(sd(.x, na.rm = TRUE), 2), ")"),
+                   .names = "{.col}")) %>%
+  ungroup()
+
+colnames(summary_table) <- c("Model", "Accuracy", "Balanced Accuracy", "Sensitivity", "Specificity", "F1-Score", "AUC-Score")
+```
+
+# Save as flextable
+```{r}
+create_save_flextable(table_pub = summary_table, results_path = basic_path, file_name = "classification_results_FSQ.docx")
+```
+
 
 # Create a plot for the classification results
 ```{r, fig.width = 16, fig.height = 9}
@@ -165,7 +211,7 @@ regression_plot
 
 # Save plots
 ```{r}
-plots_path = file.path(basic_path, "Projekte_Meinke/Old_projects/Labrotation_Rebecca/2_Machine_learning/Plots/")
+plots_path = file.path(basic_path, "Plots/")
 ggsave(file.path(plots_path,"Classification_results_plot.png"), plot = classification_plot, width = 16, height = 9, dpi = 300)
 ggsave(file.path(plots_path, "Regression_results_plot.png"), plot = regression_plot, width = 16, height = 9, dpi = 300)
 ggsave(file.path(plots_path,"Classification_results_plot.svg"), plot = classification_plot, width = 16, height = 9)
