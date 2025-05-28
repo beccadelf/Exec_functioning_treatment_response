@@ -34,7 +34,6 @@ library(dplyr)
 library(gtsummary)
 library(tidyr)
 library(flextable)
-library(officer)
 
 # User-defined functions
 source("../Useful_functions.R")
@@ -134,17 +133,17 @@ create_save_flextable(table_pub = descr_comps_Response, results_path = results_p
 ```{r}
 # 1. Subset data frame by non-NA for respective tasks
 task_list <- list(
-  "Stroop Task" = list(
-    subset_data = data_Pat_pre_clean %>%
-      filter(!is.na(Stroop_BIS_Congruent) & 
-             !is.na(Stroop_BIS_Incongruent) & 
-             !is.na(Stroop_BIS_Diff_Score))
-  ),
   "Number-Letter Task" = list(
     subset_data = data_Pat_pre_clean %>%
       filter(!is.na(NumberLetter_BIS_Repeat) & 
              !is.na(NumberLetter_BIS_Switch) & 
              !is.na(NumberLetter_BIS_Diff_Score))
+  ),
+  "Stroop Task" = list(
+    subset_data = data_Pat_pre_clean %>%
+      filter(!is.na(Stroop_BIS_Congruent) & 
+             !is.na(Stroop_BIS_Incongruent) & 
+             !is.na(Stroop_BIS_Diff_Score))
   ),
   "2-Back Task" = list(
     subset_data = data_Pat_pre_clean %>%
@@ -225,9 +224,9 @@ ssrt_df <- rbind(
 
 # Combine the modified data frames
 characteristics_tasks <- cbind(
-  stroop_df[, "**Characteristic**", drop = FALSE],  # Include "Characteristic" column only once
-  stroop_df[, -which(names(stroop_df) == "**Characteristic**")],
+  number_letter_df[, "**Characteristic**", drop = FALSE],  # Include "Characteristic" column only once
   number_letter_df[, -which(names(number_letter_df) == "**Characteristic**")],
+  stroop_df[, -which(names(stroop_df) == "**Characteristic**")],
   two_back_df[, -which(names(two_back_df) == "**Characteristic**")],
   ssrt_df[, -which(names(ssrt_df) == "**Characteristic**")]  # Drop "Characteristic" column from all others
 )
@@ -238,15 +237,15 @@ characteristics_tasks <- cbind(
 # Rename columns to ensure uniqueness
 colnames(characteristics_tasks) <- c(
   "Characteristic", 
-  "Stroop_NR", "Stroop_R", 
   "Number_Letter_NR", "Number_Letter_R", 
+  "Stroop_NR", "Stroop_R", 
   "Two_Back_NR", "Two_Back_R", 
   "Stop_Signal_NR", "Stop_Signal_R"
 )
 
 # Define primary (task) and secondary (HC vs Pat) headers
-primary_headers <- c("Characteristic", "Stroop Task", "Stroop Task", 
-                     "Number-Letter Task", "Number-Letter Task", 
+primary_headers <- c("Characteristic", "Number-Letter Task", "Number-Letter Task", 
+                     "Stroop Task", "Stroop Task", 
                      "2-Back Task", "2-Back Task", 
                      "Stop-Signal Task", "Stop-Signal Task")
 
