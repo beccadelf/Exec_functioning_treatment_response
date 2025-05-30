@@ -50,6 +50,9 @@ format_flextable_landscape <- flextable_settings(word_orientation = "landscape")
 basic_path <- file.path(params$input_data_path)
 data_HC <- read.csv(file.path(basic_path,"Data_HC.csv"))
 data_Pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
+
+# Merge patients pre and controls
+Patients_vs_HC <- rbind(data_Pat_pre, data_HC)
 ```
 
 ## 3. Set results path to save tables and images
@@ -60,12 +63,9 @@ results_path_HC_Pat <- create_results_path(inputdata_path = basic_path,
 
 ## 4. Prepare dataset
 ```{r}
-# Merge patients pre and controls
-Patients_vs_HC <- rbind(data_Pat_pre, data_HC)
-
 # Dummy-code variable education
 recode_results_1 <- dummy_code_education(Patients_vs_HC)
-Patients_vs_HC <- recode_results_1$data_recoded
+Patients_vs_HC_rec <- recode_results_1$data_recoded
 ```
 
 
@@ -79,12 +79,12 @@ dimensional_vars <- c("Alter", "T1_BAT_FAS_score", "T1_BAT_BDI_II_score", "T1_BA
 
 ## 1. Welch t-test for dimensional variables
 ```{r}
-t_test_descr_HC_Pat <- t_test_mult_cols(df_basis = Patients_vs_HC, cols = dimensional_vars, grouping_variable = "Gruppe")
+t_test_descr_HC_Pat <- t_test_mult_cols(df_basis = Patients_vs_HC_rec, cols = dimensional_vars, grouping_variable = "Gruppe")
 ```
 
 ## 2. Chi-square test for categorical variables
 ```{r}
-chi_sq_test_descr_HC_Pat <- chi_sq_test_mult_cols(df_basis = Patients_vs_HC, cols = categorical_vars, grouping_variable = "Gruppe")
+chi_sq_test_descr_HC_Pat <- chi_sq_test_mult_cols(df_basis = Patients_vs_HC_rec, cols = categorical_vars, grouping_variable = "Gruppe")
 ```
 
 ## 3. Converge tables format and merge
@@ -113,8 +113,8 @@ for (i in seq_len(nrow(descr_comps_pub_HC_Pat))) {
 descr_comps_pub_HC_Pat <- descr_comps_pub_HC_Pat[, !(names(descr_comps_pub_HC_Pat) %in% c("Missings_Healthy Controls", "Missings_Patients"))]
 
 # Add number of subjects per group
-n_HC <- sum(Patients_vs_HC$Gruppe == 0)
-n_Patients <- sum(Patients_vs_HC$Gruppe == 1)
+n_HC <- sum(Patients_vs_HC_rec$Gruppe == 0)
+n_Patients <- sum(Patients_vs_HC_rec$Gruppe == 1)
 n_subjects_row <- data.frame(Variable = "N", `Healthy Controls` = n_HC, Patients = n_Patients, Statistic = "-", stringsAsFactors = FALSE, check.names = FALSE)
 descr_comps_pub_HC_Pat <- rbind(n_subjects_row, descr_comps_pub_HC_Pat)
 ```

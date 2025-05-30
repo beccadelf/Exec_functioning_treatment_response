@@ -50,7 +50,11 @@ format_flextable_landscape <- flextable_settings(word_orientation = "landscape")
 ```{r}
 basic_path <- file.path(params$input_data_path, params$response_criterion)
 data_Pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
+
+# Remove all patients that had no post-treatment score
+data_Pat_pre_clean <- data_Pat_pre[!is.na(data_Pat_pre$Response),]
 ```
+We had `r nrow(data_Pat_pre[!is.na(data_Pat_pre$Response),])` patients with a post-value available, and `r nrow(data_Pat_pre_clean[data_Pat_pre_clean$Response == 1,])`
 
 ## 3. Set results path to save tables and images
 ```{r}
@@ -60,16 +64,11 @@ results_path <- create_results_path(inputdata_path = basic_path,
 ```
 
 ## 4. Prepare dataset
-Remove all patients that had no post-treatment score
 ```{r}
-data_Pat_pre_clean <- data_Pat_pre[!is.na(data_Pat_pre$Response),]
-
 # Dummy-code variable education
 recode_results_2 <- dummy_code_education(data_Pat_pre_clean)
-data_Pat_pre_clean <- recode_results_2$data_recoded
+data_Pat_pre_clean_rec <- recode_results_2$data_recoded
 ```
-We had `r nrow(data_Pat_pre[!is.na(data_Pat_pre$Response),])` patients with a post-value available, and `r nrow(data_Pat_pre_clean[data_Pat_pre_clean$Response == 1,])`
-
 
 # Descriptive group comparisons
 
@@ -81,12 +80,12 @@ dimensional_vars <- c("Alter", "T1_BAT_FAS_score", "T1_BAT_BDI_II_score", "T1_BA
 
 ## 1. Welch t-test for dimensional variables
 ```{r}
-t_test_descr_Response <- t_test_mult_cols(df_basis = data_Pat_pre_clean, cols = dimensional_vars, grouping_variable = "Response")
+t_test_descr_Response <- t_test_mult_cols(df_basis = data_Pat_pre_clean_rec, cols = dimensional_vars, grouping_variable = "Response")
 ```
 
 ## 2. Chi-square test for categorical variables
 ```{r}
-chi_sq_test_descr_Response <- chi_sq_test_mult_cols(df_basis = data_Pat_pre_clean, cols = categorical_vars, grouping_variable = "Response")
+chi_sq_test_descr_Response <- chi_sq_test_mult_cols(df_basis = data_Pat_pre_clean_rec, cols = categorical_vars, grouping_variable = "Response")
 ```
 
 ## 3. Converge tables format and merge
@@ -115,8 +114,8 @@ for (i in seq_len(nrow(descr_comps_Response))) {
 descr_comps_Response <- descr_comps_Response[, !(names(descr_comps_Response) %in% c("Missings_Non-Responder", "Missings_Responder"))]
 
 # Add number of subjects per group
-n_NR <- sum(data_Pat_pre_clean$Response == 0)
-n_R <- sum(data_Pat_pre_clean$Response == 1)
+n_NR <- sum(data_Pat_pre_clean_rec$Response == 0)
+n_R <- sum(data_Pat_pre_clean_rec$Response == 1)
 n_subjects_row <- data.frame(Variable = "N", `Non-Responder` = n_NR, Responder = n_R, Statistic = "-", stringsAsFactors = FALSE, check.names = FALSE)
 descr_comps_Response <- rbind(n_subjects_row, descr_comps_Response)
 ```

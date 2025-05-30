@@ -371,8 +371,8 @@ prepare_ttest_table <- function(ttest_table, var_type = c("dimensional", "catego
 generate_characteristics_table <- function(data, task_name, grouping_variable, group_labels) {
   data %>%
     select({{ grouping_variable }}, Alter, Geschlecht, Abschluss, 
-           T1_BAT_BDI_II_score, T1_BAT_BIS_11_score, T1_BAT_CFC_14_score, 
-           T1_BAT_FAS_score, T1_BAT_Kirby_k_score, T1_BAT_SRHI_score, T1_BAT_STAI_T_score) %>%
+           T1_BAT_FAS_score, BAT_T1, T1_BAT_BDI_II_score, T1_BAT_STAI_T_score, T1_BAT_BIS_11_score, 
+           T1_BAT_Kirby_k_score, T1_BAT_CFC_14_score, T1_BAT_SRHI_score, ) %>%
     mutate({{ grouping_variable }} := factor({{ grouping_variable }}, levels = c(0, 1), labels = group_labels),
            Geschlecht = factor(Geschlecht, levels = c(0, 1), labels = c("Male", "Female")),
            Abschluss = factor(Abschluss, levels = c(1, 2, 3, 4), 
@@ -385,6 +385,7 @@ generate_characteristics_table <- function(data, task_name, grouping_variable, g
                               T1_BAT_BIS_11_score = c(1, 1),
                               T1_BAT_CFC_14_score = c(1, 1),
                               T1_BAT_FAS_score = c(1, 1),
+                              BAT_T1 = c(1, 1),
                               T1_BAT_SRHI_score = c(1, 1),
                               T1_BAT_STAI_T_score= c(1, 1)),
                 label = list(
@@ -392,6 +393,7 @@ generate_characteristics_table <- function(data, task_name, grouping_variable, g
                   Geschlecht ~ "Sex",
                   Abschluss ~ "Education",
                   T1_BAT_FAS_score ~ "FSQ Score",
+                  BAT_T1 ~ "BAT Score",
                   T1_BAT_BDI_II_score ~ "BDI-II Score",
                   T1_BAT_STAI_T_score ~ "STAI-T Score",
                   T1_BAT_BIS_11_score ~ "BIS-11 Score",
