@@ -131,11 +131,11 @@ create_save_flextable(table_pub = descr_comps_pub_HC_Pat, results_path = results
 ```{r}
 # 1. Subset data frame by non-NA for respective tasks
 task_list <- list(
-  "Number-Letter Task" = list(
+  "2-Back Task" = list(
     subset_data = Patients_vs_HC %>%
-      filter(!is.na(NumberLetter_BIS_Repeat) & 
-             !is.na(NumberLetter_BIS_Switch) & 
-             !is.na(NumberLetter_BIS_Diff_Score))
+      filter(!is.na(TwoBack_BIS_Foil) & 
+             !is.na(TwoBack_BIS_Target) & 
+             !is.na(TwoBack_BIS_Total))
   ),
   "Stroop Task" = list(
     subset_data = Patients_vs_HC %>%
@@ -143,11 +143,11 @@ task_list <- list(
              !is.na(Stroop_BIS_Incongruent) & 
              !is.na(Stroop_BIS_Diff_Score))
   ),
-  "2-Back Task" = list(
+  "Number-Letter Task" = list(
     subset_data = Patients_vs_HC %>%
-      filter(!is.na(TwoBack_BIS_Foil) & 
-             !is.na(TwoBack_BIS_Target) & 
-             !is.na(TwoBack_BIS_Total))
+      filter(!is.na(NumberLetter_BIS_Repeat) & 
+             !is.na(NumberLetter_BIS_Switch) & 
+             !is.na(NumberLetter_BIS_Diff_Score))
   ),
   "Stop-Signal Task" = list(
     subset_data = Patients_vs_HC %>%
@@ -222,10 +222,10 @@ ssrt_df <- rbind(
 
 # Combine the modified data frames
 characteristics_tasks <- cbind(
-  number_letter_df[, "**Characteristic**", drop = FALSE],  # Include "Characteristic" column only once
-  number_letter_df[, -which(names(number_letter_df) == "**Characteristic**")],
-  stroop_df[, -which(names(stroop_df) == "**Characteristic**")],
+  two_back_df[, "**Characteristic**", drop = FALSE],  # Include "Characteristic" column only once
   two_back_df[, -which(names(two_back_df) == "**Characteristic**")],
+  stroop_df[, -which(names(stroop_df) == "**Characteristic**")],
+  number_letter_df[, -which(names(number_letter_df) == "**Characteristic**")],
   ssrt_df[, -which(names(ssrt_df) == "**Characteristic**")]  # Drop "Characteristic" column from all others
 )
 ```
@@ -236,16 +236,16 @@ characteristics_tasks <- cbind(
 # Rename columns to ensure uniqueness
 colnames(characteristics_tasks) <- c(
   "Characteristic", 
-  "Number_Letter_Healthy_Controls", "Number_Letter_Patients", 
-  "Stroop_Healthy_Controls", "Stroop_Patients", 
   "Two_Back_Healthy_Controls", "Two_Back_Patients", 
+  "Stroop_Healthy_Controls", "Stroop_Patients",
+  "Number_Letter_Healthy_Controls", "Number_Letter_Patients", 
   "Stop_Signal_Healthy_Controls", "Stop_Signal_Patients"
 )
 
 # Define primary (task) and secondary (HC vs Pat) headers
-primary_headers <- c("Characteristic", "Number-Letter Task", "Number-Letter Task", 
+primary_headers <- c("Characteristic", "2-Back Task", "2-Back Task", 
                      "Stroop Task", "Stroop Task", 
-                     "2-Back Task", "2-Back Task", 
+                     "Number-Letter Task", "Number-Letter Task", 
                      "Stop-Signal Task", "Stop-Signal Task")
 
 secondary_headers <- c("Characteristic", "Healthy Controls", "Patients", 
