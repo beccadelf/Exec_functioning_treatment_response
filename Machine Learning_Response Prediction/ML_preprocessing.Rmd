@@ -11,7 +11,7 @@ output:
 params:
   input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
   output_base_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/2_Machine_learning/Feature_Label_Dataframes"
-  response_criterion: "response_BAT" # choose between "response_FSQ" or "response_BAT"
+  response_criterion: "response_FSQ" # choose between "response_FSQ" or "response_BAT"
 ---
 <style type="text/css">
 .main-container { /* Adjust main blocks */
@@ -160,7 +160,6 @@ all_features_final <- features_df_enc[, !names(features_df_enc) %in% addit_perfo
 ```{r}
 discarded_features <- c("BAT", "BIS_11", "Kirby_k", "CFC_14", "SRHI")
 clin_features_reduced <- clin_features_df_enc[, !names(clin_features_df_enc) %in% discarded_features]
-all_features_reduced <- all_features_final[, !names(all_features_final) %in% discarded_features]
 ```
 
 ## 7. Save all 5 dataframes
@@ -174,6 +173,5 @@ write.csv(outcome_df, file.path(output_path, "outcomes.csv"), row.names = FALSE)
 
 # Feature_Label_Dataframes for shared model
 write.csv(clin_features_reduced, file.path(output_path_share, "clinical_features_only.csv"), row.names = FALSE)
-write.csv(all_features_reduced, file.path(output_path_share, "all_features.csv"), row.names = FALSE)
 write.csv(labels_df, file.path(output_path_share, "labels.csv"), row.names = FALSE)
 ```
