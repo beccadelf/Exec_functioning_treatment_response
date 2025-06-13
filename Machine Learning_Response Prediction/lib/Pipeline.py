@@ -42,17 +42,17 @@ def load_data(X_path, y_path):
     return X, y, feature_names
 
 
-def impute_data(X_train, X_test):
+def impute_data(X_train, X_test=None):
     """
     Impute missing data using different strategies for binary and continuous variables.
 
     Arguments:
         - X_train: array-like or DataFrame of shape (n_samples_train, n_features), feature set for training.
-        - X_test: array-like or DataFrame of shape (n_samples_test, n_features), feature set for testing.
+        - X_test (optional): array-like or DataFrame of shape (n_samples_test, n_features), feature set for testing.
 
     Returns:
         - X_train_imputed: numpy array (n_samples_train, n_features), imputed training data.
-        - X_test_imputed: numpy array (n_samples_test, n_features), imputed testing data.
+        - X_test_imputed (optional): numpy array (n_samples_test, n_features), imputed testing data.
 
     Imputation Process:
         - Binary variables: Missing values are imputed using the mode (most frequent value).
@@ -63,8 +63,12 @@ def impute_data(X_train, X_test):
     # Impute binary variables by using the mode
     imp_mode = SimpleImputer(missing_values=77777, strategy='most_frequent')
     imp_mode.fit(X_train)
-    X_train_imputed = imp_mode.transform(X_train)
-    X_test_imputed = imp_mode.transform(X_test)
+    X_train_mode = imp_mode.transform(X_train)
+    if X_test is not None:
+        X_test_mode = imp_mode.transform(X_test)
+    else:
+        X_test_mode = None
+        
     # Impute dimensional variabels by using Bayesian Ridge Regression
     imp_mice = IterativeImputer(
         estimator=BayesianRidge(),
@@ -72,32 +76,46 @@ def impute_data(X_train, X_test):
         sample_posterior=True, 
         max_iter=10, 
         initial_strategy="mean", 
-        random_state=0)
-    imp_mice.fit(X_train_imputed)
-    X_train_imputed = imp_mice.transform(X_train_imputed)
-    X_test_imputed = imp_mice.transform(X_test_imputed)
+        random_state=0
+        )
+    imp_mice.fit(X_train_mode)
+    X_train_imputed = imp_mice.transform(X_train_mode)
     
-    return X_train_imputed, X_test_imputed
+    if X_test_mode is not None:
+        X_test_imputed = imp_mice.transform(X_test_mode) 
+        return X_train_imputed, X_test_imputed
+    else:
+        return X_train_imputed
 
 
-def z_scale_data(X_train, X_test):
+def z_scale_data(X_train, X_test=None, return_scaler=False):
     """
     Apply Z-score scaling to non-binary data.
 
     Arguments:
         X_train: array or DataFrame (n_samples_train, n_features), feature set for training.
-        X_test: array or DataFrame (n_samples_test, n_features), feature set for testing.
+        X_test (optional): array or DataFrame (n_samples_test, n_features), feature set for testing.
+        return_scaler (optional): bool, if True returns the fitted scaler
 
     Returns:
         - X_train_scaled: numpy array (n_samples_train, n_features), Z-score scaled training data.
-        - X_test_scaled: numpy array (n_samples_test, n_features), Z-score scaled testing data.
+        - X_test_scaled (optional): numpy array (n_samples_test, n_features), Z-score scaled testing data.
+        - scaler (optional): the fitted scaler
     """
     # z-scale only non-binary data!
     scaler = ZScalerDimVars()
     X_train_scaled = scaler.fit_transform(X_train)
-    X_test_scaled = scaler.transform(X_test)
-    
-    return X_train_scaled, X_test_scaled
+    if X_test is not None:
+        X_test_scaled = scaler.transform(X_test)
+        if return_scaler:
+            return X_train_scaled, X_test_scaled, scaler
+        else:
+            return X_train_scaled, X_test_scaled
+    else:
+        if return_scaler:
+            return X_train_scaled, scaler
+        else: 
+            return X_train_scaled
 
 
 def select_features_classification(X_train, X_test, y_train, feature_names):
