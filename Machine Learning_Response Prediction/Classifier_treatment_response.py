@@ -118,7 +118,7 @@ def procedure_per_iter(num_iter, args):
                                                         random_state = num_iter)
     # By changing the random_state with each iteration, we always get a different split
     
-    # Oversample XXX
+    # Oversampling
     if args.OVERSAMPLING == "yes_simple":
         oversample = RandomOverSampler(sampling_strategy = 'minority')
         X_train_final, y_train_final = oversample.fit_resample(X_train, y_train)
@@ -128,10 +128,10 @@ def procedure_per_iter(num_iter, args):
     elif args.OVERSAMPLING == "no":
         X_train_final, y_train_final = X_train, y_train
     
-    # Impute missing values
+    # Imputation of missing values
     X_train_imp, X_test_imp = impute_data(X_train_final, X_test)
     
-    # Exclude features using FeatureSelector (no variance, correlation too high!)
+    # Feature exclusion (no variance, correlation too high!)
     selector = FeatureSelector()
     selector.fit(X_train_imp)
     X_train_imp_clean = selector.transform(X_train_imp)
@@ -139,10 +139,10 @@ def procedure_per_iter(num_iter, args):
     feature_names_clean = feature_names[selector.is_feat_excluded == 0]
     feature_names_excl = feature_names[selector.is_feat_excluded == 1]
     
-    # X-scale data
+    # Z-scale data
     X_train_imp_clean_scaled, X_test_imp_clean_scaled = z_scale_data(X_train_imp_clean, X_test_imp_clean)
     
-    # Select features with elastic net
+    # Feature selection (using elastic net)
     X_train_imp_clean_scaled_sel, X_test_imp_clean_scaled_sel, features_selected = select_features_classification(X_train_imp_clean_scaled, X_test_imp_clean_scaled, y_train_final, feature_names_clean)
     
     # Fit classifier
