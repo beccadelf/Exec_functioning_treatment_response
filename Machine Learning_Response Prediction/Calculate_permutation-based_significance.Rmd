@@ -26,11 +26,11 @@ library(ggplot2)
 ```{r}
 # Get all folders in the results folder (each containing the results of another model)
 basic_path = "Y:\\Psythera"
-path_results_folder = file.path(basic_path, "Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Results\\RT_trimmed_RT_wrong_removed_outliers-removed")
+path_results_folder = file.path(basic_path, "Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Results\\RT_trimmed_RT_wrong_removed_outliers-removed\\response_FSQ")
 results_folders <- list.files(path = path_results_folder, full.names = FALSE)
 
 # Filter for new results
-results_folders_classification <- results_folders[grepl("final", results_folders)& grepl("classifier", results_folders) & !grepl("permuted", results_folders)]
+results_folders_classification <- results_folders[grepl("final", results_folders)& grepl("clf", results_folders) & !grepl("permuted", results_folders)]
 results_folders_regressors <- results_folders[grepl("final", results_folders)& grepl("regressor", results_folders) & !grepl("permuted", results_folders)]
 ```
 
@@ -104,8 +104,8 @@ collect_p_values <- function(folders_unpermuted, evaluation_metric, logic = "lar
 df <- collect_p_values(folders_unpermuted = results_folders_classification, evaluation_metric = "balanced_accuracy")
 
 # Improve readibility of table
-df$models <- gsub("random_forest_classifier","rf",df$models)
-df$models <- gsub("svm_classifier","svm",df$models)
+df$models <- gsub("random_forest_clf","rf",df$models)
+df$models <- gsub("svm_clf","svm",df$models)
 df$models <- gsub("_features","",df$models)
 
 df
