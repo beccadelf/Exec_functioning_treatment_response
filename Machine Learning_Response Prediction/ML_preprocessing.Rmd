@@ -11,7 +11,7 @@ output:
 params:
   input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
   output_base_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/2_Machine_learning/Feature_Label_Dataframes"
-  response_criterion: "response_BAT" # choose between "response_FSQ" or "response_BAT"
+  response_criterion: "response_FSQ" # choose between "response_FSQ" or "response_BAT"
 ---
 <style type="text/css">
 .main-container { /* Adjust main blocks */
@@ -45,6 +45,8 @@ data_pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
 
 output_path <- create_results_path(inputdata_path = basic_path, output_mainpath = params$output_base_path,
                                         response_criterion = params$response_criterion)
+output_path_share <- file.path("Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Make_model_available/Feature_Label_Dataframes", params$response_criterion)
+dir.create(output_path_share, recursive = TRUE)
 ```
 
 ## 1. Exclude patients due to missing values
@@ -154,6 +156,12 @@ all_features_final <- features_df_enc[, !names(features_df_enc) %in% addit_perfo
 # Set 3: features_df_enc, includes Overall Accuracy etc.
 ```
 
+### 6.1. Create reduced feature set to share model publicly
+```{r}
+discarded_features <- c("BAT", "BIS_11", "Kirby_k", "CFC_14", "SRHI")
+clin_features_reduced <- clin_features_df_enc[, !names(clin_features_df_enc) %in% discarded_features]
+```
+
 ## 7. Save all 5 dataframes
 
 ```{r Save dataframes, warning=FALSE}
@@ -162,4 +170,8 @@ write.csv(features_df_enc, file.path(output_path, "all_features_accuracy.csv"), 
 write.csv(clin_features_df_enc, file.path(output_path, "clinical_features_only.csv"), row.names = FALSE)
 write.csv(labels_df, file.path(output_path, "labels.csv"), row.names = FALSE)
 write.csv(outcome_df, file.path(output_path, "outcomes.csv"), row.names = FALSE)
+
+# Feature_Label_Dataframes for shared model
+write.csv(clin_features_reduced, file.path(output_path_share, "clinical_features_only.csv"), row.names = FALSE)
+write.csv(labels_df, file.path(output_path_share, "labels.csv"), row.names = FALSE)
 ```

@@ -39,15 +39,15 @@ variable_labels <- c(
   Geschlecht = "Sex (Female)",
   Abschluss = "Education",
   Abschluss_Gymnasium = "Education (High-School)",
-  NumberLetter_BIS_Repeat = "Number-Letter: Repeat",
-  NumberLetter_BIS_Switch = "Number-Letter: Switch",
-  NumberLetter_BIS_Diff_Score = "Number-Letter: Switch-Repeat",
-  Stroop_BIS_Congruent = "Stroop: Congruent",
-  Stroop_BIS_Incongruent = "Stroop: Incongruent",
-  Stroop_BIS_Diff_Score = "Stroop: Incongruent-Congruent",
   TwoBack_BIS_Foil = "2-Back: Foil",
   TwoBack_BIS_Target = "2-Back: Target",
   TwoBack_BIS_Total = "2-Back: Total",
+  Stroop_BIS_Congruent = "Stroop: Congruent",
+  Stroop_BIS_Incongruent = "Stroop: Incongruent",
+  Stroop_BIS_Diff_Score = "Stroop: Incongruent-Congruent",
+  NumberLetter_BIS_Repeat = "Number-Letter: Repeat",
+  NumberLetter_BIS_Switch = "Number-Letter: Switch",
+  NumberLetter_BIS_Diff_Score = "Number-Letter: Switch-Repeat",
   SSRT = "Stop-Signal RT",
   T1_BAT_FAS_score = "FSQ Score",
   BAT_T1 = "BAT Score",
@@ -345,7 +345,7 @@ prepare_ttest_table <- function(ttest_table, var_type = c("dimensional", "catego
         group_0 = paste0(group_0_mean, " (", group_0_sd, ")"),
         group_1 = paste0(group_1_mean, " (", group_1_sd, ")"),
         `Comparison` = paste0("t(", df, ") = ", statistic, ", p = ", format(p_value_adjusted, nsmall = 2))
-      ) %>%
+        ) %>%
       select(dependent_variables, group_0, group_1, Comparison, missings_group0, missings_group1)
     
   } else if (type == "categorical") {
@@ -371,8 +371,8 @@ prepare_ttest_table <- function(ttest_table, var_type = c("dimensional", "catego
 generate_characteristics_table <- function(data, task_name, grouping_variable, group_labels) {
   data %>%
     select({{ grouping_variable }}, Alter, Geschlecht, Abschluss, 
-           T1_BAT_BDI_II_score, T1_BAT_BIS_11_score, T1_BAT_CFC_14_score, 
-           T1_BAT_FAS_score, T1_BAT_Kirby_k_score, T1_BAT_SRHI_score, T1_BAT_STAI_T_score) %>%
+           T1_BAT_FAS_score, BAT_T1, T1_BAT_BDI_II_score, T1_BAT_STAI_T_score, T1_BAT_BIS_11_score, 
+           T1_BAT_Kirby_k_score, T1_BAT_CFC_14_score, T1_BAT_SRHI_score, ) %>%
     mutate({{ grouping_variable }} := factor({{ grouping_variable }}, levels = c(0, 1), labels = group_labels),
            Geschlecht = factor(Geschlecht, levels = c(0, 1), labels = c("Male", "Female")),
            Abschluss = factor(Abschluss, levels = c(1, 2, 3, 4), 
@@ -385,6 +385,7 @@ generate_characteristics_table <- function(data, task_name, grouping_variable, g
                               T1_BAT_BIS_11_score = c(1, 1),
                               T1_BAT_CFC_14_score = c(1, 1),
                               T1_BAT_FAS_score = c(1, 1),
+                              BAT_T1 = c(1, 1),
                               T1_BAT_SRHI_score = c(1, 1),
                               T1_BAT_STAI_T_score= c(1, 1)),
                 label = list(
@@ -392,6 +393,7 @@ generate_characteristics_table <- function(data, task_name, grouping_variable, g
                   Geschlecht ~ "Sex",
                   Abschluss ~ "Education",
                   T1_BAT_FAS_score ~ "FSQ Score",
+                  BAT_T1 ~ "BAT Score",
                   T1_BAT_BDI_II_score ~ "BDI-II Score",
                   T1_BAT_STAI_T_score ~ "STAI-T Score",
                   T1_BAT_BIS_11_score ~ "BIS-11 Score",
