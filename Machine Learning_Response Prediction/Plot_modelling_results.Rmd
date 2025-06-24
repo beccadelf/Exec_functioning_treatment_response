@@ -113,19 +113,19 @@ create_save_flextable(table_pub = summary_table, results_path = basic_path, file
 # Create a plot for the classification results
 ```{r, fig.width = 16, fig.height = 9}
 create_classification_plot <- function(results_df){
-  # Create new model variable
-  results_df$Model <- ifelse(grepl("random_forest_classifier_yes_smote_oversampling", results_df$FolderName),
-                             "Random Forest\n(OS: SMOTE)",
-                      ifelse(grepl("random_forest_classifier_yes_simple", results_df$FolderName),
-                             "Random Forest\n(OS: Simple)",
-                      ifelse(grepl("random_forest_classifier_no_oversampling", results_df$FolderName),
-                             "Random Forest\n(OS: no)",
-                      ifelse(grepl("svm_classifier_yes_smote", results_df$FolderName),
-                             "Rbf-SVM\n(OS: SMOTE)",
-                      ifelse(grepl("svm_classifier_yes_simple", results_df$FolderName), 
-                             "Rbf-SVM\n(OS: Simple)",
-                      ifelse(grepl("svm_classifier_no_oversampling", results_df$FolderName), 
-                             "Rbf-SVM\n(OS: no)", NA))))))
+  # # Create new model variable
+  # results_df$Model <- ifelse(grepl("random_forest_classifier_yes_smote_oversampling", results_df$FolderName),
+  #                            "Random Forest\n(OS: SMOTE)",
+  #                     ifelse(grepl("random_forest_classifier_yes_simple", results_df$FolderName),
+  #                            "Random Forest\n(OS: Simple)",
+  #                     ifelse(grepl("random_forest_classifier_no_oversampling", results_df$FolderName),
+  #                            "Random Forest\n(OS: no)",
+  #                     ifelse(grepl("svm_classifier_yes_smote", results_df$FolderName),
+  #                            "Rbf-SVM\n(OS: SMOTE)",
+  #                     ifelse(grepl("svm_classifier_yes_simple", results_df$FolderName), 
+  #                            "Rbf-SVM\n(OS: Simple)",
+  #                     ifelse(grepl("svm_classifier_no_oversampling", results_df$FolderName), 
+  #                            "Rbf-SVM\n(OS: no)", NA))))))
   # Ensure correct ordering
   results_df$Model <- factor(results_df$Model, levels = c("Random Forest\n(OS: SMOTE)","Random Forest\n(OS: Simple)","Random Forest\n(OS: no)","Rbf-SVM\n(OS: SMOTE)",
                                                              "Rbf-SVM\n(OS: Simple)","Rbf-SVM\n(OS: no)"))
