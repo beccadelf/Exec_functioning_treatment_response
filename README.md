@@ -10,7 +10,11 @@ The repository is structured into two main sections, each aligned with the study
 
 ## Folder Structure
 
-### 1. Group Comparison: Executive Functions
+### 1. Model Release
+This section contains a pre-trained model for treatment response prediction, along with associated model components and supporting material. It is based on a random forest classifier and was trained without oversampling, feature exclusion, or feature selection, to ensure that the full input feature set remains unchanged. In a cross-validation with 100 iterations, the model achieved an average balanced accuracy of 0.60 (SD = 0.11), with a permutation-based p-value of *p* ≈ 0.08. Please refer to the “Instructions_to_use_algorithm.docx” for detailed usage instructions.
+
+
+### 2. Group Comparison: Executive Functions
 This section contains scripts and resources for comparing executive functioning performance between participants with spider phobia and healthy controls as well as responders and nonresponders.
 - **Group Comparison_Healthy Control Patients.rmd**: Compares executive functioning between patients having spider phobia and healthy controls.
 - **Group Comparison_Healthy Control Patients_ANCOVA.rmd**: Controls the comparison of executive functioning between patients having spider phobia and healthy controls for confounders.
@@ -20,7 +24,7 @@ This section contains scripts and resources for comparing executive functioning 
 
 
 
-### 2. Machine Learning: Response Prediction
+### 3. Machine Learning: Response Prediction
 This section contains scripts for building and testing machine learning models to predict treatment response based on baseline executive functions and clinical variables.
 
 - **ML_preprocessing.Rmd**: Preprocesses the data for the subsequent machine learning pipeline.
