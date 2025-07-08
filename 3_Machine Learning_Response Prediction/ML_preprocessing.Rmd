@@ -1,0 +1,177 @@
+---
+title: "Preprocessing_for_ML"
+author: "Rebecca Delfendahl, Charlotte Meinke"
+date: "2024-08-06"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+    df_print: paged
+params:
+  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
+  output_base_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/2_Machine_learning/Feature_Label_Dataframes"
+  response_criterion: "response_FSQ" # choose between "response_FSQ" or "response_BAT"
+---
+<style type="text/css">
+.main-container { /* Adjust main blocks */
+  max-width: 100% !important;
+  margin: auto;
+}
+
+body {
+  font-family: "Georgia", serif !important; /* Set the font for the entire document */
+}
+
+.tocify { /* Adjust table of contents */
+  max-width: 100% !important;
+}
+</style>
+
+```{r R Setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,rows.print = 6, cols.min.print = 3)
+library(dplyr)
+library(tidyverse)
+library(caret)
+source("../Useful_functions.R")
+```
+
+## 0. Load relevant data and define paths
+
+```{r}
+basic_path <- file.path(params$input_data_path, params$response_criterion)
+task_data <- read.csv(file.path(basic_path,"Task_Performance_Scores.csv")) # contains overall accuracy
+data_pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
+
+output_path <- create_results_path(inputdata_path = basic_path, output_mainpath = params$output_base_path,
+                                        response_criterion = params$response_criterion)
+output_path_share <- file.path("Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Make_model_available/Feature_Label_Dataframes", params$response_criterion)
+dir.create(output_path_share, recursive = TRUE)
+```
+
+## 1. Exclude patients due to missing values
+
+```{r}
+data_pat_pre_clean <- data_pat_pre %>%
+  filter(!is.na(Response)) # equals to NA at T1_BAT_FAS_score and/or T3_BAT_FAS_score
+```
+`r nrow(data_pat_pre) - nrow(data_pat_pre_clean)` patients were removed due to missing FAS_T1 and/or FAS_T3 (i.e. response criterion).
+
+## 2. Add overall accuracy as additional feature
+Note: also add PercentRmv as control variable if trials with wrong responses were discarded
+
+```{r}
+features_df <- left_join(x = data_pat_pre_clean,
+                         y = task_data %>% select(Subject, NumbLet_Average_PC,
+                                                  Stroop_Average_PC,
+                                                  TwoBack_Average_PC),
+                         by = "Subject")
+```
+
+## 3. Add classes (for classifier) and outcome (for regressor)
+
+### 3.1. Classes (Responder vs. Non-Responder)
+```{r Save labels in separate dataframe}
+labels_df <- features_df["Response"]
+features_df$Response <- NULL
+```
+
+### 3.2. Regression: Outcome (Percent-change in FAS)
+```{r}
+if (params$response_criterion == "response_FSQ") {
+  outcome_df <- round(data.frame(FAS_perc_change = ((features_df$T3_BAT_FAS_score - features_df$T1_BAT_FAS_score) / features_df$T1_BAT_FAS_score) * 100) * (-1),2)
+# } else {
+#   outcome_df <- round(data.frame(BAT_perc_change = ((features_df$BAT_T3 - features_df$BAT_T1) / features_df$BAT_T1) * 100), 2) # 2 cases in which BAT_T1=0 and BAT_perc_change thus Inf
+# }
+  } else {
+  outcome_df <- data.frame(BAT_perc_change = features_df$BAT_T3)
+  }
+```
+
+## 4. Dummy-Vars and renaming of features
+The only variable that needed one-hot encoding was "Abschluss" (education). As we had no missings in this variable, we were allowed to perform one-hot encoding outside the loop. Otherwise, we would have need to perform it inside the loop, just after imputation. 
+As "Abschluss" (education) had two levels with a very low number of subjects (level 1/Basic education/Hauptschule: 1 subject, level 4/Other/Anderes: 4 subjects), we decided to turn it only into one dummy-coded variable, coding the presence of level 3/High education/Gymnasium 
+```{r Prepare for ML}
+# 0 Check missings in "Abschluss"
+any(is.na(features_df$Abschluss))
+# 0 Check frequency of levels
+table(features_df$Abschluss)
+# 1. OneHot-Encoding of variable "Abschluss"
+features_df_enc <- features_df
+features_df_enc$Abschluss_Gymnasium <- dplyr::recode(features_df_enc$Abschluss, "1" = 0, "2" = 0, "3" = 1, "4" = 1)
+
+# 2. Drop variables "Abschluss", "Subject", "Gruppe", and "T3_BAT_FAS_score" and "BAT_T3_score"
+features_df_enc$Subject <- NULL
+features_df_enc$Gruppe <- NULL
+features_df_enc$Abschluss <- NULL
+features_df_enc$T3_BAT_FAS_score <- NULL
+features_df_enc$BAT_T3 <- NULL
+
+# 3. Rename columns
+features_df_enc <- features_df_enc %>%
+  rename(is_woman = Geschlecht,
+         Age = Alter,
+         FAS = T1_BAT_FAS_score,
+         BAT = BAT_T1,
+         BDI_II = T1_BAT_BDI_II_score,
+         STAI_T = T1_BAT_STAI_T_score,
+         BIS_11 = T1_BAT_BIS_11_score,
+         Kirby_k = T1_BAT_Kirby_k_score,
+         CFC_14 = T1_BAT_CFC_14_score,
+         SRHI = T1_BAT_SRHI_score,
+         Abschluss_Gymnasium = Abschluss_Gymnasium)
+```
+
+## 5. Recode missing values for binary and non-binary features
+
+```{r Missing values}
+#var_category <- find_bin_cols(features_df_enc_clean)
+# TEST
+bin_cols <- c("is_woman", "Abschluss_Gymnasium")
+non_bin_cols <- setdiff(names(features_df_enc), bin_cols) 
+
+for (feature in bin_cols) {
+  features_df_enc[[feature]][is.na(features_df_enc[[feature]])] <- 77777
+}
+for (feature in non_bin_cols) {
+  features_df_enc[[feature]][is.na(features_df_enc[[feature]])] <- 99999
+}
+```
+
+## 6. Create different feature sets
+
+```{r Reduced feature dataframe}
+# Set 1: Clinical features only
+clin_features <- c("is_woman", "Age", "Abschluss_Gymnasium", "FAS", "BAT", "BDI_II", "STAI_T", "BIS_11", "Kirby_k", "CFC_14", "SRHI")
+clin_features_df_enc <- features_df_enc[clin_features]
+
+# Set 2: All features (including executive functioning) but without Overall Accuracy etc.
+cols_n_trimmed <- colnames(features_df_enc)[grep("n_trimmed_removed", colnames(features_df_enc))]
+cols_n_wrong <- colnames(features_df_enc)[grep("n_wrong_removed", colnames(features_df_enc))]
+cols_accuracy <- colnames(features_df_enc)[grep("Average_PC", colnames(features_df_enc))]
+
+addit_performance_features <- c(cols_n_trimmed, cols_n_wrong, cols_accuracy)
+all_features_final <- features_df_enc[, !names(features_df_enc) %in% addit_performance_features]
+
+# Set 3: features_df_enc, includes Overall Accuracy etc.
+```
+
+### 6.1. Create reduced feature set to share model publicly
+```{r}
+discarded_features <- c("BAT", "BIS_11", "Kirby_k", "CFC_14", "SRHI")
+clin_features_reduced <- clin_features_df_enc[, !names(clin_features_df_enc) %in% discarded_features]
+```
+
+## 7. Save all 5 dataframes
+
+```{r Save dataframes, warning=FALSE}
+write.csv(all_features_final, file.path(output_path, "all_features.csv"), row.names = FALSE)
+write.csv(features_df_enc, file.path(output_path, "all_features_accuracy.csv"), row.names = FALSE)
+write.csv(clin_features_df_enc, file.path(output_path, "clinical_features_only.csv"), row.names = FALSE)
+write.csv(labels_df, file.path(output_path, "labels.csv"), row.names = FALSE)
+write.csv(outcome_df, file.path(output_path, "outcomes.csv"), row.names = FALSE)
+
+# Feature_Label_Dataframes for shared model
+write.csv(clin_features_reduced, file.path(output_path_share, "clinical_features_only.csv"), row.names = FALSE)
+write.csv(labels_df, file.path(output_path_share, "labels.csv"), row.names = FALSE)
+```
