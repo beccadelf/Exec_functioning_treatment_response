@@ -1,21 +1,23 @@
 # Model Release
 
-Introductory sentence. (Mention that to make sure that ... (preprocessing), we highly recommend to use our provided script "Apply_pretrained_model.py" for prediction).
+Here, we provide a pretrained model for predicting treatment response based on selected sociodemographic and clinical variables. To ensure that your data is preprocessed in the same way as during training, we strongly recommend using the provided script "Apply_pretrained_model.py" when applying the model to your own dataset.
 
 > ## **ℹ️ Getting Started** 
-> Follow these steps to quickly set up the program and run a first analysis using the provided example data:
+> Follow these steps to quickly set up the environment and run a first prediction using the provided example data and pretrained model:
 > 1. **Clone this repository** to your local machine.
 > 2. Make sure you have installed the packages pandas, scikit-learn, and imbalanced-learn.
-> 3. **Open the script "[Apply_pretrained_model.py](https://github.com/beccadelf/Exec_functioning_treatment_response/1_Model_Release/Apply_pretrained_model.py)" and specify required parameters:**
->    1. *--PATH_INPUT_DATA*: specify the path to the "simulated_data.csv" for using example data.
->    2. *--OUTPUT_PATH*: specify a path where prediction results should be saved.
->    3. *--MODE*: select "inference_only".
->    4. *--X_FILE*: "simulated_data.csv" for using example data.
->    5. *--Y_FILE*: "simulated_labels.csv" for using example data.
-> 4. **Run the script**
-> 5. **View results**: after running the script, a XXX can be found in the specified output-folder.
+> 3. **Open a terminal and run the following command to execute the script ("[Apply_pretrained_model.py](https://github.com/beccadelf/Exec_functioning_treatment_response/1_Model_Release/Apply_pretrained_model.py)"), specifying the required parameters:**
+>     ```python
+>     python "YOUR_PATH\Apply_pretrained_model.py" \
+>      --PATH_INPUT_DATA "path_to_your_data_folder" \
+>      --OUTPUT_PATH "path_for_results" \
+>      --MODE inference_only \
+>      --X_FILE simulated_data.csv \
+>      --Y_FILE simulated_labels.csv
+>     ```
+> 4. **View results**: after running the script, a "model_performance_evaluation.txt" can be found in the specified output-folder.
 
-# Prepare the XXX
+# Prepare the environment
 
 1. Clone the repository.
    Alternativelly, all required files may be manually downloaded and the necessary folder structure be reconstructed.
@@ -55,7 +57,7 @@ The variables will need to be presented with the following name:
 
 **Data Preprocessing:**
 
-Missing values need to be recoded as 77777 and 99999 for dichotomous and dimensional variables respectively. Further preprocessing steps are handled in the provided Python script "Apply_pretrained_model.py".
+Missing values need to be recoded as 77777 and 99999 for dichotomous and dimensional variables respectively. XXX (Mention here that this step can be skipped when using the example data). Further preprocessing steps are handled in the provided Python script "Apply_pretrained_model.py".
 
 # Run the script
 
@@ -77,8 +79,21 @@ Open a terminal (e.g., Powershell on Windows, Terminal on macOS/Linux), and run 
   --PATH_INPUT_DATA "path_to_your_data_folder" \
   --OUTPUT_PATH "path_for_results" \
   --MODE inference_only \
-  --X_FILE simulated_data.csv \
-  --Y_FILE simulated_labels.csv
+  --X_FILE "simulated_data.csv" \
+  --Y_FILE "simulated_labels.csv"
  ```
+## 2. Run script in your IDE (e.g., Spyder)
 
+Change the arguments within the script:
+
+```python
+# Change the arguments here, when running script in IDE
+args = parser.parse_args([
+   '--PATH_INPUT_DATA', XXX,
+   '--OUTPUT_PATH', XXX,
+   '--MODE', inference_only,
+   '--X_FILE', "simulated_data.csv",
+   '--Y_FILE', "simulated_labels.csv",
+        ])
+```
 
