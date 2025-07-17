@@ -42,7 +42,7 @@ Here, we provide a pretrained model for predicting treatment response based on s
     
 # Prepare the input data
 
-To use this model, a dataset containing the appropriate set of predictors must be created. The dataset can be in .sav, .csv, or .xlsx format. For reference, a simulated dataset ("simulated_data.csv") demonstrating the required structure is available on GitHub (https://github.com/beccadelf/Exec_functioning_treatment_response).
+To use this model, a dataset containing the appropriate set of predictors must be created. The dataset can be in .sav, .csv, or .xlsx format. For reference, a simulated dataset ("simulated_data.csv") demonstrating the required structure is provided in this repository.
 
 **Feature naming:**
 
