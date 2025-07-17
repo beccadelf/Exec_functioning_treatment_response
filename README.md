@@ -2,7 +2,12 @@
 
 This repository contains all scripts and resources for the analyses described in the paper "Executive functioning does not predict exposure therapy outcomes and is not impaired in spider phobia."
 
-The repository is structured into two main sections, each aligned with the study's analytical objectives: **Group Comparison** and **Machine Learning**. It is designed to document our exact calculations and analyses, allowing other researchers to retrace our work, rather than re-run our analyses, as our data cannot be shared. Researchers are encouraged to integrate our provided code into their own analyses, which may be particularly relevant for our adaptation of the SSRTcalc function (see "Function_adaptive_SSRT.R"), which implements the replacement of go-trials. For a concise summary of the analysis steps and their results, please refer to the accompanying HTML file for each script.
+The repository is structured into three main sections: **Model Release**, **Group Comparison** and **Machine Learning**, with the latter two aligned with the study's analytical objectives. The primary purpose of this repository is twofold:
+
+1. To document our exact calculations and analyses, allowing other researchers to retrace our work, rather than re-run our analyses, as our data cannot be shared.
+2. To enable further exploration by releasing a pretrained prediction model based on clinical and sociodemographic variables, which can be applied to independent datasets to estimate treatment response.
+
+Researchers are encouraged to integrate our provided code into their own analyses, which may be particularly relevant for our adaptation of the SSRTcalc function (see "Function_adaptive_SSRT.R"), which implements the replacement of go-trials. For a concise summary of the analysis steps and their results, please refer to the accompanying HTML file for each script.
 
 *HTML*: To inspect the `.html` files, simply download them or clone the repository using the GitHub App, then open them in your default browser (double-click the file).
 
