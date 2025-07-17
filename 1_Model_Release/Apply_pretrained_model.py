@@ -42,13 +42,13 @@ def set_options_and_paths():
     parser.add_argument('--OUTPUT_PATH', type=str, required=True,
                         help='Path where trained model and scalor should be saved')
     parser.add_argument('--MODE', required=True,
-                        choices=["train_only", "inference_only"],
-                        help="Select the operation mode: 'train_only' to train and save a model, 'inference_only' to use a pre-trained model.")
+                        choices=["predict_only", "train_only"],
+                        help="Select the operation mode: 'predict_only' to use a pre-trained model, 'train_only' to train and save a model.")
     parser.add_argument('--X_FILE', type=str, required=True,
                         help='Filename for the feature matrix (e.g., clinical_features_only.csv or simulated_data.csv)')
     parser.add_argument('--Y_FILE', type=str, required=True,
                         help='Filename for the label vector (e.g., labels.csv or simulated_labels.csv)')
-    parser.add_argument('--OVERSAMPLING', type=str, default="yes_simple",
+    parser.add_argument('--OVERSAMPLING', type=str, default="no",
                         help='Should training and testset be oversampled to represent distribution in sample?')
     
     # Try to get command-line args
@@ -62,9 +62,9 @@ def set_options_and_paths():
         args = parser.parse_args([
             '--PATH_INPUT_DATA', "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\Make_model_available\\Feature_Label_Dataframes\\response_FSQ", # "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\Make_model_available", 
             '--OUTPUT_PATH', "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\Make_model_available", # "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\Make_model_available\\Test_model_evaluation",
-            '--MODE', "train_only",
-            '--X_FILE', "clinical_features_only.csv", # 'simulated_data.csv'
-            '--Y_FILE', "labels.csv", # 'simulated_labels.csv'
+            '--MODE', "predict_only",
+            '--X_FILE', "simulated_data.csv", # "clinical_features_only.csv"
+            '--Y_FILE', "simulated_labels.csv", # 'labels.csv'
             '--OVERSAMPLING', "no", # "yes_smote" # 'no'
         ])
         
@@ -118,8 +118,8 @@ if __name__ == '__main__':
         # ev_metrics_train = calc_eval_metrics_classification(
         #     y_true=y_final, y_pred=y_pred, y_prob=y_prob)  
     
-    elif args.MODE == "inference_only":
-        print("Inference mode: a pre-trained model is evaluated on new data.")
+    elif args.MODE == "predict_only":
+        print("Prediction mode: a pre-trained model is evaluated on new data.")
         # Load model components
         training_output = joblib.load(os.path.join(args.PATH_INPUT_DATA, "training_output.joblib"))
         scaler = training_output["scaler"]
