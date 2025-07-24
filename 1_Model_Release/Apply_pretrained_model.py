@@ -49,7 +49,7 @@ def set_options_and_paths():
     parser.add_argument('--Y_FILE', type=str, required=True,
                         help='Filename for the label vector (e.g., labels.csv or simulated_labels.csv)')
     parser.add_argument('--OVERSAMPLING', type=str, default="no",
-                        help='Should training and testset be oversampled to represent distribution in sample?')
+                        help='Should training or testset be oversampled to represent distribution in sample?')
     
     # Try to get command-line args
     if len(sys.argv) > 1:
@@ -59,6 +59,7 @@ def set_options_and_paths():
     else:
         # Running interactively
         print("Using arguments given in the script")
+        # Change the arguments here, when running script in IDE
         args = parser.parse_args([
             '--PATH_INPUT_DATA', "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\Make_model_available\\Feature_Label_Dataframes\\response_FSQ", # "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\Make_model_available", 
             '--OUTPUT_PATH', "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\Make_model_available", # "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\Make_model_available\\Test_model_evaluation",
