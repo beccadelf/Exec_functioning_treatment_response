@@ -16,7 +16,7 @@ Researchers are encouraged to integrate our provided code into their own analyse
 ## Folder Structure
 
 ### 1. Model Release
-This section contains a pre-trained model for treatment response prediction, along with associated model components and supporting material. It is based on a random forest classifier and was trained without oversampling, feature exclusion, or feature selection, to ensure that the full input feature set remains unchanged. In a cross-validation with 100 iterations, the model achieved an average balanced accuracy of 0.60 (SD = 0.11), with a permutation-based p-value of *p* ≈ 0.08. Please refer to the “Instructions_to_use_algorithm.docx” for detailed usage instructions.
+This section contains a pre-trained model for treatment response prediction, along with associated model components and supporting material. It is based on a random forest classifier and was trained without oversampling, feature exclusion, or feature selection, to ensure that the full input feature set remains unchanged. In a cross-validation with 100 iterations, the model achieved an average balanced accuracy of 0.60 (SD = 0.11), with a permutation-based p-value of *p* ≈ 0.08. Detailed usage instructions can be found in the 1_Model_Release folder.
 
 
 ### 2. Group Comparison: Executive Functions
