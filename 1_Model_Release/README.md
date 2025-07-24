@@ -48,16 +48,18 @@ To use this model, a dataset containing the appropriate set of predictors must b
 
 The variables will need to be presented with the following name:
 
--	is_woman (0 = male, 1 = female)
+-	is_woman - (0 = male, 1 = female)
 -	Age
--	Abschluss_Gymnasium (0 = other, 1 = high education)
--	FAS (Fear of spiders questionnaire, total score)
--	BDI_II (Beck depression inventory II, total score)
--	STAI_T (State-trait anxiety inventory, trait subscale)
+-	Abschluss_Gymnasium - (0 = other, 1 = high education*)
+-	FAS - (Fear of spiders questionnaire, total score)
+-	BDI_II - (Beck depression inventory II, total score)
+-	STAI_T - (State-trait anxiety inventory, trait subscale)
+
+\*  i.e., 12–13 years of school, typically qualifying for university entrance
 
 **Data Preprocessing:**
 
-Missing values need to be recoded as 77777 and 99999 for dichotomous and dimensional variables respectively, and dichotomous variables need to be recoded as 0 and 1. These steps can be skipped when using the example data. 
+Missing values need to be recoded as 77777 and 99999 for dichotomous and dimensional variables respectively, and dichotomous variables need to be recoded as 0 and 1. These steps have already been performed on the example data. 
 
 All other preprocessing steps are handled in the provided Python script "Apply_pretrained_model.py". In brief, these include imputation of missing values and the standardization of dimensional variables using the scaler fitted during model training.
 
