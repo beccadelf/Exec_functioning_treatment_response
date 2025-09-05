@@ -26,8 +26,12 @@ library(ggplot2)
 source("../Useful_functions.R")
 ```
 
-# Plot Settings
+# Settings
 ```{r}
+basic_path = "Y:\\Psythera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning"
+path_results_folder = file.path(basic_path, "Results\\RT_trimmed_RT_wrong_removed_outliers-removed\\response_BAT\\Results")
+plots_path = file.path(dirname(path_results_folder), "Plots/")
+
 family = "Arial"
 theme_set(theme_bw() + theme(text = element_text(family = family),
                                   axis.title = element_text(size = 24),
@@ -41,36 +45,45 @@ theme_set(theme_bw() + theme(text = element_text(family = family),
 # or theme_classic()
 ```
 
-# Load and combine results
+# Functions
 ```{r}
 # Get all folders in the results folder (each containing the results of another model)
-basic_path = "Y:\\Psythera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning"
-path_results_folder = file.path(basic_path, "Results\\RT_trimmed_RT_wrong_removed_outliers-removed\\response_FSQ")
-results_folders <- list.files(path = path_results_folder, full.names = FALSE)
+load_and_combine_results <- function(path_results_folder, file_name){
+  results_folders <- list.files(path = path_results_folder, full.names = FALSE)
 
-# Filter for new results
-results_folders <- results_folders[grepl("final", results_folders)& !grepl("permuted", results_folders)]
+  # Filter for new results
+  results_folders <- results_folders[grepl("final", results_folders)& !grepl("permuted", results_folders)]
 
-# For each folder, save the performance_across_iters-file in dictionary
-results_dict = list()
-for (folder_name in results_folders) {
+  # For each folder, save the file of interest in dictionary
+  results_dict = list()
+  for (folder_name in results_folders) {
   # Read the file and store it as a dictionary
   results_dict[[folder_name]] <- read.delim(file.path(path_results_folder, folder_name,
-                                                      "performance_across_iters.txt"))
+                                                      paste0(file_name,".txt")))
+  }
+  # Combine results
+  combined_results <- bind_rows(results_dict, .id = "FolderName")
+  combined_results$X <- NULL
+  
+  return(combined_results)
 }
+```
 
-# Combine results
-combined_results <- bind_rows(results_dict, .id = "FolderName")
-combined_results$X <- NULL
+# Create Plots
+## Load and combine results
+```{r}
+# Get all folders in the results folder (each containing the results of another model)
+combined_results <- load_and_combine_results(path_results_folder, file_name = "performance_across_iters")
 
 # Separate into regressor and classifier dataframes
 classification_results <- combined_results[grepl("clf", combined_results$FolderName), ]
 regression_results <- combined_results[grepl("regressor", combined_results$FolderName), ]
 ```
 
-# Prepare classification results
+## Prepare classification results
 ```{r}
-# Create new model variable
+rename_classifier_models <- function(classification_results){
+  # Create new model variable with nice modelnames
 classification_results$Model <- ifelse(grepl("random_forest_clf_yes_smote_oversampling", classification_results$FolderName),
                                        "Random Forest\n(OS: SMOTE)",
                     ifelse(grepl("random_forest_clf_yes_simple", classification_results$FolderName),
@@ -86,53 +99,25 @@ classification_results$Model <- ifelse(grepl("random_forest_clf_yes_smote_oversa
 # Ensure correct ordering
 classification_results$Model <- factor(classification_results$Model, levels = c("Random Forest\n(OS: SMOTE)","Random Forest\n(OS: Simple)",
                                                                                 "Random Forest\n(OS: no)","Rbf-SVM\n(OS: SMOTE)", "Rbf-SVM\n(OS: Simple)","Rbf-SVM\n(OS: no)"))
+
+classification_results$FeatureSet <- ifelse(grepl("clinical_features", classification_results$FolderName),
+                                  "clinical", "executive_functioning")
+
+return(classification_results)
+}
+
+classification_results <- rename_classifier_models(classification_results)
 ```
 
-# Summarize in a table
-```{r}
-metrics <- c("accuracy", "balanced_accuracy", "sensitivity", "specificity", "f1_score", "auc")
-
-# Compute mean (SD) for each metric per model
-summary_table <- classification_results %>%
-  group_by(Model) %>%
-  summarise(across(all_of(metrics),
-                   ~ paste0(round(mean(.x, na.rm = TRUE), 2),
-                            " (", round(sd(.x, na.rm = TRUE), 2), ")"),
-                   .names = "{.col}")) %>%
-  ungroup()
-
-colnames(summary_table) <- c("Model", "Accuracy", "Balanced Accuracy", "Sensitivity", "Specificity", "F1-Score", "AUC-Score")
-```
-
-# Save as flextable
-```{r}
-create_save_flextable(table_pub = summary_table, results_path = basic_path, file_name = "classification_results_FSQ.docx")
-```
-
-
-# Create a plot for the classification results
+## Create a plot for the classification results
 ```{r, fig.width = 16, fig.height = 9}
 create_classification_plot <- function(results_df){
-  # # Create new model variable
-  # results_df$Model <- ifelse(grepl("random_forest_classifier_yes_smote_oversampling", results_df$FolderName),
-  #                            "Random Forest\n(OS: SMOTE)",
-  #                     ifelse(grepl("random_forest_classifier_yes_simple", results_df$FolderName),
-  #                            "Random Forest\n(OS: Simple)",
-  #                     ifelse(grepl("random_forest_classifier_no_oversampling", results_df$FolderName),
-  #                            "Random Forest\n(OS: no)",
-  #                     ifelse(grepl("svm_classifier_yes_smote", results_df$FolderName),
-  #                            "Rbf-SVM\n(OS: SMOTE)",
-  #                     ifelse(grepl("svm_classifier_yes_simple", results_df$FolderName), 
-  #                            "Rbf-SVM\n(OS: Simple)",
-  #                     ifelse(grepl("svm_classifier_no_oversampling", results_df$FolderName), 
-  #                            "Rbf-SVM\n(OS: no)", NA))))))
   # Ensure correct ordering
   results_df$Model <- factor(results_df$Model, levels = c("Random Forest\n(OS: SMOTE)","Random Forest\n(OS: Simple)","Random Forest\n(OS: no)","Rbf-SVM\n(OS: SMOTE)",
                                                              "Rbf-SVM\n(OS: Simple)","Rbf-SVM\n(OS: no)"))
   
   # Define feature sets and specify colors
-  results_df$FeatureSet <- ifelse(grepl("clinical_features", results_df$FolderName),
-                                  "Clinical Features", "Clinical + Executive\nFunctioning Features")
+  results_df$FeatureSet <- dplyr::recode(results_df$FeatureSet, clinical = "Clinical Features", executive_functioning = "Clinical + Executive\nFunctioning Features")
   colors <- c("Clinical Features" = "white", "Clinical + Executive\nFunctioning Features" = "#D3D3D3")
   
   # Set factor levels for FeatureSet to control order in the plot
@@ -169,18 +154,17 @@ classification_plot <- create_classification_plot(results_df = classification_re
 classification_plot 
 ```
 
-# Create a plot for the regression results
+## Create a plot for the regression results
 ```{r,fig.width = 16, fig.height = 9}
 create_regression_plot <- function(results_df){
   # Create new model variable
   results_df$Model <- ifelse(grepl("random_forest_regressor", results_df$FolderName), "Random Forest",
                       ifelse(grepl("ridge_regressor", results_df$FolderName), "Ridge", NA))
   
-  # Define feature sets and specify colors
+  # Specify colors and rename feature sets
   results_df$FeatureSet <- ifelse(grepl("clinical_features", results_df$FolderName),
                                   "Clinical Features", "Clinical + Executive\nFunctioning Features")
   colors <- c("Clinical Features" = "white", "Clinical + Executive\nFunctioning Features" = "#D3D3D3")
-  
   # Set factor levels for FeatureSet to control order in the plot
   results_df$FeatureSet <- factor(results_df$FeatureSet, levels = c("Clinical Features", "Clinical + Executive\nFunctioning Features"))
   
@@ -209,11 +193,52 @@ regression_plot <- create_regression_plot(results_df = regression_results)
 regression_plot
 ```
 
-# Save plots
+## Save plots
 ```{r}
-plots_path = file.path(basic_path, "Plots/")
 ggsave(file.path(plots_path,"Classification_results_plot.png"), plot = classification_plot, width = 16, height = 9, dpi = 300)
 ggsave(file.path(plots_path, "Regression_results_plot.png"), plot = regression_plot, width = 16, height = 9, dpi = 300)
 ggsave(file.path(plots_path,"Classification_results_plot.svg"), plot = classification_plot, width = 16, height = 9)
 ggsave(file.path(plots_path, "Regression_results_plot.svg"), plot = regression_plot, width = 16, height = 9)
+```
+
+# Summarize classificiaton results in a table
+## Load and combine summary_metrics
+```{r}
+# Get all folders in the results folder (each containing the results of another model)
+combined_results <- load_and_combine_results(path_results_folder, file_name = "performance_summary")
+
+# Separate into regressor and classifier dataframes
+classification_results <- combined_results[grepl("clf", combined_results$FolderName), ]
+
+# Rename models
+classification_results <- rename_classifier_models(classification_results)
+```
+
+## Collect summary metrics in a table
+```{r}
+metrics <- c("accuracy", "balanced_accuracy", "sensitivity", "specificity", "f1_score", "auc")
+
+# Compute mean (SD) for each metric per model
+formatted <- sapply(metrics, function(m) {
+  mean_col <- classification_results[[paste0("Mean_", m)]]
+  std_col  <- classification_results[[paste0("Std_", m)]]
+  sprintf("%.2f (%.2f)", mean_col, std_col)
+})
+
+# Summary table all models
+summary_table <- data.frame(Model = classification_results$Model, FeatureSet = classification_results$FeatureSet, formatted, check.names = FALSE)
+colnames(summary_table) <- c("Model", "FeatureSet", "Accuracy", "Balanced Accuracy", "Sensitivity", "Specificity", "F1-Score", "AUC-Score")
+
+summary_table_clin <- summary_table[summary_table$FeatureSet == "clinical",]
+summary_table_clin$FeatureSet <- NULL
+
+summary_table_exec <- summary_table[summary_table$FeatureSet == "executive_functioning",]
+summary_table_exec$FeatureSet <- NULL
+```
+
+## Save as flextable
+```{r}
+create_save_flextable(table_pub = summary_table_clin, results_path = plots_path, file_name = "classification_results_clinical.docx")
+
+create_save_flextable(table_pub = summary_table_exec, results_path = plots_path, file_name = "classification_results_executive.docx")
 ```
