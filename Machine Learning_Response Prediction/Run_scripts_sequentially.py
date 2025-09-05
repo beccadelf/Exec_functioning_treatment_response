@@ -18,15 +18,15 @@ script_wd = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_wd)
 
 # Define the parameters
-outcome = ["response_FSQ", "response_BAT"]
+outcome = ["response_FSQ"]
 regressors = ["random_forest_regressor","ridge_regressor"]
-#classifiers = ["random_forest_clf","svm_clf"]
-classifiers = ["svm_classifier"]
-analysis = ["all_features", "clinical_features_only"]
+classifiers = ["random_forest_clf","svm_clf"]
+#analysis = ["all_features", "clinical_features_only"]
+analysis = ["clinical_features_only"]
 oversampling = ["yes_simple","yes_smote", "no"]
-permutation = ["no","yes"]
+permutation = ["yes"]
 
-path_input_data = "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Feature_Label_Dataframes\\RT_trimmed_RT_wrong_removed_outliers-removed"
+path_input_data = "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\Make_model_available\\Feature_Label_Dataframes"
 # path_results_base = "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\RT_trimmed_RT_wrong_removed_outliers-removed\\Results"
 
 # Generate argument_sets
