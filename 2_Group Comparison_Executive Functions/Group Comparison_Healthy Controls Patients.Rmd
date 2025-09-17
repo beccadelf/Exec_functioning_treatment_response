@@ -9,7 +9,7 @@ output:
     code_folding: hide
     df_print: paged
 params:
-  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/not_trimmed_not_removed/BIS/outliers-not-removed/response_FSQ"
+  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Taskdata/BIS"
   output_base_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/HC_vs_Pat"
 ---
 <style type="text/css">
@@ -50,8 +50,11 @@ source("../Useful_functions.R")
 # Set-Up
 ## 1. Importing Data
 ```{r}
-data_HC <- read.csv(file.path(params$input_data_path,"Data_HC.csv"))
-data_Pat_pre <- read.csv(file.path(params$input_data_path,"Data_Patients_Pre.csv"))
+task_file_path <- file.path(params$input_data_path, "BIS_RT_trimmed_RT_wrong_removedoutliers-removed.csv")
+task_data_all <- read.csv(task_file_path)
+
+# Get Pat_Pre and HC data
+Patients_vs_HC <- get_group_data(data = task_data_all, group = c("HC", "Pat_Pre"))
 ```
 
 ## 2. Set results path to save tables and images
@@ -62,17 +65,11 @@ results_path <- create_results_path(inputdata_path = params$input_data_path,
 
 ## 3. Prepare dataset
 ```{r}
-## 1. Merge patients pre and controls
-Patients_vs_HC <- rbind(data_Pat_pre, data_HC)
-
-## 2. Reduce dataset to executive functions of interest (BIS columns and SSRT)
+# Reduce dataset to executive functions of interest (BIS columns and SSRT)
 BIS_columns <- colnames(Patients_vs_HC)[grep("BIS", colnames(Patients_vs_HC))]
-BIS_columns <- BIS_columns[BIS_columns != "T1_BAT_BIS_11_score"] # BIS-11 is a questionnaire
+#BIS_columns <- BIS_columns[BIS_columns != "T1_BAT_BIS_11_score"] # BIS-11 is a questionnaire
 imp_columns <- c(BIS_columns,"SSRT")
 Patients_vs_HC_imp <- Patients_vs_HC[,c("Subject","Gruppe",imp_columns)]
-
-## 3. Add confounds (Alter, Geschlecht, Abschluss)
-Patients_vs_HC_imp_conf <- merge(Patients_vs_HC[,c("Subject","Alter","Geschlecht","Abschluss")], Patients_vs_HC_imp, by = "Subject")
 ```
 In total, data for `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1,])` patients and `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0,])` healthy controls were available. When outliers were removed, the number of subjects varied slightly:  
 Number-Letter Task: `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0 & !is.na(Patients_vs_HC_imp$NumberLetter_BIS_Repeat),])` healthy controls,  `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1 & !is.na(Patients_vs_HC_imp$NumberLetter_BIS_Repeat),])` patients;  

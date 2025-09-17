@@ -9,9 +9,9 @@ output:
     code_folding: hide
     df_print: paged
 params:
-  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/RT_trimmed_RT_wrong_removed/BIS/outliers-not-removed"
+  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Taskdata/BIS"
   output_base_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/R_vs_NR"
-  response_criterion: "response_BAT" # choose between "response_FSQ" or "response_BAT"
+  response_criterion: "Response_BAT" # choose between "Response_FSQ_50", "Response_FSQ_clinsig", and "Response_BAT"
   
 ---
 <style type="text/css">
@@ -48,27 +48,36 @@ source("../Useful_functions.R")
 ```
 
 # Set-Up
-### 1. Settings flextable
+## 1. Settings flextable
 ```{r}
 format_flextable_portrait <- flextable_settings(word_orientation = "portrait")
 format_flextable_landscape <- flextable_settings(word_orientation = "landscape")
 ```
 
-### 2. Import Data 
+## 2. Import Data 
 ```{r}
-basic_path <- file.path(params$input_data_path, params$response_criterion)
-data_Pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
+socdem_file_path = "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Clinical_data/socdem-data_cleaned_response.csv"
+task_file_path <- file.path(params$input_data_path, "BIS_RT_trimmed_RT_wrong_removed_outliers-removed.csv")
+task_data_all <- read.csv(task_file_path)
+
+# Get Pat_Pre data
+data_Pat_pre <- get_group_data(data = task_data_all, group = c("Pat_Pre"))
 ```
 
-### 3. Set results path to save tables and images
+## 3. Set results path to save tables and images
 ```{r}
 results_path <- create_results_path(inputdata_path = basic_path, 
                                          output_mainpath = params$output_base_path,
                                          response_criterion =  params$response_criterion)
 ```
 
-### 4. Prepare dataset
-Remove all patients that had no post-treatment score
+## 4. Prepare dataset
+### 4.1. Add response criterion
+```{r}
+data_Pat_pre <- add_response(df = data_Pat_pre, socdem_file_path = socdem_file_path, criterion = params$response_criterion)
+```
+
+### 4.2. Remove all patients that had no post-treatment score
 ```{r}
 data_Pat_pre_clean <- data_Pat_pre[!is.na(data_Pat_pre$Response),]
 ```

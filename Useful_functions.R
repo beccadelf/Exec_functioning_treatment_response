@@ -74,6 +74,34 @@ reorder_and_rename_rows <- function(df, col_name, label_map) {
   return(df)
 }
 
+# ---- Get relevant sample subset ----
+# Function to get specific datasets
+get_group_data <- function(data, group = NULL, response = NULL, criterion = "FSQ") {
+  out <- data
+  
+  # Group filter
+  if (!is.null(group)) {
+    group_map <- c("HC" = 0, "Pat_Pre" = 1, "Pat_Post" = 2)
+    selected_groups <- unname(group_map[group])
+    
+    out <- out %>% filter(Gruppe %in% selected_groups)
+  }
+  
+  return(out)
+}
+
+# ---- Add response variable ----
+# Function to ...
+add_response <- function(df, socdem_file_path, criterion) {
+  clin_socdem_data <- read.csv(socdem_file_path)
+  
+  out <- df %>%
+    left_join(
+      clin_socdem_data %>% select(Subject, all_of(criterion)), 
+      by = "Subject")
+  
+  return(out)
+}
 
 # ===========================
 # Statistical Analyses
