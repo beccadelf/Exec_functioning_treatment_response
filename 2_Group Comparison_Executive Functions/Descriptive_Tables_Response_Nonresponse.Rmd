@@ -9,9 +9,9 @@ output:
     code_folding: hide
     df_print: paged
 params:
-  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
+  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Taskdata/BIS"
   output_base_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/R_vs_NR"
-  response_criterion: "response_FSQ" # choose between "response_FSQ" or "response_BAT"
+  response_criterion: "Response_FSQ_50" # choose between "Response_FSQ_50", "Response_FSQ_clinsig", and "Response_BAT"
 ---
 <style type="text/css">
 .main-container { /* Adjust main blocks */
@@ -48,13 +48,12 @@ format_flextable_landscape <- flextable_settings(word_orientation = "landscape")
 
 ## 2. Import Data (Patients_Pre)
 ```{r}
-basic_path <- file.path(params$input_data_path, params$response_criterion)
-data_Pat_pre <- read.csv(file.path(basic_path,"Data_Patients_Pre.csv"))
+task_file_path <- file.path(params$input_data_path, "BIS_RT_trimmed_RT_wrong_removed_outliers-removed.csv")
+task_data_all <- read.csv(task_file_path)
 
-# Remove all patients that had no post-treatment score
-data_Pat_pre_clean <- data_Pat_pre[!is.na(data_Pat_pre$Response),]
+# Get Pat_Pre data
+data_Pat_pre <- get_group_data(data = task_data_all, group = c("Pat_Pre"))
 ```
-We had `r nrow(data_Pat_pre[!is.na(data_Pat_pre$Response),])` patients with a post-value available, and `r nrow(data_Pat_pre_clean[data_Pat_pre_clean$Response == 1,])`
 
 ## 3. Set results path to save tables and images
 ```{r}
@@ -64,18 +63,36 @@ results_path <- create_results_path(inputdata_path = basic_path,
 ```
 
 ## 4. Prepare dataset
+### 4.1. Add socdem and clinical data
 ```{r}
-# Dummy-code variable education
+socdem_file_path = "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Clinical_data/socdem-data_cleaned_response.csv"
+socdem_clin_vars <- c("Alter", "Geschlecht", "Abschluss", "T1_BAT_FAS_score", "T1_BAT_BDI_II_score", "T1_BAT_STAI_T_score", "T1_BAT_BIS_11_score", "T1_BAT_Kirby_k_score", "T1_BAT_CFC_14_score", "T1_BAT_SRHI_score", "BAT_T1") # TODO: use "Abschluss_Gymnasium" once recoded early in the process
+data_Pat_pre <- add_socdem_vars(df = data_Pat_pre_clean, socdem_file_path = socdem_file_path, vars = socdem_clin_vars)
+```
+
+### 4.2. Add response & remove patients
+```{r}
+data_Pat_pre <- add_response(df = data_Pat_pre, socdem_file_path = socdem_file_path, criterion = params$response_criterion)
+
+# Remove all patients that had no post-treatment score
+data_Pat_pre_clean <- data_Pat_pre[!is.na(data_Pat_pre$Response),]
+```
+We had `r nrow(data_Pat_pre[!is.na(data_Pat_pre$Response),])` patients with a post-value available, and `r nrow(data_Pat_pre_clean[data_Pat_pre_clean$Response == 1,])`
+
+### 4.3. Dummy-code variable education
+```{r}
 recode_results_2 <- dummy_code_education(data_Pat_pre_clean)
 data_Pat_pre_clean_rec <- recode_results_2$data_recoded
 ```
+
 
 # Descriptive group comparisons
 
 ## 0. Define categorical vs. dimensional variables
 ```{r}
 categorical_vars <- c("Geschlecht", "Abschluss_Gymnasium")
-dimensional_vars <- c("Alter", "T1_BAT_FAS_score", "T1_BAT_BDI_II_score", "T1_BAT_STAI_T_score", "T1_BAT_BIS_11_score", "T1_BAT_Kirby_k_score", "T1_BAT_CFC_14_score", "T1_BAT_SRHI_score", "BAT_T1")
+dimensional_vars <- setdiff(socdem_clin_vars, categorical_vars)
+dimensional_vars <- dimensional_vars[dimensional_vars != "Abschluss"]
 ```
 
 ## 1. Welch t-test for dimensional variables

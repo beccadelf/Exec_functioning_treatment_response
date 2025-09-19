@@ -50,7 +50,7 @@ source("../Useful_functions.R")
 # Set-Up
 ## 1. Importing Data
 ```{r}
-task_file_path <- file.path(params$input_data_path, "BIS_RT_trimmed_RT_wrong_removedoutliers-removed.csv")
+task_file_path <- file.path(params$input_data_path, "BIS_RT_trimmed_RT_wrong_removed_outliers-removed.csv")
 task_data_all <- read.csv(task_file_path)
 
 # Get Pat_Pre and HC data

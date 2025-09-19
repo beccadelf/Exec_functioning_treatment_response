@@ -9,7 +9,7 @@ output:
     code_folding: hide
     df_print: paged
 params:
-  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/RT_trimmed_RT_wrong_removed/BIS/outliers-removed"
+  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Taskdata/BIS"
   output_base_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/HC_vs_Pat"
 ---
 <style type="text/css">
@@ -55,19 +55,25 @@ results_path <- create_results_path(inputdata_path = basic_path,
 
 ### 1. Import Task Performance Data
 ```{r}
-data_HC <- read.csv(file.path(basic_path, "Data_HC.csv"))
-data_Pat_pre <- read.csv(file.path(basic_path, "Data_Patients_Pre.csv"))
+task_file_path <- file.path(params$input_data_path, "BIS_RT_trimmed_RT_wrong_removed_outliers-removed.csv")
+task_data_all <- read.csv(task_file_path)
+
+# Get Pat_Pre and HC data
+Patients_vs_HC <- get_group_data(data = task_data_all, group = c("HC", "Pat_Pre"))
 ```
 
 ### 2. Prepare dataset
+#### 2.1. Reduce dataset to BIS columns and SSRT
 ```{r}
-## 1. Merge patients pre and controls
-Patients_vs_HC <- rbind(data_Pat_pre, data_HC)
-
-## 2. Reduce dataset to BIS columns and SSRT
 performance_tasks <- colnames(Patients_vs_HC)[grep("BIS|SSRT", colnames(Patients_vs_HC))]
 performance_tasks <- performance_tasks[performance_tasks != "T1_BAT_BIS_11_score"]
-Patients_vs_HC_imp_conf <- Patients_vs_HC[,c("Subject","Alter","Gruppe","Abschluss", performance_tasks)]
+Patients_vs_HC_imp <- Patients_vs_HC[,c("Subject", performance_tasks)] # "Alter","Gruppe","Abschluss"
+```
+
+#### 2.2. Add confounds
+```{r}
+socdem_file_path = "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Clinical_data/socdem-data_cleaned_response.csv"
+Patients_vs_HC_imp_conf <- add_socdem_vars(df = Patients_vs_HC_imp, socdem_file_path = socdem_file_path, vars = c("Alter", "Gruppe", "Abschluss"))
 ```
 
 ### 3. Dummy coding for education based on descriptive statistics

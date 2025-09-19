@@ -90,15 +90,61 @@ get_group_data <- function(data, group = NULL, response = NULL, criterion = "FSQ
   return(out)
 }
 
+# ---- Add socdem and clinical variables ----
+# Function to ...
+add_socdem_vars <- function(df, socdem_file_path, vars) {
+  clin_socdem_data <- read.csv(socdem_file_path)
+  
+  # Check that requested columns exist
+  missing_vars <- setdiff(vars, colnames(clin_socdem_data))
+  if (length(missing_vars) > 0) {
+    stop("These variables were not found in socdem file: ", paste(missing_vars, collapse = ", "))
+  }
+  
+  out <- df %>%
+    left_join(
+      clin_socdem_data %>% select(Subject, all_of(vars)), 
+      by = "Subject")
+  
+  return(out)
+}
+
 # ---- Add response variable ----
 # Function to ...
 add_response <- function(df, socdem_file_path, criterion) {
   clin_socdem_data <- read.csv(socdem_file_path)
   
+  if (criterion == "Response_FSQ_50") {
+    # Response is defined as a reduction of 50% in the Fear of Spider Questionnaire (here: called FAS as this is the 
+    # German abbreviation)
+    clin_socdem_data <-clin_socdem_data %>%
+      mutate(Response = ifelse(is.na(T1_BAT_FAS_score) | is.na(T3_BAT_FAS_score), NA,
+                               ifelse((T1_BAT_FAS_score - T3_BAT_FAS_score) >= 0.5 * T1_BAT_FAS_score, 1, 0)))
+    
+  } else if (criterion == "Response_FSQ_clinsig") {
+    # Response is defined as ...
+    patients_FSQ_T1 = clin_socdem_data[clin_socdem_data$Gruppe == 1, c("T1_BAT_FAS_score")]
+    mean_patients = mean(patients_FSQ_T1)
+    sd_patients = sd(patients_FSQ_T1)
+    clinic_sig_threshold = mean_patients - 2*sd_patients # This threshold follows the recommendation by 
+    
+    clin_socdem_data <- clin_socdem_data %>%
+      mutate(Response = ifelse(is.na(T1_BAT_FAS_score) | is.na(T3_BAT_FAS_score), NA,
+                               ifelse((T3_BAT_FAS_score) < clinic_sig_threshold, 1, 0)))
+    
+  } else if (criterion == "Response_BAT") {
+    # Response is defined as an increase of 50% in the Behavioural Avoidance Test (BAT).
+    clin_socdem_data <- clin_socdem_data %>%
+      mutate(Response = ifelse(is.na(BAT_T1) | is.na(BAT_T3), NA,
+                               ifelse((BAT_T3 - BAT_T1) >= 2 & BAT_T3 >= 10, 1, 0)))
+    
+  } else {
+    stop("Unknown response criterion. Choose from 'Response_FSQ_50', 'Response_FSQ_clinsig', 'Response_BAT'.")
+  }
+  
   out <- df %>%
-    left_join(
-      clin_socdem_data %>% select(Subject, all_of(criterion)), 
-      by = "Subject")
+    left_join(clin_socdem_data %>% select(Subject, Response),
+              by = "Subject")
   
   return(out)
 }

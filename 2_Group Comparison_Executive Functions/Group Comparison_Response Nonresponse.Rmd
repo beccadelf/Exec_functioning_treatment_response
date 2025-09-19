@@ -56,7 +56,6 @@ format_flextable_landscape <- flextable_settings(word_orientation = "landscape")
 
 ## 2. Import Data 
 ```{r}
-socdem_file_path = "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Clinical_data/socdem-data_cleaned_response.csv"
 task_file_path <- file.path(params$input_data_path, "BIS_RT_trimmed_RT_wrong_removed_outliers-removed.csv")
 task_data_all <- read.csv(task_file_path)
 
@@ -74,6 +73,7 @@ results_path <- create_results_path(inputdata_path = basic_path,
 ## 4. Prepare dataset
 ### 4.1. Add response criterion
 ```{r}
+socdem_file_path = "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Clinical_data/socdem-data_cleaned_response.csv"
 data_Pat_pre <- add_response(df = data_Pat_pre, socdem_file_path = socdem_file_path, criterion = params$response_criterion)
 ```
 
