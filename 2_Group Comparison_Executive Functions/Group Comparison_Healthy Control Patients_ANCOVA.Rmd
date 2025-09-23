@@ -73,24 +73,10 @@ Patients_vs_HC_imp <- Patients_vs_HC[,c("Subject", performance_tasks)] # "Alter"
 #### 2.2. Add confounds
 ```{r}
 socdem_file_path = "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Clinical_data/socdem-data_cleaned_response.csv"
-Patients_vs_HC_imp_conf <- add_socdem_vars(df = Patients_vs_HC_imp, socdem_file_path = socdem_file_path, vars = c("Alter", "Gruppe", "Abschluss"))
+Patients_vs_HC_imp_conf <- add_socdem_vars(df = Patients_vs_HC_imp, socdem_file_path = socdem_file_path, vars = c("Alter", "Gruppe", "Abschluss_Gymnasium"))
 ```
 
-### 3. Dummy coding for education based on descriptive statistics
-```{r}
-#Descriptive statistics
-#Data for `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1,])` patients and `r #n#row(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0,])` healthy controls were available.
-recode_results <- dummy_code_education(Patients_vs_HC_imp_conf)
-Patients_vs_HC_imp_conf <- recode_results$data_recoded
-
-table1 <- 
-  Patients_vs_HC_imp_conf %>%
-  tbl_summary(include = c(Alter,Abschluss), by = Gruppe)
-pander(as.data.frame(table1))
-```
-As can be seen from the descriptives table, the variable "Abschluss" has the level "Hauptschule" with only one subject and the variables "Anderes" ("Other") which is not meaningful for regression. Therefore, to use "Abschluss" (Education) in our analysis, we turned it into a dummy variable.
-
-### 4. Final dataset
+### 3. Final dataset
 ```{r}
 Patients_vs_HC_imp_conf_final <- 
 Patients_vs_HC_imp_conf[!(is.na(Patients_vs_HC_imp_conf$Alter)|is.na(Patients_vs_HC_imp_conf$Abschluss_Gymnasium)),]

@@ -25,7 +25,7 @@ library(ggplot2)
 # Load and combine results
 ```{r}
 # Get all folders in the results folder (each containing the results of another model)
-path_results_folder = "Y:\\Psythera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Results\\RT_trimmed_RT_wrong_removed_outliers-removed\\response_FSQ"
+path_results_folder = "Y:\\Psythera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Results\\RT_trimmed_RT_wrong_removed_outliers-removed\\Response_FSQ_50"
 results_folders <- list.files(path = path_results_folder, full.names = FALSE)
 
 # Filter for new results

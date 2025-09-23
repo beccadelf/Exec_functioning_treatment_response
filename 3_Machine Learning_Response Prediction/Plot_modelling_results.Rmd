@@ -29,7 +29,7 @@ source("../Useful_functions.R")
 # Settings
 ```{r}
 basic_path = "Y:\\Psythera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning"
-path_results_folder = file.path(basic_path, "Results\\RT_trimmed_RT_wrong_removed_outliers-removed\\response_BAT\\Results")
+path_results_folder = file.path(basic_path, "Results\\RT_trimmed_RT_wrong_removed_outliers-removed\\Response_BAT\\Results")
 plots_path = file.path(dirname(path_results_folder), "Plots/")
 
 family = "Arial"
