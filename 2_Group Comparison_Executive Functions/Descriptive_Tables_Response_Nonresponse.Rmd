@@ -9,7 +9,7 @@ output:
     code_folding: hide
     df_print: paged
 params:
-  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Taskdata/BIS"
+  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Taskdata/BIS/BIS_RT-trimmed-RT-wrong-removed_outliers-removed.csv"
   output_base_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/R_vs_NR"
   response_criterion: "Response_FSQ_50" # choose between "Response_FSQ_50", "Response_FSQ_clinsig", and "Response_BAT"
 ---
@@ -48,8 +48,7 @@ format_flextable_landscape <- flextable_settings(word_orientation = "landscape")
 
 ## 2. Import Data (Patients_Pre)
 ```{r}
-task_file_path <- file.path(params$input_data_path, "BIS_RT_trimmed_RT_wrong_removed_outliers-removed.csv")
-task_data_all <- read.csv(task_file_path)
+task_data_all <- read.csv(params$input_data_path)
 
 # Get Pat_Pre data
 data_Pat_pre <- get_group_data(data = task_data_all, group = c("Pat_Pre"))
@@ -57,7 +56,7 @@ data_Pat_pre <- get_group_data(data = task_data_all, group = c("Pat_Pre"))
 
 ## 3. Set results path to save tables and images
 ```{r}
-results_path <- create_results_path(inputdata_path = basic_path, 
+results_path <- create_results_path(inputdata_path = params$input_data_path, 
                                     output_mainpath = params$output_base_path,
                                     response_criterion =  params$response_criterion)
 ```
@@ -65,9 +64,10 @@ results_path <- create_results_path(inputdata_path = basic_path,
 ## 4. Prepare dataset
 ### 4.1. Add socdem and clinical data
 ```{r}
-socdem_file_path = "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Clinical_data/socdem-data_cleaned_response.csv"
-socdem_clin_vars <- c("Alter", "Geschlecht", "Abschluss_Gymnasium", "T1_BAT_FAS_score", "T1_BAT_BDI_II_score", "T1_BAT_STAI_T_score", "T1_BAT_BIS_11_score", "T1_BAT_Kirby_k_score", "T1_BAT_CFC_14_score", "T1_BAT_SRHI_score", "BAT_T1")
-data_Pat_pre <- add_socdem_vars(df = data_Pat_pre_clean, socdem_file_path = socdem_file_path, vars = socdem_clin_vars)
+socdem_file_path = "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Clinical_data/socdem-data_cleaned_response-added.csv"
+#socdem_clin_vars <- c("Alter", "Geschlecht", "Abschluss_Gymnasium", "T1_BAT_FAS_score", "T1_BAT_BDI_II_score", "T1_BAT_STAI_T_score", "T1_BAT_BIS_11_score", "T1_BAT_Kirby_k_score", "T1_BAT_CFC_14_score", "T1_BAT_SRHI_score", "BAT_T1")
+socdem_clin_vars <- c("Alter", "Geschlecht", "Abschluss_Gymnasium", "T1_BAT_FAS_score", "T1_BAT_BDI_II_score", "T1_BAT_STAI_T_score", "BAT_T1")
+data_Pat_pre <- add_socdem_vars(df = data_Pat_pre, socdem_file_path = socdem_file_path, vars = socdem_clin_vars)
 ```
 
 ### 4.2. Add response & remove patients
@@ -77,7 +77,7 @@ data_Pat_pre <- add_response(df = data_Pat_pre, socdem_file_path = socdem_file_p
 # Remove all patients that had no post-treatment score
 data_Pat_pre_clean <- data_Pat_pre[!is.na(data_Pat_pre$Response),]
 ```
-We had `r nrow(data_Pat_pre[!is.na(data_Pat_pre$Response),])` patients with a post-value available, and `r nrow(data_Pat_pre_clean[data_Pat_pre_clean$Response == 1,])`
+We had `r nrow(data_Pat_pre[!is.na(data_Pat_pre$Response),])` patients with a post-value available, and `r nrow(data_Pat_pre_clean[data_Pat_pre_clean$Response == 1,])` responders.
 
 
 # Descriptive group comparisons
@@ -162,7 +162,7 @@ task_list <- list(
   ),
   "Stop-Signal Task" = list(
     subset_data = data_Pat_pre_clean %>%
-      filter(!is.na(SSRT))
+      filter(!is.na(StopSignal_SSRT))
   )
 )
 

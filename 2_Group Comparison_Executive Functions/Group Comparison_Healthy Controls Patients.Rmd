@@ -9,7 +9,7 @@ output:
     code_folding: hide
     df_print: paged
 params:
-  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Taskdata/BIS"
+  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Taskdata/BIS/BIS_RT-trimmed-RT-wrong-removed_outliers-removed.csv"
   output_base_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/HC_vs_Pat"
 ---
 <style type="text/css">
@@ -50,8 +50,7 @@ source("../Useful_functions.R")
 # Set-Up
 ## 1. Importing Data
 ```{r}
-task_file_path <- file.path(params$input_data_path, "BIS_RT_trimmed_RT_wrong_removed_outliers-removed.csv")
-task_data_all <- read.csv(task_file_path)
+task_data_all <- read.csv(params$input_data_path)
 
 # Get Pat_Pre and HC data
 Patients_vs_HC <- get_group_data(data = task_data_all, group = c("HC", "Pat_Pre"))
@@ -67,8 +66,8 @@ results_path <- create_results_path(inputdata_path = params$input_data_path,
 ```{r}
 # Reduce dataset to executive functions of interest (BIS columns and SSRT)
 BIS_columns <- colnames(Patients_vs_HC)[grep("BIS", colnames(Patients_vs_HC))]
-#BIS_columns <- BIS_columns[BIS_columns != "T1_BAT_BIS_11_score"] # BIS-11 is a questionnaire
-imp_columns <- c(BIS_columns,"SSRT")
+BIS_columns <- BIS_columns[BIS_columns != "T1_BAT_BIS_11_score"] # BIS-11 is a questionnaire
+imp_columns <- c(BIS_columns,"StopSignal_SSRT")
 Patients_vs_HC_imp <- Patients_vs_HC[,c("Subject","Gruppe",imp_columns)]
 ```
 In total, data for `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 1,])` patients and `r nrow(Patients_vs_HC_imp[Patients_vs_HC_imp$Gruppe == 0,])` healthy controls were available. When outliers were removed, the number of subjects varied slightly:  
@@ -150,7 +149,7 @@ Patients_vs_HC_long <- Patients_vs_HC_long %>%
     grepl("NumberLetter", Condition) ~ "Number-Letter Task",
     grepl("Stroop", Condition) ~ "Stroop Task",
     grepl("TwoBack", Condition) ~ "2-Back Task",
-    Condition == "SSRT" ~ "Stop-Signal Task"
+    Condition == "StopSignal_SSRT" ~ "Stop-Signal Task"
   ))
 
 # Remove prefixes from Condition labels, keeping Task intact
@@ -193,6 +192,7 @@ violin_plots_patients_hc <- ggplot(Patients_vs_HC_long, aes(x = Condition, y = B
   scale_x_discrete(labels = function(x) {
     x[x == "Diff_Score"] <- "Difference \nScore"
     x[x == "Diff_Score Stroop"] <- "Difference \nScore"
+    x[x == "StopSignal_SSRT"] <- "SSRT"
     return(x)
   }) +
   scale_fill_manual(values = c("Healthy Controls" = "#D3D3D3", #colors 

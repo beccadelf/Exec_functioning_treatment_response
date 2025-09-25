@@ -4,15 +4,21 @@
 # ===========================
 
 # ---- Create results paths ----
-# This function creates a folder which is named after the processing in the given directory
+# This function creates folders to store the results. The folders are named after the 
+# the processing of the data.
 
 create_results_path <- function(inputdata_path, output_mainpath, response_criterion = NULL){
-  # 'inputdata_path: ending with response_FSQ / response_BAT
+  # inputdata_path: path to the file with the preprocessed taskdata
   # Get the part of the file-path describing the dealing with outliers
-  outliers_part = basename(dirname(inputdata_path))
+  filename = basename(inputdata_path)
+  parts_filename = strsplit(filename, "_")[[1]]
+  
+  # Get the part of the file-path describing the processing of outliers
+  outliers_csv = parts_filename[3]
+  outliers_part = gsub(".csv","",outliers_csv)
+  
   # Get the part of the file-path describing the processing of RT
-  grandparent_dir = dirname(dirname(dirname(inputdata_path)))
-  RTprocessing_part = basename(grandparent_dir)
+  RTprocessing_part = parts_filename[2]
   
   # Get new folder-name
   new_folder = paste(RTprocessing_part, outliers_part, sep = "_")
@@ -39,16 +45,16 @@ variable_labels <- c(
   Geschlecht = "Sex (Female)",
   Abschluss = "Education",
   Abschluss_Gymnasium = "Education (High-School)",
-  TwoBack_BIS_Foil = "2-Back: Foil",
-  TwoBack_BIS_Target = "2-Back: Target",
-  TwoBack_BIS_Total = "2-Back: Total",
-  Stroop_BIS_Congruent = "Stroop: Congruent",
-  Stroop_BIS_Incongruent = "Stroop: Incongruent",
-  Stroop_BIS_Diff_Score = "Stroop: Incongruent-Congruent",
-  NumberLetter_BIS_Repeat = "Number-Letter: Repeat",
-  NumberLetter_BIS_Switch = "Number-Letter: Switch",
-  NumberLetter_BIS_Diff_Score = "Number-Letter: Switch-Repeat",
-  SSRT = "Stop-Signal RT",
+  TwoBack_BIS_Foil = "2-Back: BIS Foil",
+  TwoBack_BIS_Target = "2-Back: BIS Target",
+  TwoBack_BIS_Total = "2-Back: BIS Total",
+  Stroop_BIS_Congruent = "Stroop: BIS Congruent",
+  Stroop_BIS_Incongruent = "Stroop: BIS Incongruent",
+  Stroop_BIS_Diff_Score = "Stroop: BIS Incongruent-Congruent",
+  NumberLetter_BIS_Repeat = "Number-Letter: BIS Repeat",
+  NumberLetter_BIS_Switch = "Number-Letter: BIS Switch",
+  NumberLetter_BIS_Diff_Score = "Number-Letter: BIS Switch-Repeat",
+  StopSignal_SSRT = "Stop-Signal: SSRT",
   T1_BAT_FAS_score = "FSQ Score",
   BAT_T1 = "BAT Score",
   T1_BAT_BDI_II_score = "BDI-II Score",
@@ -425,36 +431,23 @@ prepare_ttest_table <- function(ttest_table, var_type = c("dimensional", "catego
 
 generate_characteristics_table <- function(data, task_name, grouping_variable, group_labels) {
   data %>%
-    select({{ grouping_variable }}, Alter, Geschlecht, Abschluss, 
-           T1_BAT_FAS_score, BAT_T1, T1_BAT_BDI_II_score, T1_BAT_STAI_T_score, T1_BAT_BIS_11_score, 
-           T1_BAT_Kirby_k_score, T1_BAT_CFC_14_score, T1_BAT_SRHI_score, ) %>%
+    select({{ grouping_variable }}, Alter, Geschlecht, Abschluss_Gymnasium, 
+           T1_BAT_FAS_score, BAT_T1, T1_BAT_BDI_II_score, T1_BAT_STAI_T_score) %>%
     mutate({{ grouping_variable }} := factor({{ grouping_variable }}, levels = c(0, 1), labels = group_labels),
-           Geschlecht = factor(Geschlecht, levels = c(0, 1), labels = c("Male", "Female")),
-           Abschluss = factor(Abschluss, levels = c(1, 2, 3, 4), 
-                              labels = c("Basic secondary education", 
-                                         "Intermediate secondary education",
-                                         "Higher secondary education", 
-                                         "Other"))) %>%
+           Geschlecht = factor(Geschlecht, levels = c(0, 1), labels = c("Male", "Female"))) %>%
     tbl_summary(by = {{ grouping_variable }},  
                 digits = list(T1_BAT_BDI_II_score = c(1, 1),
-                              T1_BAT_BIS_11_score = c(1, 1),
-                              T1_BAT_CFC_14_score = c(1, 1),
                               T1_BAT_FAS_score = c(1, 1),
                               BAT_T1 = c(1, 1),
-                              T1_BAT_SRHI_score = c(1, 1),
                               T1_BAT_STAI_T_score= c(1, 1)),
                 label = list(
                   Alter ~ "Age",
                   Geschlecht ~ "Sex",
-                  Abschluss ~ "Education",
+                  Abschluss_Gymnasium ~ "High Education",
                   T1_BAT_FAS_score ~ "FSQ Score",
                   BAT_T1 ~ "BAT Score",
                   T1_BAT_BDI_II_score ~ "BDI-II Score",
-                  T1_BAT_STAI_T_score ~ "STAI-T Score",
-                  T1_BAT_BIS_11_score ~ "BIS-11 Score",
-                  T1_BAT_Kirby_k_score ~ "Kirby k Score",
-                  T1_BAT_CFC_14_score ~ "CFC-14 Score",
-                  T1_BAT_SRHI_score ~ "SRHI Score"
+                  T1_BAT_STAI_T_score ~ "STAI-T Score"
                 ),
                 statistic = list(
                   all_continuous() ~ "{mean} ({sd})",

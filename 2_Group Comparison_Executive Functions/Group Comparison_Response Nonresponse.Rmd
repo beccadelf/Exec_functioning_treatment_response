@@ -9,9 +9,9 @@ output:
     code_folding: hide
     df_print: paged
 params:
-  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Taskdata/BIS"
+  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Taskdata/BIS/BIS_RT-trimmed-RT-wrong-removed_outliers-removed.csv"
   output_base_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/R_vs_NR"
-  response_criterion: "Response_BAT" # choose between "Response_FSQ_50", "Response_FSQ_clinsig", and "Response_BAT"
+  response_criterion: "Response_FSQ_50" # choose between "Response_FSQ_50", "Response_FSQ_clinsig", and "Response_BAT"
   
 ---
 <style type="text/css">
@@ -41,7 +41,7 @@ library(gtsummary)
 library(gt)
 library(car)
 library(flextable)
-library(officer)
+#library(officer)
 
 # User-defined functions
 source("../Useful_functions.R")
@@ -56,8 +56,7 @@ format_flextable_landscape <- flextable_settings(word_orientation = "landscape")
 
 ## 2. Import Data 
 ```{r}
-task_file_path <- file.path(params$input_data_path, "BIS_RT_trimmed_RT_wrong_removed_outliers-removed.csv")
-task_data_all <- read.csv(task_file_path)
+task_data_all <- read.csv(params$input_data_path)
 
 # Get Pat_Pre data
 data_Pat_pre <- get_group_data(data = task_data_all, group = c("Pat_Pre"))
@@ -65,7 +64,7 @@ data_Pat_pre <- get_group_data(data = task_data_all, group = c("Pat_Pre"))
 
 ## 3. Set results path to save tables and images
 ```{r}
-results_path <- create_results_path(inputdata_path = basic_path, 
+results_path <- create_results_path(inputdata_path = params$input_data_path, 
                                          output_mainpath = params$output_base_path,
                                          response_criterion =  params$response_criterion)
 ```
@@ -73,7 +72,7 @@ results_path <- create_results_path(inputdata_path = basic_path,
 ## 4. Prepare dataset
 ### 4.1. Add response criterion
 ```{r}
-socdem_file_path = "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Clinical_data/socdem-data_cleaned_response.csv"
+socdem_file_path = "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Clinical_data/socdem-data_cleaned_response-added.csv"
 data_Pat_pre <- add_response(df = data_Pat_pre, socdem_file_path = socdem_file_path, criterion = params$response_criterion)
 ```
 
@@ -95,7 +94,7 @@ imp_columns <- c("NumberLetter_BIS_Repeat", "NumberLetter_BIS_Switch",
                  "NumberLetter_BIS_Diff_Score", "Stroop_BIS_Congruent", 
                  "Stroop_BIS_Incongruent", "Stroop_BIS_Diff_Score", 
                  "TwoBack_BIS_Foil", "TwoBack_BIS_Target", "TwoBack_BIS_Total", 
-                 "SSRT")
+                 "StopSignal_SSRT")
 ```
 
 ### 2. Test for variance homogeneity
