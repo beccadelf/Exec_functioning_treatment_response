@@ -9,7 +9,7 @@ output:
     code_folding: hide
     df_print: paged
 params:
-  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Taskdata/BIS"
+  input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Taskdata/BIS/BIS_RT-trimmed-RT-wrong-removed_outliers-removed.csv"
   output_base_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/1_Group_comparison/HC_vs_Pat"
 ---
 <style type="text/css">
@@ -48,15 +48,13 @@ source("../Useful_functions.R")
 # Set-Up
 ### 0. Set results path to save tables and images
 ```{r}
-basic_path <- file.path(params$input_data_path, "response_FSQ")
-results_path <- create_results_path(inputdata_path = basic_path, 
+results_path <- create_results_path(inputdata_path = params$input_data_path, 
                                     output_mainpath = params$output_base_path)
 ```
 
 ### 1. Import Task Performance Data
 ```{r}
-task_file_path <- file.path(params$input_data_path, "BIS_RT_trimmed_RT_wrong_removed_outliers-removed.csv")
-task_data_all <- read.csv(task_file_path)
+task_data_all <- read.csv(params$input_data_path)
 
 # Get Pat_Pre and HC data
 Patients_vs_HC <- get_group_data(data = task_data_all, group = c("HC", "Pat_Pre"))
@@ -72,7 +70,7 @@ Patients_vs_HC_imp <- Patients_vs_HC[,c("Subject", performance_tasks)] # "Alter"
 
 #### 2.2. Add confounds
 ```{r}
-socdem_file_path = "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Clinical_data/socdem-data_cleaned_response.csv"
+socdem_file_path = "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Clinical_data/socdem-data_cleaned_response-added.csv"
 Patients_vs_HC_imp_conf <- add_socdem_vars(df = Patients_vs_HC_imp, socdem_file_path = socdem_file_path, vars = c("Alter", "Gruppe", "Abschluss_Gymnasium"))
 ```
 
@@ -270,7 +268,7 @@ tasks_homosced_violated <- c("NumberLetter_BIS_Repeat", # visual and statistical
                        "NumberLetter_BIS_Switch", # visual violation of homogeneity
                        "Stroop_BIS_Diff_Score", # visual violation of homogeneity
                        "TwoBack_BIS_Target", # visual and statistical violation of homogeneity
-                       "SSRT" #visual violation of homogeneity
+                       "StopSignal_SSRT" #visual violation of homogeneity
                        )
 ```
 
@@ -442,20 +440,8 @@ table_summary
 
 ### Make nice table
 ```{r}
-# Change taks names and column names
-rename_map <- c(
-  'NumberLetter_BIS_Repeat' = "Number-Letter: Repeat",
-  'NumberLetter_BIS_Switch' = "Number-Letter: Switch",
-  'NumberLetter_BIS_Diff_Score' = "Number-Letter: Switch - Repeat",
-  'Stroop_BIS_Congruent' = "Stroop: Congruent",
-  'Stroop_BIS_Incongruent' = "Stroop: Incongruent",
-  'Stroop_BIS_Diff_Score' = "Stroop: Incongruent - Congruent",
-  'TwoBack_BIS_Foil' = "2-Back: Foil",
-  'TwoBack_BIS_Target' = "2-Back: Target",
-  'TwoBack_BIS_Total' = "2-Back: Total",
-  'SSRT' = "Stop-Signal RT")
-table_summary <- table_summary %>%mutate(Name = dplyr::recode(Name, !!!rename_map))
-#table_summary$Name <- recode(table_summary$Name, !!!rename_map)
+# Change task names and column names
+table_summary <- reorder_and_rename_rows(df = table_summary, col_name = "Name", label_map = variable_labels)
 
 colnames(table_summary) <- dplyr::recode(colnames(table_summary),"Name" = "Performance Measure", 
                                   "error_reduction_due_to_predictor" = "Type III SSq explained by Group",

@@ -11,7 +11,7 @@ output:
 params:
   input_data_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Taskdata/BIS/BIS_RT-trimmed-RT-wrong-removed_outliers-removed.csv"
   output_base_path: "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/2_Machine_learning/Feature_Label_Dataframes"
-  response_criterion: "Response_FSQ_50" # choose between "Response_FSQ_50", "Response_FSQ_clinsig", and "Response_BAT"
+  response_criterion: "FSQ_perc_change" # choose between "Response_FSQ_50", "FSQ_perc_change", "Response_FSQ_clinsig", and "Response_BAT" 
 ---
 <style type="text/css">
 .main-container { /* Adjust main blocks */
@@ -36,11 +36,10 @@ library(caret)
 source("../Useful_functions.R")
 ```
 
-## 0. Load relevant data and define paths
-
+# 1. Load relevant data and define paths
+## Define paths
 ```{r}
-task_data_all <- read.csv(params$input_data_path)
-data_pat_pre <- get_group_data(data = task_data_all, group = c("Pat_Pre"))
+socdem_file_path = "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Clinical_data/socdem-data_cleaned_response-added.csv"
 
 # Define paths
 output_path <- create_results_path(inputdata_path = params$input_data_path, output_mainpath = params$output_base_path,
@@ -48,58 +47,30 @@ output_path <- create_results_path(inputdata_path = params$input_data_path, outp
 output_path_share <- file.path("Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/Make_model_available/Feature_Label_Dataframes", params$response_criterion)
 dir.create(output_path_share, recursive = TRUE)
 ```
-
-## 1. Prepare dataset
-### 1.1. Select features of interest from task data
-BIS variables as well as the mean Accuracy are used as features.
+## Load task data
 ```{r}
-task_features <- c("NumberLetter_BIS_Repeat", "NumberLetter_BIS_Switch", 
-                   "NumberLetter_BIS_Diff_Score", "Stroop_BIS_Congruent", 
-                   "Stroop_BIS_Incongruent", "Stroop_BIS_Diff_Score", 
-                   "TwoBack_BIS_Foil", "TwoBack_BIS_Target", "TwoBack_BIS_Total", 
-                   "StopSignal_SSRT", "NumberLetter_Overall_PC", "Stroop_Overall_PC", "TwoBack_Overall_PC")
-features_df <- data_pat_pre[ , c("Subject", task_features)]
+task_data_all <- read.csv(params$input_data_path)
+features_df <- get_group_data(data = task_data_all, group = c("Pat_Pre"))
 ```
 
-### 1.1. Add socdem and clinical variables
+## Add socdem and clinical variables
 ```{r}
-socdem_file_path = "Y:/PsyThera/Projekte_Meinke/Old_projects/Labrotation_Rebecca/0_Datapreparation/Clinical_data/socdem-data_cleaned_response-added.csv"
-#socdem_clin_vars <- c("Alter", "Geschlecht", "Abschluss_Gymnasium", "T1_BAT_FAS_score", "T1_BAT_BDI_II_score", "T1_BAT_STAI_T_score", "T1_BAT_BIS_11_score", "T1_BAT_Kirby_k_score", "T1_BAT_CFC_14_score", "T1_BAT_SRHI_score", "BAT_T1")
-socdem_clin_vars <- c("Alter", "Geschlecht", "Abschluss_Gymnasium", "T1_BAT_FAS_score", "T1_BAT_BDI_II_score", "T1_BAT_STAI_T_score","BAT_T1")
-features_df <- add_socdem_vars(df = features_df, socdem_file_path = socdem_file_path, vars = socdem_clin_vars)
+socdem_clin_vars <- c("Alter", "Geschlecht", "Abschluss_Gymnasium", "T1_BAT_FAS_score", "T1_BAT_BDI_II_score", "T1_BAT_STAI_T_score", "T1_BAT_BIS_11_score", "T1_BAT_Kirby_k_score", "T1_BAT_CFC_14_score", "T1_BAT_SRHI_score", "BAT_T1")
+
+features_df <- add_socdem_vars(features_df, socdem_file_path, socdem_clin_vars)
 ```
 
-### 1.2. Add response and exclude patients due with missing response
+## Add response and exclude patients due with missing response
 ```{r}
 features_df <- add_response(df = features_df, socdem_file_path = socdem_file_path, criterion = params$response_criterion)
 
 features_df <- features_df %>%
-  filter(!is.na(Response)) # equals to NA at T1_BAT_FAS_score and/or T3_BAT_FAS_score
+  filter(!is.na(Response))
 ```
-`r nrow(data_pat_pre) - nrow(data_pat_pre_clean)` patients were removed due to missing FAS_T1 and/or FAS_T3 (i.e. response criterion).
+`r nrow(data_pat_pre) - nrow(data_pat_pre_clean)` patients were removed due to missing response criterion.
 
 
-## 2. Add classes (for classifier) and outcome (for regressor)
-
-### 2.1. Classes (Responder vs. Non-Responder)
-```{r Save labels in separate dataframe}
-labels_df <- features_df["Response"]
-features_df$Response <- NULL
-```
-
-### 2.2. Regression: Outcome (Percent-change in FAS)
-```{r}
-if (params$response_criterion == "response_FSQ") {
-  outcome_df <- round(data.frame(FAS_perc_change = ((features_df$T3_BAT_FAS_score - features_df$T1_BAT_FAS_score) / features_df$T1_BAT_FAS_score) * 100) * (-1),2)
-# } else {
-#   outcome_df <- round(data.frame(BAT_perc_change = ((features_df$BAT_T3 - features_df$BAT_T1) / features_df$BAT_T1) * 100), 2) # 2 cases in which BAT_T1=0 and BAT_perc_change thus Inf
-# }
-  } else {
-  outcome_df <- data.frame(BAT_perc_change = features_df$BAT_T3)
-  }
-```
-
-## 3. Renaming of features
+# 2. Renaming of features
 ```{r Prepare for ML}
 # Drop variable "Subject"
 features_df$Subject <- NULL
@@ -119,7 +90,7 @@ features_df <- features_df %>%
          Abschluss_Gymnasium = Abschluss_Gymnasium)
 ```
 
-## 4. Recode missing values for binary and non-binary features
+# 3. Recode missing values for binary and non-binary features
 
 ```{r Missing values}
 #var_category <- find_bin_cols(features_df_clean)
@@ -135,41 +106,59 @@ for (feature in non_bin_cols) {
 }
 ```
 
-## 5. Create different feature sets
-### 5.1 Baseline feature set (clinical features only)
+# 4. Create Labels_df
+```{r}
+labels_df <- features_df$Response
+```
+
+
+# 5. Create different feature sets
+## 5.1 Baseline feature set (clinical features only)
 ```{r Reduced feature dataframe}
 #clin_features <- c("is_woman", "Age", "Abschluss_Gymnasium", "FAS", "BAT", "BDI_II", "STAI_T", "BIS_11", "Kirby_k", "CFC_14", "SRHI")
 clin_features <- c("is_woman", "Age", "Abschluss_Gymnasium", "FAS", "BAT", "BDI_II", "STAI_T")
 clin_features_df <- features_df[clin_features]
 ```
 
-# Set 2: All features (including executive functioning) but without Overall Accuracy etc.
+## 5.2 All features (including executive functioning)
 ```{r Reduced feature dataframe}
-cols_n_trimmed <- colnames(features_df)[grep("n_trimmed_removed", colnames(features_df))]
-cols_n_wrong <- colnames(features_df)[grep("n_wrong_removed", colnames(features_df))]
-cols_accuracy <- colnames(features_df)[grep("Overall_PC", colnames(features_df))]
-addit_performance_features <- c(cols_n_trimmed, cols_n_wrong, cols_accuracy)
-
-all_features_final <- features_df[, !names(features_df) %in% addit_performance_features]
+task_features_interest <- c("NumberLetter_BIS_Repeat", "NumberLetter_BIS_Switch", 
+                   "NumberLetter_BIS_Diff_Score", "Stroop_BIS_Congruent", 
+                   "Stroop_BIS_Incongruent", "Stroop_BIS_Diff_Score", 
+                   "TwoBack_BIS_Foil", "TwoBack_BIS_Target", "TwoBack_BIS_Total", 
+                   "StopSignal_SSRT")
+clin_task_features_df <- features_df[,c(clin_features, task_features_interest)]
 ```
 
-### 5.3 Create reduced feature set to share model publicly
+## 5.3 Exploratory reasons: additional features
+```{r}
+#cols_n_trimmed <- colnames(features_df)[grep("n_trimmed_removed", colnames(features_df))]
+#cols_n_wrong <- colnames(features_df)[grep("n_wrong_removed", colnames(features_df))]
+#cols_accuracy <- colnames(features_df)[grep("Overall_PC", colnames(features_df))]
+#addit_performance_features <- c(cols_n_trimmed, cols_n_wrong, cols_accuracy)
+
+#all_features_final <- features_df[, !names(features_df) %in% addit_performance_features]
+```
+
+# 6. Save labels and features 
+```{r Save dataframes, warning=FALSE}
+write.csv(clin_task_features_df, file.path(output_path, "all_features.csv"), row.names = FALSE)
+write.csv(clin_features_df, file.path(output_path, "clinical_features_only.csv"), row.names = FALSE)
+if (params$response_criterion == "FSQ_perc_change"){
+  write.csv(labels_df, file.path(output_path, "outcomes.csv"), row.names = FALSE)
+} else {
+  write.csv(labels_df, file.path(output_path, "labels.csv"), row.names = FALSE)
+}
+```
+
+## 7 Only for the prediction of FSQ-response (50%): Create reduced feature set to share model publicly
 This model does not contain the BAT as it is often not assessed.
 ```{r}
-discarded_features <- c("BAT", "BIS_11", "Kirby_k", "CFC_14", "SRHI")
-clin_features_reduced <- clin_features_df[, !names(clin_features_df) %in% discarded_features]
-```
-
-## 6. Save all 5 dataframes
-
-```{r Save dataframes, warning=FALSE}
-write.csv(all_features_final, file.path(output_path, "all_features.csv"), row.names = FALSE)
-write.csv(features_df, file.path(output_path, "all_features_accuracy.csv"), row.names = FALSE)
-write.csv(clin_features_df, file.path(output_path, "clinical_features_only.csv"), row.names = FALSE)
-write.csv(labels_df, file.path(output_path, "labels.csv"), row.names = FALSE)
-write.csv(outcome_df, file.path(output_path, "outcomes.csv"), row.names = FALSE)
-
-# Feature_Label_Dataframes for shared model
-write.csv(clin_features_reduced, file.path(output_path_share, "clinical_features_only.csv"), row.names = FALSE)
-write.csv(labels_df, file.path(output_path_share, "labels.csv"), row.names = FALSE)
+if (params$response_criterion == "Response_FSQ_50"){
+  clin_features_reduced <- c("is_woman", "Age", "Abschluss_Gymnasium", "FAS", "BDI_II", "STAI_T")
+  clin_features_reduced <- features_df[, clin_features_reduced]
+  
+  write.csv(clin_features_reduced, file.path(output_path_share, "clinical_features_only.csv"), row.names = FALSE)
+  write.csv(labels_df, file.path(output_path_share, "labels.csv"), row.names = FALSE)
+}
 ```

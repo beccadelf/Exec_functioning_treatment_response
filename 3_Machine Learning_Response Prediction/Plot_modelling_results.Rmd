@@ -8,6 +8,8 @@ output:
     toc_float: true
     code_folding: hide
     df_print: paged
+params:
+  response_criterion: "Response_BAT" # choose between "Response_FSQ_50", and "Response_BAT" 
 ---
 # Setup
 ```{r setup, include=FALSE}
@@ -29,8 +31,9 @@ source("../Useful_functions.R")
 # Settings
 ```{r}
 basic_path = "Y:\\Psythera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning"
-path_results_folder = file.path(basic_path, "Results\\RT_trimmed_RT_wrong_removed_outliers-removed\\Response_BAT\\Results")
-plots_path = file.path(dirname(path_results_folder), "Plots/")
+path_results_folder = file.path(basic_path, "Results\\RT-trimmed-RT-wrong-removed_outliers-removed", params$response_criterion)
+plots_path = file.path(path_results_folder, "Plots/")
+dir.create(plots_path)
 
 family = "Arial"
 theme_set(theme_bw() + theme(text = element_text(family = family),
@@ -69,18 +72,7 @@ load_and_combine_results <- function(path_results_folder, file_name){
 }
 ```
 
-# Create Plots
-## Load and combine results
-```{r}
-# Get all folders in the results folder (each containing the results of another model)
-combined_results <- load_and_combine_results(path_results_folder, file_name = "performance_across_iters")
-
-# Separate into regressor and classifier dataframes
-classification_results <- combined_results[grepl("clf", combined_results$FolderName), ]
-regression_results <- combined_results[grepl("regressor", combined_results$FolderName), ]
-```
-
-## Prepare classification results
+## Functions for classification
 ```{r}
 rename_classifier_models <- function(classification_results){
   # Create new model variable with nice modelnames
@@ -106,11 +98,6 @@ classification_results$FeatureSet <- ifelse(grepl("clinical_features", classific
 return(classification_results)
 }
 
-classification_results <- rename_classifier_models(classification_results)
-```
-
-## Create a plot for the classification results
-```{r, fig.width = 16, fig.height = 9}
 create_classification_plot <- function(results_df){
   # Ensure correct ordering
   results_df$Model <- factor(results_df$Model, levels = c("Random Forest\n(OS: SMOTE)","Random Forest\n(OS: Simple)","Random Forest\n(OS: no)","Rbf-SVM\n(OS: SMOTE)",
@@ -149,56 +136,25 @@ create_classification_plot <- function(results_df){
 
   return(plot)
 }
-
-classification_plot <- create_classification_plot(results_df = classification_results)
-classification_plot 
 ```
 
-## Create a plot for the regression results
-```{r,fig.width = 16, fig.height = 9}
-create_regression_plot <- function(results_df){
-  # Create new model variable
-  results_df$Model <- ifelse(grepl("random_forest_regressor", results_df$FolderName), "Random Forest",
-                      ifelse(grepl("ridge_regressor", results_df$FolderName), "Ridge", NA))
-  
-  # Specify colors and rename feature sets
-  results_df$FeatureSet <- ifelse(grepl("clinical_features", results_df$FolderName),
-                                  "Clinical Features", "Clinical + Executive\nFunctioning Features")
-  colors <- c("Clinical Features" = "white", "Clinical + Executive\nFunctioning Features" = "#D3D3D3")
-  # Set factor levels for FeatureSet to control order in the plot
-  results_df$FeatureSet <- factor(results_df$FeatureSet, levels = c("Clinical Features", "Clinical + Executive\nFunctioning Features"))
-  
-  # Create ggplot
-  plot <- ggplot(results_df, aes(x=FeatureSet, y=MSE, fill=FeatureSet)) +
-    geom_violin(scale = "width") +
-    geom_jitter(size = 1, width = 0.2, height = 0) + 
-    stat_summary(
-      geom = "point",
-      shape = 24,
-      fun = "mean",
-      col = "black",
-      fill = "red",
-      size = 3
-    ) +
-    labs(y = "Mean Squared Error",  x = "", fill = "Feature Set") + 
-    scale_fill_manual(values = colors) + 
-    theme(axis.text.x = element_text(angle = 45, hjust = 1),
-          legend.position = "none") +
-    facet_wrap(~Model, nrow = 1)
 
-  return(plot)
-}
+# Load and combine results
+```{r}
+# Get all folders in the results folder (each containing the results of another model)
+classification_results <- load_and_combine_results(path_results_folder, file_name = "performance_across_iters")
+```
 
-regression_plot <- create_regression_plot(results_df = regression_results)
-regression_plot
+# Create a plot for the classification results
+```{r, fig.width = 16, fig.height = 9}
+classification_results <- rename_classifier_models(classification_results)
+classification_plot <- create_classification_plot(results_df = classification_results)
+classification_plot
 ```
 
 ## Save plots
 ```{r}
 ggsave(file.path(plots_path,"Classification_results_plot.png"), plot = classification_plot, width = 16, height = 9, dpi = 300)
-ggsave(file.path(plots_path, "Regression_results_plot.png"), plot = regression_plot, width = 16, height = 9, dpi = 300)
-ggsave(file.path(plots_path,"Classification_results_plot.svg"), plot = classification_plot, width = 16, height = 9)
-ggsave(file.path(plots_path, "Regression_results_plot.svg"), plot = regression_plot, width = 16, height = 9)
 ```
 
 # Summarize classificiaton results in a table

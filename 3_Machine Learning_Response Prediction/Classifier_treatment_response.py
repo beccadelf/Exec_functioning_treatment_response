@@ -84,10 +84,10 @@ def set_options_and_paths():
     except:
         print("Using arguments given in the script")
         args = parser.parse_args([
-            '--PATH_INPUT_DATA', "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Feature_Label_Dataframes\\RT_trimmed_RT_wrong_removed_outliers-removed\\response_BAT",
+            '--PATH_INPUT_DATA', "Y:\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\4_Make_model_available\\Feature_Label_Dataframes\\response_FSQ_50",
             # '--PATH_RESULTS_BASE', "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Results\\response_FSQ",
-            '--ANALYSIS', "all_features",
-            '--CLASSIFIER', 'svm_clf',
+            '--ANALYSIS', "clinical_features_only",
+            '--CLASSIFIER', 'random_forest_clf',
             '--OVERSAMPLING', 'no',
             '--NUMBER_REPETITIONS', "100",
             '--NULL_MODEL', "yes"
@@ -143,7 +143,12 @@ def procedure_per_iter(num_iter, args):
     X_train_imp_clean_scaled, X_test_imp_clean_scaled = z_scale_data(X_train_imp_clean, X_test_imp_clean)
     
     # Feature selection (using elastic net)
-    X_train_imp_clean_scaled_sel, X_test_imp_clean_scaled_sel, features_selected = select_features_classification(X_train_imp_clean_scaled, X_test_imp_clean_scaled, y_train_final, feature_names_clean)
+    if len(feature_names_clean) <= 7:
+        X_train_imp_clean_scaled_sel = X_train_imp_clean_scaled
+        X_test_imp_clean_scaled_sel = X_test_imp_clean_scaled
+        features_selected = feature_names_clean
+    else:    
+        X_train_imp_clean_scaled_sel, X_test_imp_clean_scaled_sel, features_selected = select_features_classification(X_train_imp_clean_scaled, X_test_imp_clean_scaled, y_train_final, feature_names_clean)
     
     # Fit classifier
     if args.CLASSIFIER == "random_forest_clf":

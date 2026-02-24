@@ -7,6 +7,8 @@ output:
     toc_float: true
     code_folding: hide
     df_print: paged
+params:
+  response_criterion: "Response_FSQ_50" # choose between "Response_FSQ_50", "FSQ_perc_change", and "Response_BAT" 
 ---
 # Setup
 ```{r setup, include=FALSE}
@@ -25,12 +27,12 @@ library(ggplot2)
 # Load and combine results
 ```{r}
 # Get all folders in the results folder (each containing the results of another model)
-path_results_folder = "Y:\\Psythera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Results\\RT_trimmed_RT_wrong_removed_outliers-removed\\Response_FSQ_50"
+#path_results_folder = file.path("Y:\\Psythera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\4_Make_model_available\\Results\\RT-trimmed-RT-wrong-removed_outliers-removed",
+path_results_folder = file.path("Y:\\Psythera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\4_Make_model_available\\Results", params$response_criterion)
 results_folders <- list.files(path = path_results_folder, full.names = FALSE)
 
-# Filter for new results
-results_folders_classification <- results_folders[grepl("final", results_folders)& grepl("clf", results_folders) & !grepl("permuted", results_folders)]
-results_folders_regressors <- results_folders[grepl("final", results_folders)& grepl("regressor", results_folders) & !grepl("permuted", results_folders)]
+# Filter for results-folders
+results_folders <- results_folders[grepl("final", results_folders) & !grepl("permuted", results_folders)]
 ```
 
 # Permutation
@@ -71,7 +73,7 @@ collect_p_values <- function(folders_unpermuted, evaluation_metric, logic = "lar
     # Get equivalent permuted model folder name
     folder_name_permuted <- paste0(folder_name, "_permuted")
     
-    # Try to load the evaluation metric per iteration
+    # Try to load and compare the evaluation metric per iteration
     tryCatch({
       evaluation_metrics_permuted <- read.delim(file.path(path_results_folder, folder_name_permuted, "performance_across_iters.txt"))[[evaluation_metric]]
       
@@ -98,24 +100,28 @@ collect_p_values <- function(folders_unpermuted, evaluation_metric, logic = "lar
 }
 ```
 
-# Classifiers models
+# Illustration: look at evaluation metrics of a permuted 
 ```{r}
-df <- collect_p_values(folders_unpermuted = results_folders_classification, evaluation_metric = "balanced_accuracy")
-
-# Improve readibility of table
-df$models <- gsub("random_forest_clf","rf",df$models)
-df$models <- gsub("svm_clf","svm",df$models)
-df$models <- gsub("_features","",df$models)
-
-df
+evaluation_metrics_permuted <- read.delim(file.path("Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\Results\\RT-trimmed-RT-wrong-removed_outliers-removed\\response_FSQ_50\\all_features_svm_clf_yes_smote_oversampling_final_permuted", "performance_across_iters.txt"))$balanced_accuracy
+hist(evaluation_metrics_permuted)
+mean(evaluation_metrics_permuted)
 ```
-# Regression models
-```{r}
-df <- collect_p_values(folders_unpermuted = results_folders_regressors, evaluation_metric = "MSE", logic = "small_better")
 
-df$models <- gsub("random_forest_regressopr","rf",df$models)
-df$models <- gsub("ridge_regressor","ridge",df$models)
-df$models <- gsub("_features","",df$models)
+# Apply function and show dataframe
+```{r}
+if (params$response_criterion == "Response_FSQ_50" | params$response_criterion == "Response_BAT"){
+  df <- collect_p_values(folders_unpermuted = results_folders, evaluation_metric = "balanced_accuracy")
+  # Improve readibility of table
+  df$models <- gsub("random_forest_clf","rf",df$models)
+  df$models <- gsub("svm_clf","svm",df$models)
+  df$models <- gsub("_features","",df$models)
+} else if (params$response_criterion == "FSQ_perc_change"){
+  df <- collect_p_values(folders_unpermuted = results_folders, evaluation_metric = "MSE", logic = "small_better")
+
+  df$models <- gsub("random_forest_regressor","rf",df$models)
+  df$models <- gsub("ridge_regressor","ridge",df$models)
+  df$models <- gsub("_features","",df$models)
+}
 
 df
 ```

@@ -18,31 +18,19 @@ script_wd = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_wd)
 
 # Define the parameters
-outcome = ["response_FSQ"]
+outcome = ["Response_FSQ_50"]
+#outcome_regressor = ["FSQ_perc_change"]
 regressors = ["random_forest_regressor","ridge_regressor"]
 classifiers = ["random_forest_clf","svm_clf"]
-#analysis = ["all_features", "clinical_features_only"]
 analysis = ["clinical_features_only"]
 oversampling = ["yes_simple","yes_smote", "no"]
-permutation = ["yes"]
+permutation = ["yes", "no"]
 
-path_input_data = "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\Make_model_available\\Feature_Label_Dataframes"
+path_input_data = "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\4_Make_model_available\\Feature_Label_Dataframes"
 # path_results_base = "Y:\\PsyThera\\Projekte_Meinke\\Old_projects\\Labrotation_Rebecca\\2_Machine_learning\\RT_trimmed_RT_wrong_removed_outliers-removed\\Results"
 
 # Generate argument_sets
-# Regression
-argument_sets_regression = []
-all_combinations_regression = product(outcome, analysis, regressors, permutation)
-for combo in all_combinations_regression:
-    argument_sets_regression.append({
-        'PATH_INPUT_DATA': os.path.join(path_input_data, combo[0]),
-        # 'PATH_RESULTS_BASE': os.path.join(path_results_base, combo[0]),
-        'ANALYSIS': combo[1],
-        'REGRESSOR': combo[2],
-        'NUMBER_REPETITIONS': "100",
-        'NULL_MODEL': combo[3]
-    })
-# Classification
+#Classification
 argument_sets_classification = []
 all_combinations_classification = product(outcome, analysis, classifiers, oversampling, permutation)
 for combo in all_combinations_classification:
@@ -56,6 +44,18 @@ for combo in all_combinations_classification:
         'NULL_MODEL': combo[4]
     })
 
+# Regression
+# argument_sets_regression = []
+# all_combinations_regression = product(outcome_regressor, analysis, regressors, permutation)
+# for combo in all_combinations_regression:
+#     argument_sets_regression.append({
+#         'PATH_INPUT_DATA': os.path.join(path_input_data, combo[0]),
+#         # 'PATH_RESULTS_BASE': os.path.join(path_results_base, combo[0]),
+#         'ANALYSIS': combo[1],
+#         'REGRESSOR': combo[2],
+#         'NUMBER_REPETITIONS': "100",
+#         'NULL_MODEL': combo[3]
+#     })
 
 # Paths to the Python scripts
 script_paths = {
