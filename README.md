@@ -1,6 +1,6 @@
 # Executive Functioning in Spider Phobia: Analysis Repository
 
-This repository contains all scripts and resources for the analyses described in the paper "Executive functioning does not predict exposure therapy outcomes and is not impaired in spider phobia."
+This repository contains all scripts and resources for the analyses described in the paper "Executive functioning in spider phobia: Impairment and role as predictor of exposure therapy outcome."
 
 The repository is structured into three main sections: **Model Release**, **Group Comparison** and **Machine Learning**, with the latter two aligned with the study's analytical objectives. The primary purpose of this repository is twofold:
 
